@@ -234,6 +234,20 @@ export class CanvasEngine {
     this.saveHistory(`Center item in slide ${s + 1}`);
   }
 
+  fillImageToSlide(item) {
+    if (!item || item.type !== 'image') return;
+    const slide = this.getActiveSlideIndex();
+    Object.assign(item, {
+      x: slide * this.slideWidth, y: 0,
+      width: this.slideWidth, height: this.slideHeight, rotation: 0,
+      crop: { x: 0, y: 0, width: 1, height: 1 },
+      fitOffset: { x: 0, y: 0, zoom: 1 },
+      clipShape: 'rect', frameStyle: 'none', borderRadius: 0, borderWidth: 0
+    });
+    this.triggerChange();
+    this.saveHistory(`Photo fills slide ${slide + 1}`);
+  }
+
   // Quick Action: Fit item inside current slide
   fitItemToSlide(item) {
     if (!item) return;

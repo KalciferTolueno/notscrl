@@ -1167,6 +1167,20 @@ class CanvasEngine {
     this.saveHistory(`Center item in slide ${s + 1}`);
   }
 
+  fillImageToSlide(item) {
+    if (!item || item.type !== 'image') return;
+    const slide = this.getActiveSlideIndex();
+    Object.assign(item, {
+      x: slide * this.slideWidth, y: 0,
+      width: this.slideWidth, height: this.slideHeight, rotation: 0,
+      crop: { x: 0, y: 0, width: 1, height: 1 },
+      fitOffset: { x: 0, y: 0, zoom: 1 },
+      clipShape: 'rect', frameStyle: 'none', borderRadius: 0, borderWidth: 0
+    });
+    this.triggerChange();
+    this.saveHistory(`Photo fills slide ${slide + 1}`);
+  }
+
   // Quick Action: Fit item inside current slide
   fitItemToSlide(item) {
     if (!item) return;
@@ -4161,6 +4175,11 @@ class NotScrlMobileApp {
 
   // 2. CANVAS FLOATING CONTROLS
   bindCanvasControls() {
+    document.getElementById('btn-canvas-controls')?.addEventListener('click', (event) => {
+      const expanded = document.getElementById('editor-view').classList.toggle('canvas-controls-open');
+      event.currentTarget.setAttribute('aria-expanded', String(expanded));
+      event.currentTarget.title = expanded ? 'Ocultar controles del lienzo' : 'Mostrar controles del lienzo';
+    });
     // Toggle Guides
     const btnGuides = document.getElementById('btn-toggle-guides');
     if (btnGuides) {
@@ -4201,6 +4220,14 @@ class NotScrlMobileApp {
   // 3. CONTEXT ACTION BAR (FLOATING AT TOP UNDER HEADER)
   bindContextActionBar() {
     this.contextBar = document.getElementById('context-action-bar');
+    for (const id of ['btn-ctx-fill-slide', 'btn-align-fill-slide']) {
+      document.getElementById(id)?.addEventListener('click', () => {
+        const item = this.engine.selectedItem;
+        if (!item || item.type !== 'image') return;
+        this.engine.fillImageToSlide(item);
+        this.studio.toast('Foto a página completa. Puedes deshacer.');
+      });
+    }
 
     // 1. Center inside current slide
     document.getElementById('btn-ctx-center-slide')?.addEventListener('click', () => {
@@ -4694,6 +4721,9 @@ class NotScrlMobileApp {
 
   // 7. SELECTION CHANGE CALLBACK
   onSelectionChanged(item) {
+    document.getElementById('selection-toolbar').classList.toggle('has-selection', !!item);
+    document.getElementById('btn-ctx-fill-slide')?.classList.toggle('hidden', item?.type !== 'image');
+    document.getElementById('btn-align-fill-slide')?.classList.toggle('hidden', item?.type !== 'image');
     if (item) {
       document.getElementById('selection-hint').classList.add('hidden');
       this.contextBar.classList.remove('hidden');

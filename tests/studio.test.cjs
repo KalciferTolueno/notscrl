@@ -34,6 +34,34 @@ test('Mobile slide fitting respects both screen dimensions and retains the activ
   }
 });
 
+test('Full-page photos use the active page, remove inset styling and keep matching sources uncropped', () => {
+  const { ImageItem } = load('js/objects.js', ['ImageItem']);
+  for (const height of [1350, 1080, 1920]) {
+    const engine = Object.assign(Object.create(CanvasEngine.prototype), {
+      slideWidth: 1080, slideHeight: height, slideCount: 3,
+      viewportWidth: 390, zoom: .2, panX: 195 - 1620 * .2,
+      history: [], historyIndex: -1, triggerChange() {}
+    });
+    const item = new ImageItem({ src: 'preview', complete: true, naturalWidth: 2160, naturalHeight: height * 2 }, 20, 80, 300, 200);
+    Object.assign(item, { originalKey: 'original', rotation: 90, frameStyle: 'polaroid', borderRadius: 8,
+      crop: { x: .2, y: .1, width: .5, height: .6 }, fitOffset: { x: .5, y: .2, zoom: 2 } });
+    engine.items = [item];
+    engine.saveHistory('Before');
+    engine.fillImageToSlide(item);
+    assert.deepEqual([item.x, item.y, item.width, item.height], [1080, 0, 1080, height]);
+    assert.equal(item.rotation, 0);
+    assert.equal(item.frameStyle, 'none');
+    assert.equal(item.borderRadius, 0);
+    assert.equal(item.originalKey, 'original');
+    let drawn;
+    item.drawImageCover({ drawImage(...args) { drawn = args; } }, 0, 0, item.width, item.height);
+    assert.deepEqual(drawn.slice(1), [0, 0, 2160, height * 2, 0, 0, 1080, height]);
+    assert.equal(engine.history.length, 2);
+    assert.equal(engine.history[0].items[0].rotation, 90);
+    assert.equal(engine.history[0].items[0].crop.x, .2);
+  }
+});
+
 test('Snapshots contain cloneable image sources and independent nested settings', () => {
   const engine = Object.create(CanvasEngine.prototype);
   const item = { type: 'image', image: { src: 'data:image/png;base64,AA==' }, shadow: { enabled: false }, fitOffset: { x: .5 } };
