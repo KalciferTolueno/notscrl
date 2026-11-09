@@ -330,24 +330,15 @@ export class ImageCropper {
     const boxH = parseFloat(this.cropBox.style.height) || imgH;
 
     // Normalized coordinates (0..1)
-    const normalizedCrop = {
-      x: Math.max(0, Math.min(1, boxLeft / imgW)),
-      y: Math.max(0, Math.min(1, boxTop / imgH)),
-      width: Math.max(0.05, Math.min(1, boxW / imgW)),
-      height: Math.max(0.05, Math.min(1, boxH / imgH))
+    const x = Math.max(0, Math.min(0.95, boxLeft / imgW));
+    const y = Math.max(0, Math.min(0.95, boxTop / imgH));
+    // Keep the existing source-to-canvas mapping; cropping only hides pixels.
+    this.targetItem.cropReference ||= { ...(this.targetItem.crop || { x: 0, y: 0, width: 1, height: 1 }) };
+    this.targetItem.crop = {
+      x, y,
+      width: Math.max(0.05, Math.min(1 - x, boxW / imgW)),
+      height: Math.max(0.05, Math.min(1 - y, boxH / imgH))
     };
-
-    this.targetItem.crop = normalizedCrop;
-
-    // Update item aspect ratio and preserve anchor
-    const croppedAspect = (normalizedCrop.width * (this.targetItem.naturalWidth || this.targetItem.width)) /
-                          (normalizedCrop.height * (this.targetItem.naturalHeight || this.targetItem.height));
-
-    if (croppedAspect > 0 && isFinite(croppedAspect)) {
-      this.targetItem.aspectRatio = croppedAspect;
-      // Adjust height to reflect new crop aspect ratio
-      this.targetItem.height = Math.round(this.targetItem.width / croppedAspect);
-    }
 
     this.engine.triggerChange();
     this.engine.saveHistory('Recortar imagen');

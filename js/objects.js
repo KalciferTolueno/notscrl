@@ -151,7 +151,7 @@ export class ImageItem extends CanvasItem {
 
     const natW = this.image.naturalWidth || this.naturalWidth || dw;
     const natH = this.image.naturalHeight || this.naturalHeight || dh;
-    const crop = this.crop || { x: 0, y: 0, width: 1, height: 1 };
+    const crop = this.cropReference || this.crop || { x: 0, y: 0, width: 1, height: 1 };
     const fit = this.fitOffset || { x: 0, y: 0, zoom: 1.0 };
 
     // Base cropped source region in natural image coordinates
@@ -193,7 +193,19 @@ export class ImageItem extends CanvasItem {
     const sx = Math.max(0, Math.min(natW - swUsed, centerX - swUsed / 2));
     const sy = Math.max(0, Math.min(natH - shUsed, centerY - shUsed / 2));
 
-    ctx.drawImage(this.image, sx, sy, swUsed, shUsed, dx, dy, dw, dh);
+    if (this.cropReference) {
+      const trim = this.crop;
+      const left = Math.max(sx, trim.x * natW);
+      const top = Math.max(sy, trim.y * natH);
+      const right = Math.min(sx + swUsed, (trim.x + trim.width) * natW);
+      const bottom = Math.min(sy + shUsed, (trim.y + trim.height) * natH);
+      if (right <= left || bottom <= top) return;
+      ctx.drawImage(this.image, left, top, right - left, bottom - top,
+        dx + (left - sx) * dw / swUsed, dy + (top - sy) * dh / shUsed,
+        (right - left) * dw / swUsed, (bottom - top) * dh / shUsed);
+    } else {
+      ctx.drawImage(this.image, sx, sy, swUsed, shUsed, dx, dy, dw, dh);
+    }
   }
 
   draw(ctx) {

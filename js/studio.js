@@ -471,6 +471,10 @@ export class Studio {
 
   updateActivePage() {
     const index = this.engine.getActiveSlideIndex();
+    const deletePage = document.getElementById('btn-delete-page');
+    deletePage.disabled = this.engine.slideCount <= 1;
+    deletePage.setAttribute('aria-label', `Eliminar página ${index + 1}`);
+    deletePage.title = `Eliminar página ${index + 1} y sus elementos (se puede deshacer)`;
     document.getElementById("active-page-label").textContent =
       this.engine.viewMode === "panorama"
         ? `PANORAMA · ${this.engine.slideCount} PÁGINAS`

@@ -181,7 +181,8 @@
               <button
                 id="btn-minus-slide"
                 class="stepper-btn"
-                aria-label="Quitar página"
+                aria-label="Eliminar página activa"
+                title="Eliminar la página activa y sus elementos (se puede deshacer)"
               >
                 −</button
               ><span><b id="slide-count-display">3</b> pág.</span
@@ -524,7 +525,12 @@
               <span id="active-page-label">PÁGINA 01</span
               ><span id="canvas-zoom-label">100%</span>
             </div>
-            <div id="page-strip" aria-label="Páginas del carrusel"></div>
+            <div class="page-navigation">
+              <div id="page-strip" aria-label="Páginas del carrusel"></div>
+              <button id="btn-delete-page" class="icon-btn-circle" aria-label="Eliminar página activa" title="Eliminar la página activa y sus elementos (se puede deshacer)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" /></svg>
+              </button>
+            </div>
           </div>
           <!-- ================= 4. MOBILE BOTTOM NAV BAR (PRIMARY THUMB ZONE) ================= -->
           <nav id="mobile-bottom-bar">

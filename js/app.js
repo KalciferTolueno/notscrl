@@ -101,11 +101,12 @@ class NotScrlMobileApp {
     const btnMinus = document.getElementById('btn-minus-slide');
     const btnPlus = document.getElementById('btn-plus-slide');
 
-    if (btnMinus) {
-      btnMinus.addEventListener('click', () => {
-        if (this.engine.slideCount > 1) {
-          this.engine.setSlideCount(this.engine.slideCount - 1);
+    for (const button of [btnMinus, document.getElementById('btn-delete-page')]) {
+      button?.addEventListener('click', () => {
+        const index = this.engine.getActiveSlideIndex();
+        if (this.engine.removeSlide(index)) {
           this.updateHeaderUI();
+          this.studio.toast(`Página ${index + 1} eliminada. Puedes deshacer.`);
         }
       });
     }
@@ -138,6 +139,7 @@ class NotScrlMobileApp {
   updateHeaderUI() {
     document.getElementById('aspect-ratio-select').value = this.engine.aspectRatioName;
     document.getElementById('btn-minus-slide').disabled = this.engine.slideCount <= 1;
+    document.getElementById('btn-delete-page').disabled = this.engine.slideCount <= 1;
     document.getElementById('btn-plus-slide').disabled = this.engine.slideCount >= 10;
     document.getElementById('btn-undo').disabled = this.engine.historyIndex <= 0 || this.engine.isRestoringHistory;
     document.getElementById('btn-redo').disabled = this.engine.historyIndex >= this.engine.history.length - 1 || this.engine.isRestoringHistory;

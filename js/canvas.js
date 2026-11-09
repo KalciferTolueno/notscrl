@@ -119,6 +119,23 @@ export class CanvasEngine {
     }
   }
 
+  removeSlide(index = this.getActiveSlideIndex()) {
+    if (this.slideCount <= 1 || !Number.isInteger(index) || index < 0 || index >= this.slideCount) return false;
+    this.selectItem(null);
+    this.items = this.items.filter(item => {
+      const page = this.getItemSlideIndex(item);
+      if (page === index) return false;
+      if (page > index) item.x -= this.slideWidth;
+      return true;
+    });
+    this.items.forEach((item, i) => { item.zIndex = i; });
+    this.slideCount--;
+    this.focusSlide(Math.min(index, this.slideCount - 1));
+    this.triggerChange();
+    this.saveHistory(`Eliminar página ${index + 1}`);
+    return true;
+  }
+
   // Clear everything to a clean white canvas
   clearToBlankCanvas() {
     this.items = [];
@@ -241,6 +258,7 @@ export class CanvasEngine {
       x: slide * this.slideWidth, y: 0,
       width: this.slideWidth, height: this.slideHeight, rotation: 0,
       crop: { x: 0, y: 0, width: 1, height: 1 },
+      cropReference: null,
       fitOffset: { x: 0, y: 0, zoom: 1 },
       clipShape: 'rect', frameStyle: 'none', borderRadius: 0, borderWidth: 0
     });

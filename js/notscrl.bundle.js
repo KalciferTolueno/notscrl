@@ -644,7 +644,7 @@ class ImageItem extends CanvasItem {
 
     const natW = this.image.naturalWidth || this.naturalWidth || dw;
     const natH = this.image.naturalHeight || this.naturalHeight || dh;
-    const crop = this.crop || { x: 0, y: 0, width: 1, height: 1 };
+    const crop = this.cropReference || this.crop || { x: 0, y: 0, width: 1, height: 1 };
     const fit = this.fitOffset || { x: 0, y: 0, zoom: 1.0 };
 
     // Base cropped source region in natural image coordinates
@@ -686,7 +686,19 @@ class ImageItem extends CanvasItem {
     const sx = Math.max(0, Math.min(natW - swUsed, centerX - swUsed / 2));
     const sy = Math.max(0, Math.min(natH - shUsed, centerY - shUsed / 2));
 
-    ctx.drawImage(this.image, sx, sy, swUsed, shUsed, dx, dy, dw, dh);
+    if (this.cropReference) {
+      const trim = this.crop;
+      const left = Math.max(sx, trim.x * natW);
+      const top = Math.max(sy, trim.y * natH);
+      const right = Math.min(sx + swUsed, (trim.x + trim.width) * natW);
+      const bottom = Math.min(sy + shUsed, (trim.y + trim.height) * natH);
+      if (right <= left || bottom <= top) return;
+      ctx.drawImage(this.image, left, top, right - left, bottom - top,
+        dx + (left - sx) * dw / swUsed, dy + (top - sy) * dh / shUsed,
+        (right - left) * dw / swUsed, (bottom - top) * dh / shUsed);
+    } else {
+      ctx.drawImage(this.image, sx, sy, swUsed, shUsed, dx, dy, dw, dh);
+    }
   }
 
   draw(ctx) {
@@ -1052,6 +1064,23 @@ class CanvasEngine {
     }
   }
 
+  removeSlide(index = this.getActiveSlideIndex()) {
+    if (this.slideCount <= 1 || !Number.isInteger(index) || index < 0 || index >= this.slideCount) return false;
+    this.selectItem(null);
+    this.items = this.items.filter(item => {
+      const page = this.getItemSlideIndex(item);
+      if (page === index) return false;
+      if (page > index) item.x -= this.slideWidth;
+      return true;
+    });
+    this.items.forEach((item, i) => { item.zIndex = i; });
+    this.slideCount--;
+    this.focusSlide(Math.min(index, this.slideCount - 1));
+    this.triggerChange();
+    this.saveHistory(`Eliminar página ${index + 1}`);
+    return true;
+  }
+
   // Clear everything to a clean white canvas
   clearToBlankCanvas() {
     this.items = [];
@@ -1174,6 +1203,7 @@ class CanvasEngine {
       x: slide * this.slideWidth, y: 0,
       width: this.slideWidth, height: this.slideHeight, rotation: 0,
       crop: { x: 0, y: 0, width: 1, height: 1 },
+      cropReference: null,
       fitOffset: { x: 0, y: 0, zoom: 1 },
       clipShape: 'rect', frameStyle: 'none', borderRadius: 0, borderWidth: 0
     });
@@ -2979,24 +3009,15 @@ class ImageCropper {
     const boxH = parseFloat(this.cropBox.style.height) || imgH;
 
     // Normalized coordinates (0..1)
-    const normalizedCrop = {
-      x: Math.max(0, Math.min(1, boxLeft / imgW)),
-      y: Math.max(0, Math.min(1, boxTop / imgH)),
-      width: Math.max(0.05, Math.min(1, boxW / imgW)),
-      height: Math.max(0.05, Math.min(1, boxH / imgH))
+    const x = Math.max(0, Math.min(0.95, boxLeft / imgW));
+    const y = Math.max(0, Math.min(0.95, boxTop / imgH));
+    // Keep the existing source-to-canvas mapping; cropping only hides pixels.
+    this.targetItem.cropReference ||= { ...(this.targetItem.crop || { x: 0, y: 0, width: 1, height: 1 }) };
+    this.targetItem.crop = {
+      x, y,
+      width: Math.max(0.05, Math.min(1 - x, boxW / imgW)),
+      height: Math.max(0.05, Math.min(1 - y, boxH / imgH))
     };
-
-    this.targetItem.crop = normalizedCrop;
-
-    // Update item aspect ratio and preserve anchor
-    const croppedAspect = (normalizedCrop.width * (this.targetItem.naturalWidth || this.targetItem.width)) /
-                          (normalizedCrop.height * (this.targetItem.naturalHeight || this.targetItem.height));
-
-    if (croppedAspect > 0 && isFinite(croppedAspect)) {
-      this.targetItem.aspectRatio = croppedAspect;
-      // Adjust height to reflect new crop aspect ratio
-      this.targetItem.height = Math.round(this.targetItem.width / croppedAspect);
-    }
 
     this.engine.triggerChange();
     this.engine.saveHistory('Recortar imagen');
@@ -3980,6 +4001,10 @@ class Studio {
 
   updateActivePage() {
     const index = this.engine.getActiveSlideIndex();
+    const deletePage = document.getElementById('btn-delete-page');
+    deletePage.disabled = this.engine.slideCount <= 1;
+    deletePage.setAttribute('aria-label', `Eliminar página ${index + 1}`);
+    deletePage.title = `Eliminar página ${index + 1} y sus elementos (se puede deshacer)`;
     document.getElementById("active-page-label").textContent =
       this.engine.viewMode === "panorama"
         ? `PANORAMA · ${this.engine.slideCount} PÁGINAS`
@@ -4127,11 +4152,12 @@ class NotScrlMobileApp {
     const btnMinus = document.getElementById('btn-minus-slide');
     const btnPlus = document.getElementById('btn-plus-slide');
 
-    if (btnMinus) {
-      btnMinus.addEventListener('click', () => {
-        if (this.engine.slideCount > 1) {
-          this.engine.setSlideCount(this.engine.slideCount - 1);
+    for (const button of [btnMinus, document.getElementById('btn-delete-page')]) {
+      button?.addEventListener('click', () => {
+        const index = this.engine.getActiveSlideIndex();
+        if (this.engine.removeSlide(index)) {
           this.updateHeaderUI();
+          this.studio.toast(`Página ${index + 1} eliminada. Puedes deshacer.`);
         }
       });
     }
@@ -4164,6 +4190,7 @@ class NotScrlMobileApp {
   updateHeaderUI() {
     document.getElementById('aspect-ratio-select').value = this.engine.aspectRatioName;
     document.getElementById('btn-minus-slide').disabled = this.engine.slideCount <= 1;
+    document.getElementById('btn-delete-page').disabled = this.engine.slideCount <= 1;
     document.getElementById('btn-plus-slide').disabled = this.engine.slideCount >= 10;
     document.getElementById('btn-undo').disabled = this.engine.historyIndex <= 0 || this.engine.isRestoringHistory;
     document.getElementById('btn-redo').disabled = this.engine.historyIndex >= this.engine.history.length - 1 || this.engine.isRestoringHistory;

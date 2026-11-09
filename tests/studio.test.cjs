@@ -14,6 +14,71 @@ function load(file, names, globals = {}) {
 
 const { CanvasEngine } = load('js/canvas.js', ['CanvasEngine']);
 
+test('Deleting the first, middle or last page shifts later content and can be undone', async () => {
+  class Text { constructor() { this.type = 'text'; } }
+  const { CanvasEngine: Engine } = load('js/canvas.js', ['CanvasEngine'], {
+    window: { __notScrlObjects: { TextItem: Text } }
+  });
+  for (const index of [0, 1, 2]) {
+    const engine = Object.assign(Object.create(Engine.prototype), {
+      slideCount: 3, slideWidth: 1080, slideHeight: 1350, history: [], historyIndex: -1,
+      items: [50, 1150, 2230].map((x, i) => ({ type: 'text', text: String(i), x, y: 40, width: 100, height: 80 })),
+      selectItem(item) { this.selectedItem = item; },
+      focusSlide(page) { this.page = page; }, fitToScreen() {}, triggerChange() {}
+    });
+    engine.saveHistory('Before deletion');
+    assert.equal(engine.removeSlide(index), true);
+    assert.equal(engine.slideCount, 2);
+    assert.deepEqual(Array.from(engine.items, item => item.text), ['0','1','2'].filter((_, i) => i !== index));
+    for (const item of engine.items) {
+      const originalPage = Number(item.text);
+      assert.equal(item.x, [50,1150,2230][originalPage] - (originalPage > index ? 1080 : 0));
+    }
+    assert.equal(engine.page, Math.min(index, 1));
+    await engine.restoreHistory(engine.history[0]);
+    assert.equal(engine.slideCount, 3);
+    assert.deepEqual(Array.from(engine.items, item => item.x), [50,1150,2230]);
+    await engine.restoreHistory(engine.history[1]);
+    assert.equal(engine.slideCount, 2);
+    engine.removeSlide(0);
+    assert.equal(engine.removeSlide(0), false);
+    assert.equal(engine.slideCount, 1);
+    assert.equal(engine.removeSlide(-1), false);
+  }
+});
+
+test('Cropping hides pixels without moving, resizing or changing zoom, including repeated crops', () => {
+  const { ImageItem } = load('js/objects.js', ['ImageItem']);
+  const { ImageCropper } = load('js/cropper.js', ['ImageCropper']);
+  const item = new ImageItem({ complete: true, naturalWidth: 2000, naturalHeight: 1000 }, 220, 310, 800, 600);
+  item.rotation = 35;
+  item.fitOffset = { x: .3, y: -.2, zoom: 1.5 };
+  let before;
+  item.drawImageCover({ drawImage(...args) { before = args; } }, 0, 0, 800, 600);
+  const cropper = Object.assign(Object.create(ImageCropper.prototype), {
+    targetItem: item, imgRect: { width: 1000, height: 500 },
+    cropBox: { style: { left: '400px', top: '180px', width: '200px', height: '150px' } },
+    engine: { triggerChange() {}, saveHistory() {} }, close() {}
+  });
+  for (const left of ['400px', '450px']) {
+    cropper.cropBox.style.left = left;
+    cropper.applyCrop();
+    assert.deepEqual([item.x, item.y, item.width, item.height, item.rotation], [220,310,800,600,35]);
+    let after;
+    item.drawImageCover({ drawImage(...args) { after = args; } }, 0, 0, 800, 600);
+    assert.ok(after);
+    assert.ok(after[3] < before[3]);
+    assert.ok(Math.abs(after[7] / after[3] - before[7] / before[3]) < 1e-10);
+    assert.ok(Math.abs(after[5] - (before[5] + (after[1] - before[1]) * before[7] / before[3])) < 1e-10);
+    assert.ok(Math.abs(after[6] - (before[6] + (after[2] - before[2]) * before[8] / before[4])) < 1e-10);
+  }
+  item.crop = { x: 0, y: 0, width: 1, height: 1 };
+  let reset;
+  item.drawImageCover({ drawImage(...args) { reset = args; } }, 0, 0, 800, 600);
+  assert.equal(reset[0], before[0]);
+  for (let i = 1; i < reset.length; i++) assert.ok(Math.abs(reset[i] - before[i]) < 1e-9);
+});
+
 test('Mobile slide fitting respects both screen dimensions and retains the active page', () => {
   for (const width of [320, 375, 390, 768, 1440]) {
     for (const height of [160, 350, 640]) {
@@ -44,7 +109,7 @@ test('Full-page photos use the active page, remove inset styling and keep matchi
     });
     const item = new ImageItem({ src: 'preview', complete: true, naturalWidth: 2160, naturalHeight: height * 2 }, 20, 80, 300, 200);
     Object.assign(item, { originalKey: 'original', rotation: 90, frameStyle: 'polaroid', borderRadius: 8,
-      crop: { x: .2, y: .1, width: .5, height: .6 }, fitOffset: { x: .5, y: .2, zoom: 2 } });
+      crop: { x: .2, y: .1, width: .5, height: .6 }, cropReference: { x: 0, y: 0, width: 1, height: 1 }, fitOffset: { x: .5, y: .2, zoom: 2 } });
     engine.items = [item];
     engine.saveHistory('Before');
     engine.fillImageToSlide(item);
@@ -52,6 +117,7 @@ test('Full-page photos use the active page, remove inset styling and keep matchi
     assert.equal(item.rotation, 0);
     assert.equal(item.frameStyle, 'none');
     assert.equal(item.borderRadius, 0);
+    assert.equal(item.cropReference, null);
     assert.equal(item.originalKey, 'original');
     let drawn;
     item.drawImageCover({ drawImage(...args) { drawn = args; } }, 0, 0, item.width, item.height);
