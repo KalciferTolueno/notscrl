@@ -26,7 +26,7 @@ class NotScrlMobileApp {
     this.engine = new CanvasEngine(this.canvasEl, this.workspaceEl);
     this.storage = new StorageManager(this.engine);
     this.loadingProject = true;
-    this.exporter = new CanvasExporter(this.engine);
+    this.exporter = new CanvasExporter(this.engine, this.storage);
     this.preview = new PreviewSimulator(this.exporter, document.getElementById('preview-modal'));
     this.cropper = new ImageCropper(this.engine);
     this.frameAdjuster = new FrameAdjuster(this.engine);
@@ -560,36 +560,52 @@ class NotScrlMobileApp {
   handleFiles(files) {
     if (!files || files.length === 0) return;
     const projectId = this.storage.projectId;
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (!file.type.startsWith('image/')) continue;
-
-      const reader = new FileReader();
-      reader.onerror = () => this.studio.toast('No se pudo leer la foto. Intenta con otra imagen.');
-      reader.onload = (event) => {
-        if (projectId !== this.storage.projectId) return;
-        const img = new Image();
-        img.onload = () => {
-          if (projectId !== this.storage.projectId) return;
-          const maxDim = this.engine.slideWidth * 0.75;
-          let w = img.naturalWidth;
-          let h = img.naturalHeight;
-          if (w > maxDim || h > maxDim) {
-            const scale = maxDim / Math.max(w, h);
-            w *= scale;
-            h *= scale;
+    const selectedFiles = Array.from(files);
+    this.uploadQueue = (this.uploadQueue || Promise.resolve()).then(async () => {
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        if (projectId !== this.storage.projectId) break;
+        if (!file.type.startsWith('image/')) continue;
+        try {
+          const url = URL.createObjectURL(file);
+          let img;
+          const original = new Image();
+          try {
+            original.src = url;
+            await original.decode();
+            const scale = Math.min(1, 1280 / Math.max(original.naturalWidth, original.naturalHeight));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(original.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(original.naturalHeight * scale));
+            try {
+              canvas.getContext('2d').drawImage(original, 0, 0, canvas.width, canvas.height);
+              img = new Image();
+              img.src = canvas.toDataURL(file.type === 'image/jpeg' ? 'image/jpeg' : 'image/png', 0.9);
+            } finally {
+              canvas.width = canvas.height = 0;
+            }
+          } finally {
+            original.src = '';
+            URL.revokeObjectURL(url);
           }
-
+          await img.decode();
+          if (projectId !== this.storage.projectId) break;
+          const originalKey = await this.storage.saveOriginal(file);
+          if (projectId !== this.storage.projectId) break;
+          const scale = Math.min(1, this.engine.slideWidth * 0.75 / Math.max(img.naturalWidth, img.naturalHeight));
+          const w = img.naturalWidth * scale;
+          const h = img.naturalHeight * scale;
           const item = new ImageItem(img, this.getSpawnX(w) + i * 24, Math.max(0, (this.engine.slideHeight - h) / 2) + i * 24, Math.round(w), Math.round(h));
           item.borderRadius = 8;
+          item.originalKey = originalKey;
           this.engine.addItem(item);
-        };
-        img.onerror = () => this.studio.toast('Esta foto no se pudo abrir. Prueba con JPG, PNG o WebP.');
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
+          await new Promise(resolve => setTimeout(resolve, 0));
+        } catch (error) {
+          this.studio.toast(error.message || 'Esta foto no se pudo abrir. Prueba con JPG, PNG o WebP.');
+        }
+      }
+    });
+    return this.uploadQueue;
   }
 
   // 6. POPULATE MOBILE SAMPLE GALLERIES

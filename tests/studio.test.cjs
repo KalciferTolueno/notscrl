@@ -46,6 +46,98 @@ test('Snapshots contain cloneable image sources and independent nested settings'
   assert.equal(snapshot.fitOffset.x, .5);
 });
 
+test('Photo imports run sequentially, limit dimensions and release temporary resources', async () => {
+  let active = 0, peak = 0, revoked = 0;
+  const sizes = [];
+  class MockImage {
+    constructor() { this.naturalWidth = 4000; this.naturalHeight = 3000; }
+    async decode() {
+      active++; peak = Math.max(peak, active);
+      await new Promise(resolve => setTimeout(resolve, 1));
+      active--;
+    }
+  }
+  class Item { constructor(image) { this.image = image; } }
+  const { NotScrlMobileApp } = load('js/app.js', ['NotScrlMobileApp'], {
+    window: { addEventListener() {} }, Image: MockImage, ImageItem: Item,
+    TextItem: class {}, StickerItem: class {},
+    URL: { createObjectURL: () => 'blob:photo', revokeObjectURL: () => revoked++ },
+    document: { createElement() { return { width: 0, height: 0,
+      getContext() { return { drawImage() {} }; },
+      toDataURL() { sizes.push([this.width, this.height]); return 'data:image/jpeg;base64,AA=='; }
+    }; } }
+  });
+  const items = [];
+  const app = Object.assign(Object.create(NotScrlMobileApp.prototype), {
+    storage: { projectId: 'one', async saveOriginal(file) { assert.equal(file.type, 'image/jpeg'); return 'original'; } }, studio: { toast() { assert.fail('Import failed'); } },
+    engine: { slideWidth: 1080, slideHeight: 1350, addItem(item) { items.push(item); } },
+    getSpawnX() { return 0; }
+  });
+  await Promise.all([app.handleFiles([{ type: 'image/jpeg' }, { type: 'image/jpeg' }]),
+    app.handleFiles([{ type: 'image/jpeg' }])]);
+  assert.equal(peak, 1);
+  assert.equal(items.length, 3);
+  assert.equal(revoked, 3);
+  assert.deepEqual(sizes, [[1280, 960], [1280, 960], [1280, 960]]);
+  assert.ok(items.every(item => item.originalKey === 'original'));
+});
+
+test('Original files are stored unchanged and only acknowledged after the transaction commits', async () => {
+  let tx, stored;
+  const file = new Blob(['original camera bytes'], { type: 'image/jpeg' });
+  const storage = storageWithDatabase({ transaction(name) {
+    assert.equal(name, 'originals');
+    return tx = { objectStore() { return { put(value) { stored = value; } }; } };
+  } });
+  let committed = false;
+  const saving = storage.saveOriginal(file).then(key => { committed = true; return key; });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(stored, file);
+  assert.equal(committed, false);
+  tx.oncomplete();
+  assert.ok(await saving);
+});
+
+test('Export draws from originals one at a time, preserves crop and leaves editor previews intact', async () => {
+  let active = 0, peak = 0, released = 0;
+  const rendered = [];
+  class MockImage {
+    set src(value) { this.source = value; if (!value) active--; }
+    async decode() { active++; peak = Math.max(peak, active); }
+  }
+  const ctx = { translate() {}, fillRect() {} };
+  const { CanvasExporter } = load('js/exporter.js', ['CanvasExporter'], {
+    Image: MockImage,
+    URL: { createObjectURL: file => `blob:${file}`, revokeObjectURL() { released++; } },
+    document: { createElement: () => ({ getContext: () => ctx }) }
+  });
+  const items = ['one', 'two'].map(originalKey => ({ originalKey, image: { src: 'preview' }, crop: { x: .25 },
+    render() { rendered.push([this.image.source, this.crop.x]); }
+  }));
+  const exporter = new CanvasExporter({ slideWidth: 1080, totalWidth: 2160, totalHeight: 1350, background: '#fff', items },
+    { async loadOriginal(key) { return key; } });
+  const canvas = await exporter.renderOriginals(0);
+  assert.deepEqual(rendered, [['blob:one', .25], ['blob:two', .25]]);
+  assert.equal(peak, 1);
+  assert.equal(active, 0);
+  assert.equal(released, 2);
+  assert.equal(items[0].image.src, 'preview');
+  assert.equal(canvas.width, 1080);
+});
+
+test('Missing originals stop export instead of silently substituting previews', async () => {
+  const canvas = { getContext: () => ({ translate() {}, fillRect() {} }) };
+  const { CanvasExporter } = load('js/exporter.js', ['CanvasExporter'], {
+    document: { createElement: () => canvas }
+  });
+  const exporter = new CanvasExporter({ slideWidth: 1080, totalWidth: 1080, totalHeight: 1350, background: '#fff',
+    items: [{ originalKey: 'missing', render() { assert.fail('Preview must not be exported'); } }] },
+    { async loadOriginal() { throw new Error('Missing original'); } });
+  await assert.rejects(exporter.renderOriginals(0), /Missing original/);
+  assert.equal(canvas.width, 0);
+  assert.equal(canvas.height, 0);
+});
+
 test('Restoring an empty saved project preserves its format, background and empty state', async () => {
   const { CanvasEngine: Engine } = load('js/canvas.js', ['CanvasEngine'], {
     window: { __notScrlObjects: {} }

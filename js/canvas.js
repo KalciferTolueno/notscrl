@@ -368,11 +368,10 @@ export class CanvasEngine {
 
   serializeItem(item) {
     const data = { ...item };
-    if (item.image) {
-      data.imageSrc = item.image.src;
-      delete data.image;
-    }
-    return structuredClone(data);
+    delete data.image;
+    const snapshot = structuredClone(data);
+    if (item.image) snapshot.imageSrc = item.image.src;
+    return snapshot;
   }
 
   async restoreHistory(snapshot, resetHistory = false) {

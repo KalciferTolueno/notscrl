@@ -34,13 +34,15 @@ node --test tests/studio.test.cjs
 node --check js/notscrl.bundle.js
 ```
 
-Las 12 pruebas cubren ajuste móvil, aislamiento de snapshots, recuperación de lienzos vacíos e imágenes, confirmación de transacciones, respaldo síncrono al salir, guardado con cuota local agotada, estados de cambios pendientes y coordenadas/dimensiones de exportación.
+Las 16 pruebas cubren ajuste móvil, aislamiento de snapshots, importación secuencial, conservación y exportación de originales, recuperación de lienzos vacíos e imágenes, confirmación de transacciones, respaldo síncrono al salir, guardado con cuota local agotada, estados de cambios pendientes y coordenadas/dimensiones de exportación.
 
 ## Guardado y privacidad
 
 Las fotos y los proyectos se procesan en el navegador. IndexedDB guarda el proyecto activo y la biblioteca; localStorage conserva un respaldo del proyecto activo cuando hay espacio. Los campos y las acciones de edición se guardan de inmediato; durante los arrastres se agrupan los cambios para mantener el lienzo fluido y se guarda al terminar. Al ocultar o abandonar la página se intenta guardar otra vez. El respaldo local se escribe antes de esperar la base de datos. El estado **Borrador guardado** aparece después de confirmar la transacción. Si solo funciona el respaldo, la app lo indica e impide crear otro proyecto para proteger el actual.
 
 Los proyectos no se sincronizan entre dispositivos. Borrar los datos del navegador los elimina. La descarga ZIP conserva las imágenes finales; no es un respaldo editable. La app no descarga fuentes ni recursos externos y utiliza fuentes del sistema y muestras vectoriales locales.
+
+Las fotos nuevas conservan su archivo original sin recomprimir en un almacén separado de IndexedDB. El editor y sus miniaturas usan vistas previas de hasta 1280 px; las descargas PNG, ZIP y panorama cargan los originales de uno en uno para reducir la memoria simultánea. Si no se puede guardar o recuperar un original, la app informa del fallo. Las fotos importadas antes de este cambio conservan la fuente que ya tenían guardada; hay que volver a añadirlas para recuperar un original que se hubiera reducido.
 
 ## Archivos principales
 

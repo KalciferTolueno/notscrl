@@ -1301,11 +1301,10 @@ class CanvasEngine {
 
   serializeItem(item) {
     const data = { ...item };
-    if (item.image) {
-      data.imageSrc = item.image.src;
-      delete data.image;
-    }
-    return structuredClone(data);
+    delete data.image;
+    const snapshot = structuredClone(data);
+    if (item.image) snapshot.imageSrc = item.image.src;
+    return snapshot;
   }
 
   async restoreHistory(snapshot, resetHistory = false) {
@@ -2084,12 +2083,13 @@ class StorageManager {
         return;
       }
       try {
-        const req = window.indexedDB.open(this.dbName, 1);
+        const req = window.indexedDB.open(this.dbName, 2);
         req.onupgradeneeded = (e) => {
           const db = e.target.result;
           if (!db.objectStoreNames.contains(this.storeName)) {
             db.createObjectStore(this.storeName);
           }
+          if (!db.objectStoreNames.contains('originals')) db.createObjectStore('originals');
         };
         req.onsuccess = (e) => {
           this.db = e.target.result;
@@ -2099,6 +2099,29 @@ class StorageManager {
       } catch (err) {
         resolve(null);
       }
+    });
+  }
+
+  async saveOriginal(file) {
+    const db = await this.dbPromise;
+    if (!db) throw new Error('No se puede conservar la foto original en este navegador.');
+    const key = crypto.randomUUID();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('originals', 'readwrite');
+      tx.objectStore('originals').put(file, key);
+      tx.oncomplete = resolve;
+      tx.onerror = tx.onabort = () => reject(new Error('No hay espacio para conservar la foto original.'));
+    });
+    return key;
+  }
+
+  async loadOriginal(key) {
+    const db = await this.dbPromise;
+    if (!db) throw new Error('No se pudo recuperar la foto original.');
+    return new Promise((resolve, reject) => {
+      const req = db.transaction('originals').objectStore('originals').get(key);
+      req.onsuccess = () => req.result ? resolve(req.result) : reject(new Error('Falta la foto original.'));
+      req.onerror = () => reject(new Error('No se pudo recuperar la foto original.'));
     });
   }
 
@@ -2282,8 +2305,9 @@ class StorageManager {
  */
 
 class CanvasExporter {
-  constructor(engine) {
+  constructor(engine, storage = null) {
     this.engine = engine;
+    this.storage = storage;
   }
 
   renderThumbnail(index, width = 180) {
@@ -2299,6 +2323,11 @@ class CanvasExporter {
   }
 
   renderContent(ctx, width, height) {
+    this.renderBackground(ctx, width, height);
+    for (const item of this.engine.items) item.render(ctx);
+  }
+
+  renderBackground(ctx, width, height) {
     const engine = this.engine;
     if (engine.background.startsWith('linear-gradient')) {
       const colors = engine.background.match(/#(?:[0-9a-fA-F]{3}){1,2}|rgba?\([^)]+\)/g);
@@ -2308,7 +2337,42 @@ class CanvasExporter {
       ctx.fillStyle = gradient;
     } else ctx.fillStyle = engine.background;
     ctx.fillRect(0, 0, width, height);
-    for (const item of engine.items) item.render(ctx);
+  }
+
+  async renderOriginals(index = null) {
+    const engine = this.engine;
+    const canvas = document.createElement('canvas');
+    canvas.width = index === null ? engine.totalWidth : engine.slideWidth;
+    canvas.height = engine.totalHeight;
+    const ctx = canvas.getContext('2d');
+    if (index !== null) ctx.translate(-index * engine.slideWidth, 0);
+    this.renderBackground(ctx, engine.totalWidth, engine.totalHeight);
+    const items = engine.items.map(item => Object.assign(Object.create(Object.getPrototypeOf(item)), item));
+    try {
+      for (const item of items) {
+        if (!item.originalKey) {
+          item.render(ctx);
+          continue;
+        }
+        const file = await this.storage.loadOriginal(item.originalKey);
+        const url = URL.createObjectURL(file);
+        const image = new Image();
+        try {
+          image.src = url;
+          await image.decode();
+          item.image = image;
+          item.render(ctx);
+        } finally {
+          image.src = '';
+          URL.revokeObjectURL(url);
+        }
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      return canvas;
+    } catch (error) {
+      canvas.width = canvas.height = 0;
+      throw error;
+    }
   }
 
   renderSlide(index) {
@@ -2342,9 +2406,10 @@ class CanvasExporter {
    */
   async downloadSlide(slideNumber) {
     if (slideNumber < 1 || slideNumber > this.engine.slideCount) return;
-    const canvas = this.renderSlide(slideNumber - 1);
-    const blob = await this.toBlob(canvas);
-    canvas.width = canvas.height = 0;
+    const canvas = await this.renderOriginals(slideNumber - 1);
+    let blob;
+    try { blob = await this.toBlob(canvas); }
+    finally { canvas.width = canvas.height = 0; }
     this.triggerDownload(blob, `notscrl-slide-${String(slideNumber).padStart(2, '0')}.png`);
   }
 
@@ -2352,9 +2417,10 @@ class CanvasExporter {
    * Downloads the complete un-sliced panoramic banner
    */
   async downloadFullPanorama() {
-    const master = this.renderFullMasterCanvas();
-    const blob = await this.toBlob(master);
-    master.width = master.height = 0;
+    const master = await this.renderOriginals();
+    let blob;
+    try { blob = await this.toBlob(master); }
+    finally { master.width = master.height = 0; }
     this.triggerDownload(blob, `notscrl-full-panorama-${this.engine.slideCount}-slides.png`);
   }
 
@@ -2368,9 +2434,10 @@ class CanvasExporter {
       if (onProgress) {
         onProgress(`Preparando página ${i + 1} de ${this.engine.slideCount}…`, (i + 1) / (this.engine.slideCount + 1));
       }
-      const canvas = this.renderSlide(i);
-      const blob = await this.toBlob(canvas);
-      canvas.width = canvas.height = 0;
+      const canvas = await this.renderOriginals(i);
+      let blob;
+      try { blob = await this.toBlob(canvas); }
+      finally { canvas.width = canvas.height = 0; }
       const filename = `slide_${String(i + 1).padStart(2, '0')}.png`;
       await zip.addFile(filename, blob);
     }
@@ -3971,7 +4038,7 @@ class NotScrlMobileApp {
     this.engine = new CanvasEngine(this.canvasEl, this.workspaceEl);
     this.storage = new StorageManager(this.engine);
     this.loadingProject = true;
-    this.exporter = new CanvasExporter(this.engine);
+    this.exporter = new CanvasExporter(this.engine, this.storage);
     this.preview = new PreviewSimulator(this.exporter, document.getElementById('preview-modal'));
     this.cropper = new ImageCropper(this.engine);
     this.frameAdjuster = new FrameAdjuster(this.engine);
@@ -4505,36 +4572,52 @@ class NotScrlMobileApp {
   handleFiles(files) {
     if (!files || files.length === 0) return;
     const projectId = this.storage.projectId;
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (!file.type.startsWith('image/')) continue;
-
-      const reader = new FileReader();
-      reader.onerror = () => this.studio.toast('No se pudo leer la foto. Intenta con otra imagen.');
-      reader.onload = (event) => {
-        if (projectId !== this.storage.projectId) return;
-        const img = new Image();
-        img.onload = () => {
-          if (projectId !== this.storage.projectId) return;
-          const maxDim = this.engine.slideWidth * 0.75;
-          let w = img.naturalWidth;
-          let h = img.naturalHeight;
-          if (w > maxDim || h > maxDim) {
-            const scale = maxDim / Math.max(w, h);
-            w *= scale;
-            h *= scale;
+    const selectedFiles = Array.from(files);
+    this.uploadQueue = (this.uploadQueue || Promise.resolve()).then(async () => {
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        if (projectId !== this.storage.projectId) break;
+        if (!file.type.startsWith('image/')) continue;
+        try {
+          const url = URL.createObjectURL(file);
+          let img;
+          const original = new Image();
+          try {
+            original.src = url;
+            await original.decode();
+            const scale = Math.min(1, 1280 / Math.max(original.naturalWidth, original.naturalHeight));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(original.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(original.naturalHeight * scale));
+            try {
+              canvas.getContext('2d').drawImage(original, 0, 0, canvas.width, canvas.height);
+              img = new Image();
+              img.src = canvas.toDataURL(file.type === 'image/jpeg' ? 'image/jpeg' : 'image/png', 0.9);
+            } finally {
+              canvas.width = canvas.height = 0;
+            }
+          } finally {
+            original.src = '';
+            URL.revokeObjectURL(url);
           }
-
+          await img.decode();
+          if (projectId !== this.storage.projectId) break;
+          const originalKey = await this.storage.saveOriginal(file);
+          if (projectId !== this.storage.projectId) break;
+          const scale = Math.min(1, this.engine.slideWidth * 0.75 / Math.max(img.naturalWidth, img.naturalHeight));
+          const w = img.naturalWidth * scale;
+          const h = img.naturalHeight * scale;
           const item = new ImageItem(img, this.getSpawnX(w) + i * 24, Math.max(0, (this.engine.slideHeight - h) / 2) + i * 24, Math.round(w), Math.round(h));
           item.borderRadius = 8;
+          item.originalKey = originalKey;
           this.engine.addItem(item);
-        };
-        img.onerror = () => this.studio.toast('Esta foto no se pudo abrir. Prueba con JPG, PNG o WebP.');
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
+          await new Promise(resolve => setTimeout(resolve, 0));
+        } catch (error) {
+          this.studio.toast(error.message || 'Esta foto no se pudo abrir. Prueba con JPG, PNG o WebP.');
+        }
+      }
+    });
+    return this.uploadQueue;
   }
 
   // 6. POPULATE MOBILE SAMPLE GALLERIES

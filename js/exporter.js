@@ -7,8 +7,9 @@
 import { SimpleZip } from './zip.js';
 
 export class CanvasExporter {
-  constructor(engine) {
+  constructor(engine, storage = null) {
     this.engine = engine;
+    this.storage = storage;
   }
 
   renderThumbnail(index, width = 180) {
@@ -24,6 +25,11 @@ export class CanvasExporter {
   }
 
   renderContent(ctx, width, height) {
+    this.renderBackground(ctx, width, height);
+    for (const item of this.engine.items) item.render(ctx);
+  }
+
+  renderBackground(ctx, width, height) {
     const engine = this.engine;
     if (engine.background.startsWith('linear-gradient')) {
       const colors = engine.background.match(/#(?:[0-9a-fA-F]{3}){1,2}|rgba?\([^)]+\)/g);
@@ -33,7 +39,42 @@ export class CanvasExporter {
       ctx.fillStyle = gradient;
     } else ctx.fillStyle = engine.background;
     ctx.fillRect(0, 0, width, height);
-    for (const item of engine.items) item.render(ctx);
+  }
+
+  async renderOriginals(index = null) {
+    const engine = this.engine;
+    const canvas = document.createElement('canvas');
+    canvas.width = index === null ? engine.totalWidth : engine.slideWidth;
+    canvas.height = engine.totalHeight;
+    const ctx = canvas.getContext('2d');
+    if (index !== null) ctx.translate(-index * engine.slideWidth, 0);
+    this.renderBackground(ctx, engine.totalWidth, engine.totalHeight);
+    const items = engine.items.map(item => Object.assign(Object.create(Object.getPrototypeOf(item)), item));
+    try {
+      for (const item of items) {
+        if (!item.originalKey) {
+          item.render(ctx);
+          continue;
+        }
+        const file = await this.storage.loadOriginal(item.originalKey);
+        const url = URL.createObjectURL(file);
+        const image = new Image();
+        try {
+          image.src = url;
+          await image.decode();
+          item.image = image;
+          item.render(ctx);
+        } finally {
+          image.src = '';
+          URL.revokeObjectURL(url);
+        }
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      return canvas;
+    } catch (error) {
+      canvas.width = canvas.height = 0;
+      throw error;
+    }
   }
 
   renderSlide(index) {
@@ -67,9 +108,10 @@ export class CanvasExporter {
    */
   async downloadSlide(slideNumber) {
     if (slideNumber < 1 || slideNumber > this.engine.slideCount) return;
-    const canvas = this.renderSlide(slideNumber - 1);
-    const blob = await this.toBlob(canvas);
-    canvas.width = canvas.height = 0;
+    const canvas = await this.renderOriginals(slideNumber - 1);
+    let blob;
+    try { blob = await this.toBlob(canvas); }
+    finally { canvas.width = canvas.height = 0; }
     this.triggerDownload(blob, `notscrl-slide-${String(slideNumber).padStart(2, '0')}.png`);
   }
 
@@ -77,9 +119,10 @@ export class CanvasExporter {
    * Downloads the complete un-sliced panoramic banner
    */
   async downloadFullPanorama() {
-    const master = this.renderFullMasterCanvas();
-    const blob = await this.toBlob(master);
-    master.width = master.height = 0;
+    const master = await this.renderOriginals();
+    let blob;
+    try { blob = await this.toBlob(master); }
+    finally { master.width = master.height = 0; }
     this.triggerDownload(blob, `notscrl-full-panorama-${this.engine.slideCount}-slides.png`);
   }
 
@@ -93,9 +136,10 @@ export class CanvasExporter {
       if (onProgress) {
         onProgress(`Preparando página ${i + 1} de ${this.engine.slideCount}…`, (i + 1) / (this.engine.slideCount + 1));
       }
-      const canvas = this.renderSlide(i);
-      const blob = await this.toBlob(canvas);
-      canvas.width = canvas.height = 0;
+      const canvas = await this.renderOriginals(i);
+      let blob;
+      try { blob = await this.toBlob(canvas); }
+      finally { canvas.width = canvas.height = 0; }
       const filename = `slide_${String(i + 1).padStart(2, '0')}.png`;
       await zip.addFile(filename, blob);
     }

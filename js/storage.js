@@ -28,12 +28,13 @@ export class StorageManager {
         return;
       }
       try {
-        const req = window.indexedDB.open(this.dbName, 1);
+        const req = window.indexedDB.open(this.dbName, 2);
         req.onupgradeneeded = (e) => {
           const db = e.target.result;
           if (!db.objectStoreNames.contains(this.storeName)) {
             db.createObjectStore(this.storeName);
           }
+          if (!db.objectStoreNames.contains('originals')) db.createObjectStore('originals');
         };
         req.onsuccess = (e) => {
           this.db = e.target.result;
@@ -43,6 +44,29 @@ export class StorageManager {
       } catch (err) {
         resolve(null);
       }
+    });
+  }
+
+  async saveOriginal(file) {
+    const db = await this.dbPromise;
+    if (!db) throw new Error('No se puede conservar la foto original en este navegador.');
+    const key = crypto.randomUUID();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('originals', 'readwrite');
+      tx.objectStore('originals').put(file, key);
+      tx.oncomplete = resolve;
+      tx.onerror = tx.onabort = () => reject(new Error('No hay espacio para conservar la foto original.'));
+    });
+    return key;
+  }
+
+  async loadOriginal(key) {
+    const db = await this.dbPromise;
+    if (!db) throw new Error('No se pudo recuperar la foto original.');
+    return new Promise((resolve, reject) => {
+      const req = db.transaction('originals').objectStore('originals').get(key);
+      req.onsuccess = () => req.result ? resolve(req.result) : reject(new Error('Falta la foto original.'));
+      req.onerror = () => reject(new Error('No se pudo recuperar la foto original.'));
     });
   }
 
