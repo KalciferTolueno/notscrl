@@ -1,0 +1,1621 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>NotSCRL — Tu estudio creativo</title>
+    <meta name="theme-color" content="#f5f3ee" />
+    <meta
+      name="description"
+      content="Crea historias que continúan. Diseña carruseles panorámicos, guarda tus proyectos y exporta en alta resolución."
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎞️</text></svg>"
+    />
+  </head>
+  <body>
+    <div id="app-viewport">
+      <div id="mobile-app-shell">
+        <section id="home-view" aria-label="Estudio creativo">
+          <header class="home-header">
+            <a href="#inicio" class="wordmark" aria-label="NotSCRL, inicio"
+              ><span class="brand-symbol" aria-hidden="true">n.</span
+              >NotSCRL<span class="wordmark-label">ESTUDIO CREATIVO</span></a
+            >
+            <button
+              class="home-icon-btn"
+              id="btn-help"
+              aria-label="Cómo funciona"
+            >
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4m0 3h.01" />
+              </svg>
+            </button>
+          </header>
+          <div class="home-scroll">
+            <div class="home-content">
+              <section id="home-intro">
+                <p class="eyebrow">TU ESPACIO CREATIVO</p>
+                <h1>¿Qué creamos hoy?</h1>
+                <p class="intro-copy">
+                  Empieza algo nuevo o sigue donde lo dejaste.
+                </p>
+              </section>
+              <section id="projects-section" class="home-section">
+                <div id="drafts-info" class="drafts-info hidden">
+                  <span class="saved-symbol" aria-hidden="true">✓</span>
+                  <div>
+                    <strong>Tu trabajo tiene su lugar.</strong>
+                    <p id="drafts-storage-status" role="status">
+                      Los cambios se guardan automáticamente en este
+                      dispositivo.
+                    </p>
+                  </div>
+                </div>
+                <div class="section-heading">
+                  <div>
+                    <span class="eyebrow">A TU RITMO</span>
+                    <h2 id="projects-heading">Borradores recientes</h2>
+                  </div>
+                  <button class="text-link" data-home-tab="projects">
+                    Ver todos <span aria-hidden="true">↗</span>
+                  </button>
+                </div>
+                <div id="project-list" class="project-list" aria-live="polite">
+                  <p class="empty-projects">Buscando tus borradores…</p>
+                </div>
+              </section>
+              <section id="templates-section" class="home-section">
+                <div class="section-heading">
+                  <div>
+                    <span class="eyebrow">EL PRIMER PASO, RESUELTO</span>
+                    <h2 id="templates-heading">Encuentra tu estilo</h2>
+                  </div>
+                  <button class="text-link" data-home-tab="templates">
+                    Explorar <span aria-hidden="true">↗</span>
+                  </button>
+                </div>
+                <div id="home-template-list" class="template-gallery"></div>
+              </section>
+              <div class="privacy-note">
+                <svg viewBox="0 0 24 24">
+                  <rect x="5" y="10" width="14" height="11" rx="3" />
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                </svg>
+                <div>
+                  <strong>Tu creatividad se queda contigo.</strong><br />Fotos y
+                  proyectos guardados en este navegador.
+                </div>
+              </div>
+            </div>
+          </div>
+          <button id="home-create" class="create-project-btn" data-new-project>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" /></svg
+            ><span>Nuevo carrusel</span>
+          </button>
+          <nav class="home-nav" aria-label="Navegación del estudio">
+            <button data-home-tab="home" class="active">
+              <svg viewBox="0 0 24 24">
+                <path d="m3 10 9-7 9 7v10H3zM9 20v-7h6v7" /></svg
+              ><span>Inicio</span>
+            </button>
+            <button data-home-tab="projects">
+              <svg viewBox="0 0 24 24">
+                <rect x="3" y="5" width="18" height="16" rx="3" />
+                <path d="M8 5V3h8v2M8 10h8" /></svg
+              ><span>Borradores</span
+              ><span id="draft-count" class="nav-count" aria-hidden="true"
+                >0</span
+              >
+            </button>
+            <button data-home-tab="templates">
+              <svg viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="18" rx="2" />
+                <rect x="14" y="3" width="7" height="7" rx="2" />
+                <rect x="14" y="14" width="7" height="7" rx="2" /></svg
+              ><span>Plantillas</span>
+            </button>
+          </nav>
+        </section>
+        <section
+          id="editor-view"
+          class="hidden"
+          aria-label="Editor de carrusel"
+        >
+          <header id="mobile-header">
+            <button
+              id="btn-back-home"
+              class="icon-btn-circle"
+              aria-label="Guardar y volver a borradores"
+            >
+              <svg viewBox="0 0 24 24"><path d="m14 6-6 6 6 6" /></svg>
+            </button>
+            <div class="project-heading">
+              <input
+                id="project-name"
+                aria-label="Nombre del proyecto"
+                maxlength="60"
+                value="Mi carrusel"
+              /><span id="save-status" role="status"
+                >Guardado en este dispositivo</span
+              >
+            </div>
+            <button
+              id="btn-save-draft"
+              class="icon-btn-circle"
+              aria-label="Guardar borrador"
+              title="Guardar borrador"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 3h12v18l-6-4-6 4z" />
+                <path d="m9 9 2 2 4-4" />
+              </svg>
+            </button>
+            <button id="btn-open-export" class="btn-header-cta">
+              <span>Exportar</span>
+              <svg viewBox="0 0 24 24">
+                <path d="M12 16V3m-5 8 5 5 5-5M4 16v5h16v-5" />
+              </svg>
+            </button>
+          </header>
+          <div class="editor-settings">
+            <label class="format-setting"
+              ><span>Formato</span
+              ><select
+                id="aspect-ratio-select"
+                aria-label="Formato del carrusel"
+              >
+                <option value="4:5">4:5 · Retrato</option>
+                <option value="1:1">1:1 · Cuadrado</option>
+                <option value="9:16">9:16 · Historia</option>
+              </select></label
+            >
+            <div class="stepper-pill">
+              <button
+                id="btn-minus-slide"
+                class="stepper-btn"
+                aria-label="Quitar página"
+              >
+                −</button
+              ><span><b id="slide-count-display">3</b> pág.</span
+              ><button
+                id="btn-plus-slide"
+                class="stepper-btn"
+                aria-label="Añadir página"
+              >
+                +
+              </button>
+            </div>
+            <button
+              id="btn-layers"
+              class="icon-btn-circle"
+              aria-label="Ver capas"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="m3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4" />
+              </svg>
+            </button>
+          </div>
+          <!-- Floating Controls over Canvas -->
+          <div class="canvas-float-top">
+            <div class="chip-group">
+              <button
+                id="btn-toggle-guides"
+                class="glass-chip-btn active"
+                title="Activar/Desactivar Guías de Corte"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <line x1="12" y1="2" x2="12" y2="22" stroke-dasharray="3 3" />
+                </svg>
+                <span>Guías</span>
+              </button>
+              <button
+                id="btn-zoom-fit"
+                class="glass-chip-btn"
+                title="Centrar lienzo"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M15 3h6v6" />
+                  <path d="M9 21H3v-6" />
+                  <path d="M21 3l-7 7" />
+                  <path d="M3 21l7-7" />
+                </svg>
+                <span>Centrar</span>
+              </button>
+            </div>
+
+            <div class="chip-group">
+              <!-- Undo / Redo -->
+              <button id="btn-undo" class="icon-btn-circle" title="Deshacer">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M3 7v6h6" />
+                  <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+                </svg>
+              </button>
+              <button id="btn-redo" class="icon-btn-circle" title="Rehacer">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M21 7v6h-6" />
+                  <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
+                </svg>
+              </button>
+              <!-- Instagram Swipe Preview -->
+              <button
+                id="btn-preview-ig"
+                class="icon-btn-circle"
+                style="background: rgba(59, 130, 246, 0.2); color: #60a5fa"
+                title="Vista Previa Instagram"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="5" y="2" width="14" height="20" rx="3" />
+                  <circle cx="12" cy="18" r="0.5" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- ================= 2. CANVAS MAIN WORKSPACE ================= -->
+          <main id="canvas-workspace">
+            <canvas
+              id="main-canvas"
+              aria-label="Lienzo del carrusel. Usa Capas para seleccionar y editar elementos con el teclado."
+            ></canvas>
+            <button id="empty-canvas-action" class="hidden">
+              <span>+</span><strong>Empieza por un momento</strong
+              ><small>Añade tu primera foto</small>
+            </button>
+          </main>
+
+          <div id="selection-toolbar">
+            <span id="selection-hint"
+              >Toca para editar · Pellizca para acercar</span
+            >
+            <!-- ================= 3. CONTEXT ACTION BAR (FLOATS AT TOP UNDER HEADER) ================= -->
+            <div id="context-action-bar" class="hidden">
+              <button id="btn-ctx-adjust" class="context-btn accent">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M4 7h16M4 17h16M8 3v8m8 2v8" /></svg
+                ><span>Editar</span>
+              </button>
+              <button
+                id="btn-ctx-crop"
+                class="context-btn accent"
+                title="Recortar y reencuadrar imagen"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M6 2v14a2 2 0 0 0 2 2h14" />
+                  <path d="M18 22V8a2 2 0 0 0-2-2H2" />
+                </svg>
+                <span>Recortar</span>
+              </button>
+              <button
+                id="btn-ctx-edit-frame"
+                class="context-btn accent"
+                title="Ajustar encuadre y posición dentro de la forma"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="9" />
+                  <circle cx="12" cy="12" r="3" />
+                  <line x1="12" y1="3" x2="12" y2="7" />
+                  <line x1="12" y1="17" x2="12" y2="21" />
+                  <line x1="3" y1="12" x2="7" y2="12" />
+                  <line x1="17" y1="12" x2="21" y2="12" />
+                </svg>
+                <span>Encuadre</span>
+              </button>
+              <button
+                id="btn-ctx-shapes"
+                class="context-btn"
+                title="Elegir forma de máscara (Círculo, Estrella, etc.)"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="9" />
+                  <polygon
+                    points="12 6 13.5 10.5 18 10.5 14.5 13.5 16 18 12 15 8 18 9.5 13.5 6 10.5 10.5 10.5"
+                  />
+                </svg>
+                <span>Forma</span>
+              </button>
+              <button
+                id="btn-ctx-duplicate"
+                class="context-btn"
+                title="Duplicar"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path
+                    d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                  />
+                </svg>
+                <span>Duplicar</span>
+              </button>
+              <button
+                id="btn-ctx-delete"
+                class="context-btn danger"
+                title="Eliminar"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  />
+                </svg>
+                <span>Borrar</span>
+              </button>
+              <button
+                id="btn-ctx-center-slide"
+                class="context-btn"
+                title="Centrar en esta diapositiva"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 8v8M8 12h8" />
+                </svg>
+                <span>Centrar</span>
+              </button>
+              <button
+                id="btn-ctx-fit-slide"
+                class="context-btn"
+                title="Ajustar al tamaño de la diapositiva"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+                  />
+                </svg>
+                <span>Ajustar</span>
+              </button>
+              <button
+                id="btn-ctx-snap-seam"
+                class="context-btn accent"
+                title="Centrar entre 2 diapositivas"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <line x1="12" y1="2" x2="12" y2="22" stroke-dasharray="2 2" />
+                  <rect x="5" y="7" width="14" height="10" rx="2" />
+                </svg>
+                <span>Cruzar</span>
+              </button>
+              <button
+                id="btn-ctx-rotate"
+                class="context-btn"
+                title="Girar 90 grados"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M21.5 2v6h-6" />
+                  <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
+                <span>Girar</span>
+              </button>
+              <button
+                id="btn-ctx-layer-up"
+                class="context-btn"
+                title="Subir 1 capa hacia adelante"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="18 15 12 9 6 15" />
+                </svg>
+                <span>Subir</span>
+              </button>
+              <button
+                id="btn-ctx-layer-down"
+                class="context-btn"
+                title="Bajar 1 capa hacia atrás"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+                <span>Bajar</span>
+              </button>
+            </div>
+          </div>
+          <div class="pages-bar">
+            <div class="pages-label">
+              <span id="active-page-label">PÁGINA 01</span
+              ><span id="canvas-zoom-label">100%</span>
+            </div>
+            <div id="page-strip" aria-label="Páginas del carrusel"></div>
+          </div>
+          <!-- ================= 4. MOBILE BOTTOM NAV BAR (PRIMARY THUMB ZONE) ================= -->
+          <nav id="mobile-bottom-bar">
+            <button class="nav-tab-btn" data-tab="photos">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              <span>Fotos</span>
+            </button>
+
+            <button class="nav-tab-btn" data-tab="text">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="4 7 4 4 20 4 20 7" />
+                <line x1="9" y1="20" x2="15" y2="20" />
+                <line x1="12" y1="4" x2="12" y2="20" />
+              </svg>
+              <span>Texto</span>
+            </button>
+
+            <button class="nav-tab-btn" data-tab="stickers">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="m14 15 2 2" />
+                <path d="m10 9 2 2" />
+                <path d="m9 15 6-6" />
+              </svg>
+              <span>Stickers</span>
+            </button>
+
+            <button class="nav-tab-btn" data-tab="templates">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+              </svg>
+              <span>Plantillas</span>
+            </button>
+
+            <button class="nav-tab-btn" data-tab="background">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+              </svg>
+              <span>Fondo</span>
+            </button>
+          </nav>
+        </section>
+        <button
+          id="drawer-backdrop"
+          class="sheet-backdrop hidden"
+          aria-label="Cerrar herramientas"
+        ></button>
+        <!-- ================= 5. MOBILE BOTTOM SHEET (SPRING DRAWER) ================= -->
+        <div
+          id="bottom-sheet-drawer"
+          class="hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="drawer-title-text"
+          tabindex="-1"
+        >
+          <div class="drawer-pill-handle"></div>
+
+          <div class="drawer-header">
+            <div class="drawer-title" id="drawer-title-text">Añadir Fotos</div>
+            <button class="drawer-close-btn" id="btn-close-drawer">✕</button>
+          </div>
+
+          <div class="drawer-body">
+            <!-- 1. Photos Tab -->
+            <div id="drawer-tab-photos" class="drawer-tab-content active">
+              <!-- Upload Box -->
+              <button
+                type="button"
+                class="mobile-upload-box"
+                id="btn-mobile-upload"
+              >
+                <div class="upload-icon-circle">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                </div>
+                <div class="upload-text-wrap">
+                  <h4>Añadir tus fotos</h4>
+                  <p>Desde tu galería, directo a tu historia</p>
+                </div></button
+              ><input
+                type="file"
+                id="mobile-file-input"
+                accept="image/*"
+                multiple
+                class="hidden"
+              />
+
+              <div class="drawer-section-label">Prueba con una ilustración</div>
+              <div
+                class="drawer-grid-2col"
+                id="mobile-sample-photos-grid"
+              ></div>
+            </div>
+
+            <!-- 2. Text Tab -->
+            <div id="drawer-tab-text" class="drawer-tab-content">
+              <div class="drawer-section-label">Estilos Tipográficos</div>
+              <button
+                id="btn-add-mobile-heading"
+                class="mobile-text-preset-btn"
+              >
+                <div
+                  style="
+                    font-family: &quot;Playfair Display&quot;, serif;
+                    font-size: 18px;
+                    font-weight: 700;
+                  "
+                >
+                  Título editorial
+                </div>
+                <div
+                  style="
+                    font-size: 11px;
+                    color: var(--text-tertiary);
+                    margin-top: 2px;
+                  "
+                >
+                  Serif editorial · 52 px
+                </div>
+              </button>
+              <button
+                id="btn-add-mobile-subheading"
+                class="mobile-text-preset-btn"
+              >
+                <div
+                  style="
+                    font-family: &quot;Inter&quot;, sans-serif;
+                    font-size: 14px;
+                    font-weight: 700;
+                    letter-spacing: 1px;
+                  "
+                >
+                  SUBTÍTULO MODERNO
+                </div>
+                <div
+                  style="
+                    font-size: 11px;
+                    color: var(--text-tertiary);
+                    margin-top: 2px;
+                  "
+                >
+                  Sans moderna · 24 px
+                </div>
+              </button>
+              <button id="btn-add-mobile-body" class="mobile-text-preset-btn">
+                <div style="font-size: 13px; font-weight: 500">
+                  Párrafo continuo
+                </div>
+                <div
+                  style="
+                    font-size: 11px;
+                    color: var(--text-tertiary);
+                    margin-top: 2px;
+                  "
+                >
+                  Texto descriptivo continuo
+                </div>
+              </button>
+            </div>
+
+            <!-- 3. Stickers Tab -->
+            <div id="drawer-tab-stickers" class="drawer-tab-content">
+              <div class="drawer-section-label">
+                Cintas Washi, Sellos y Vintage
+              </div>
+              <div class="drawer-grid-2col" id="mobile-stickers-grid"></div>
+            </div>
+
+            <!-- 4. Templates Tab -->
+            <div id="drawer-tab-templates" class="drawer-tab-content">
+              <div class="drawer-section-label">Plantillas y Lienzo</div>
+              <!-- Clean Blank White Canvas at top -->
+              <div
+                class="mobile-template-card"
+                data-template="blank"
+                style="
+                  border: 2px dashed rgba(59, 130, 246, 0.45);
+                  background: rgba(59, 130, 246, 0.08);
+                "
+              >
+                <div class="template-badge" style="color: #60a5fa">
+                  ✨ Empezar de Cero
+                </div>
+                <div class="template-name">Lienzo Blanco Vacío</div>
+                <div class="template-desc">
+                  Limpia todos los elementos y deja un fondo blanco puro listo
+                  para tu diseño.
+                </div>
+              </div>
+
+              <div class="mobile-template-card" data-template="panorama">
+                <div class="template-badge">Firma SCRL</div>
+                <div class="template-name">Wanderlust Panorama</div>
+                <div class="template-desc">
+                  Foto apaisada continua atravesando 3 diapositivas con
+                  tipografía y polaroid.
+                </div>
+              </div>
+              <div class="mobile-template-card" data-template="editorial">
+                <div class="template-badge">Vogue Aesthetic</div>
+                <div class="template-name">Editorial Magazine</div>
+                <div class="template-desc">
+                  Composición de alta costura, marcos arquitectónicos y citas
+                  minimalistas.
+                </div>
+              </div>
+              <div class="mobile-template-card" data-template="scrapbook">
+                <div class="template-badge">Photo Dump</div>
+                <div class="template-name">Nostalgic Scrapbook</div>
+                <div class="template-desc">
+                  Polaroids inclinadas sobre las costuras con cinta adhesiva
+                  washi.
+                </div>
+              </div>
+              <div class="mobile-template-card" data-template="filmstrip">
+                <div class="template-badge">35mm Vintage</div>
+                <div class="template-name">Analog Film Roll</div>
+                <div class="template-desc">
+                  Perforaciones de película de 35mm, código de barras y códigos
+                  Kodak.
+                </div>
+              </div>
+            </div>
+
+            <!-- 5. Background Tab -->
+            <div id="drawer-tab-background" class="drawer-tab-content">
+              <div class="drawer-section-label">
+                Paletas Editoriales y Degradados
+              </div>
+              <div class="drawer-grid-4col" id="mobile-palette-grid"></div>
+            </div>
+
+            <!-- 6. Item Fine-Tuning Drawer -->
+            <div id="drawer-tab-adjust" class="drawer-tab-content">
+              <div id="layers-list" class="hidden"></div>
+              <div id="object-adjustments">
+                <!-- Shape and Frame clipping -->
+                <div class="drawer-section-label" id="shape-section-label">
+                  Forma de Recorte y Marco
+                </div>
+                <div class="shape-selector-grid" id="shape-selector-grid">
+                  <button class="shape-choice-btn active" data-shape="rect">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                    </svg>
+                    <span>Normal</span>
+                  </button>
+                  <button class="shape-choice-btn" data-shape="circle">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="12" cy="12" r="9" />
+                    </svg>
+                    <span>Círculo</span>
+                  </button>
+                  <button class="shape-choice-btn" data-shape="star">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polygon
+                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+                      />
+                    </svg>
+                    <span>Estrella</span>
+                  </button>
+                  <button class="shape-choice-btn" data-shape="heart">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                      />
+                    </svg>
+                    <span>Corazón</span>
+                  </button>
+                  <button class="shape-choice-btn" data-shape="arch">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M4 21V10a8 8 0 0 1 16 0v11H4z" />
+                    </svg>
+                    <span>Arco</span>
+                  </button>
+                  <button class="shape-choice-btn" data-shape="flower">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="12" cy="12" r="3" />
+                      <circle cx="12" cy="5" r="2.5" />
+                      <circle cx="12" cy="19" r="2.5" />
+                      <circle cx="5" cy="12" r="2.5" />
+                      <circle cx="19" cy="12" r="2.5" />
+                    </svg>
+                    <span>Flor</span>
+                  </button>
+                  <button class="shape-choice-btn" data-shape="polaroid">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <rect x="6" y="6" width="12" height="9" />
+                    </svg>
+                    <span>Polaroid</span>
+                  </button>
+                  <button class="shape-choice-btn" data-shape="film">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <rect x="2" y="5" width="20" height="14" rx="2" />
+                      <path d="M2 9h20M2 15h20M6 5v4M6 15v4M18 5v4M18 15v4" />
+                    </svg>
+                    <span>Film 35mm</span>
+                  </button>
+                </div>
+
+                <!-- Alignment & Measurement Tools -->
+                <div class="drawer-section-label">
+                  Alineación y Ajuste de Medidas
+                </div>
+                <div class="align-tool-row">
+                  <button id="btn-align-center-slide" class="btn-align-pill">
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 8v8M8 12h8" />
+                    </svg>
+                    <span>Centrar en página</span>
+                  </button>
+                  <button id="btn-align-fit-slide" class="btn-align-pill">
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+                      />
+                    </svg>
+                    <span>Ajustar a página</span>
+                  </button>
+                  <button id="btn-align-snap-seam" class="btn-align-pill">
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <line
+                        x1="12"
+                        y1="2"
+                        x2="12"
+                        y2="22"
+                        stroke-dasharray="2 2"
+                      />
+                      <rect x="5" y="7" width="14" height="10" rx="2" />
+                    </svg>
+                    <span>Cruzar Costura</span>
+                  </button>
+                  <button id="btn-align-span-2" class="btn-align-pill">
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polyline points="15 3 21 3 21 9" />
+                      <polyline points="9 21 3 21 3 15" />
+                    </svg>
+                    <span>Abarcar 2 páginas</span>
+                  </button>
+                </div>
+
+                <!-- Polaroid caption input -->
+                <div
+                  id="mobile-field-polaroid"
+                  class="adjust-row hidden"
+                  style="
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 4px;
+                  "
+                >
+                  <label for="mobile-input-polaroid"
+                    >Pie de foto manuscrito</label
+                  >
+                  <input
+                    type="text"
+                    id="mobile-input-polaroid"
+                    class="mobile-text-preset-btn"
+                    style="padding: 10px; font-size: 13px"
+                    placeholder="Escribe aquí..."
+                  />
+                </div>
+
+                <!-- Text content editor -->
+                <div
+                  id="mobile-field-text"
+                  class="adjust-row hidden"
+                  style="
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 4px;
+                  "
+                >
+                  <label for="mobile-input-text">Texto</label>
+                  <textarea
+                    id="mobile-input-text"
+                    class="mobile-text-preset-btn"
+                    style="min-height: 60px; font-size: 13px"
+                  ></textarea>
+                </div>
+
+                <div id="text-style-controls" class="hidden">
+                  <label for="text-font">Tipografía</label
+                  ><select
+                    id="text-font"
+                    class="mobile-text-preset-btn"
+                  ></select>
+                  <div class="text-style-row">
+                    <label
+                      >Tamaño<input
+                        id="text-size"
+                        type="number"
+                        min="10"
+                        max="240"
+                        step="1"
+                        aria-label="Tamaño del texto" /></label
+                    ><label
+                      >Color<input
+                        id="text-color"
+                        type="color"
+                        aria-label="Color del texto" /></label
+                    ><label
+                      >Alineación<select
+                        id="text-align"
+                        aria-label="Alineación del texto"
+                      >
+                        <option value="left">Izquierda</option>
+                        <option value="center">Centro</option>
+                        <option value="right">Derecha</option>
+                      </select></label
+                    >
+                  </div>
+                </div>
+                <div class="adjust-row" id="radius-field">
+                  <label for="mobile-slider-radius">Borde Redondeado:</label>
+                  <input
+                    type="range"
+                    id="mobile-slider-radius"
+                    min="0"
+                    max="60"
+                    value="0"
+                  />
+                </div>
+
+                <div class="adjust-row">
+                  <label for="mobile-slider-opacity">Opacidad:</label>
+                  <input
+                    type="range"
+                    id="mobile-slider-opacity"
+                    min="0.1"
+                    max="1.0"
+                    step="0.05"
+                    value="1.0"
+                  />
+                </div>
+
+                <div class="adjust-row">
+                  <label for="mobile-toggle-shadow">Sombra Suave:</label>
+                  <input
+                    type="checkbox"
+                    id="mobile-toggle-shadow"
+                    style="
+                      width: 20px;
+                      height: 20px;
+                      accent-color: var(--accent);
+                    "
+                  />
+                </div>
+
+                <!-- Manual Framing Shortcut -->
+                <div style="margin-top: 10px">
+                  <button
+                    id="btn-open-frame-adjust"
+                    class="btn-primary-mobile"
+                    style="padding: 12px; font-size: 13px"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="12" cy="12" r="9" />
+                      <circle cx="12" cy="12" r="3" />
+                      <line x1="12" y1="3" x2="12" y2="7" />
+                      <line x1="12" y1="17" x2="12" y2="21" />
+                      <line x1="3" y1="12" x2="7" y2="12" />
+                      <line x1="17" y1="12" x2="21" y2="12" />
+                    </svg>
+                    <span>Ajustar Encuadre de la Foto</span>
+                  </button>
+                </div>
+
+                <div class="drawer-section-label" style="margin-top: 14px">
+                  Capas de Profundidad
+                </div>
+                <div
+                  style="
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 8px;
+                  "
+                >
+                  <button
+                    id="btn-mobile-step-up"
+                    class="btn-secondary-mobile"
+                    style="padding: 10px"
+                  >
+                    ▲ Subir 1 Capa
+                  </button>
+                  <button
+                    id="btn-mobile-step-down"
+                    class="btn-secondary-mobile"
+                    style="padding: 10px"
+                  >
+                    ▼ Bajar 1 Capa
+                  </button>
+                  <button
+                    id="btn-mobile-layer-up"
+                    class="btn-secondary-mobile"
+                    style="padding: 10px"
+                  >
+                    ⏫ Al Frente
+                  </button>
+                  <button
+                    id="btn-mobile-layer-down"
+                    class="btn-secondary-mobile"
+                    style="padding: 10px"
+                  >
+                    ⏬ Al Fondo
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= 6. INSTAGRAM SIMULATOR MODAL (SWIPE EXPERIENCE) ================= -->
+        <div id="preview-modal" class="mobile-modal-overlay hidden">
+          <div class="ig-mobile-container">
+            <!-- IG Top Bar -->
+            <div class="ig-mobile-top-bar">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <div
+                  style="
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #f59e0b, #ec4899);
+                  "
+                ></div>
+                <div>
+                  <div style="font-size: 12px; font-weight: 700">tu_perfil</div>
+                  <div style="font-size: 9px; color: #a1a1aa">
+                    Vista previa de carrusel
+                  </div>
+                </div>
+              </div>
+              <button class="ig-close-btn" id="btn-close-ig-preview">✕</button>
+            </div>
+
+            <!-- IG Swipe Viewport -->
+            <div class="ig-mobile-viewport">
+              <div class="ig-carousel-track"></div>
+              <div class="ig-slide-badge" id="ig-slide-counter">1/3</div>
+            </div>
+
+            <!-- IG Footer -->
+            <div class="ig-mobile-footer">
+              <div class="ig-action-icons">
+                <div class="ig-left-icons">
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                    />
+                  </svg>
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                    />
+                  </svg>
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                </div>
+                <div class="ig-carousel-dots" id="ig-dots-wrap"></div>
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <div style="font-size: 11px; color: #a1a1aa; line-height: 1.4">
+                <strong style="color: #fff">tu_perfil</strong> Desliza
+                horizontalmente con el dedo para experimentar la transición
+                continua sin cortes.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= 7. INTERNAL IMAGE CROPPER MODAL ================= -->
+        <div id="crop-modal" class="mobile-modal-overlay hidden">
+          <div class="crop-modal-container">
+            <!-- Crop Header -->
+            <div class="crop-modal-header">
+              <div class="crop-header-title">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M6 2v14a2 2 0 0 0 2 2h14" />
+                  <path d="M18 22V8a2 2 0 0 0-2-2H2" />
+                </svg>
+                <span>Recortar Imagen</span>
+              </div>
+              <button
+                class="ig-close-btn"
+                id="btn-close-crop"
+                title="Cerrar recorte"
+              >
+                ✕
+              </button>
+            </div>
+
+            <!-- Crop Interactive Workspace -->
+            <div class="crop-workspace" id="crop-workspace">
+              <div class="crop-viewport" id="crop-viewport">
+                <img
+                  id="crop-source-img"
+                  class="crop-source-img"
+                  src=""
+                  alt="Crop Source"
+                />
+                <!-- Draggable & Resizable Crop Box -->
+                <div id="crop-box" class="crop-box">
+                  <div class="crop-grid-line crop-grid-h1"></div>
+                  <div class="crop-grid-line crop-grid-h2"></div>
+                  <div class="crop-grid-line crop-grid-v1"></div>
+                  <div class="crop-grid-line crop-grid-v2"></div>
+                  <div
+                    class="crop-corner crop-corner-nw"
+                    data-handle="nw"
+                  ></div>
+                  <div
+                    class="crop-corner crop-corner-ne"
+                    data-handle="ne"
+                  ></div>
+                  <div
+                    class="crop-corner crop-corner-se"
+                    data-handle="se"
+                  ></div>
+                  <div
+                    class="crop-corner crop-corner-sw"
+                    data-handle="sw"
+                  ></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Aspect Ratio Quick Presets -->
+            <div class="crop-aspect-strip">
+              <button class="crop-aspect-btn active" data-ratio="free">
+                Libre
+              </button>
+              <button class="crop-aspect-btn" data-ratio="original">
+                Original
+              </button>
+              <button class="crop-aspect-btn" data-ratio="1:1">
+                1:1 Cuadrado
+              </button>
+              <button class="crop-aspect-btn" data-ratio="4:5">
+                4:5 Retrato
+              </button>
+              <button class="crop-aspect-btn" data-ratio="9:16">
+                9:16 Story
+              </button>
+              <button class="crop-aspect-btn" data-ratio="16:9">
+                16:9 Cine
+              </button>
+              <button class="crop-aspect-btn" data-ratio="3:4">
+                3:4 Clásico
+              </button>
+            </div>
+
+            <!-- Thumb-Zone CTAs -->
+            <div class="crop-modal-footer">
+              <button
+                id="btn-crop-reset"
+                class="btn-secondary-mobile"
+                style="flex: 1; padding: 12px"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                <span>Restablecer</span>
+              </button>
+              <button
+                id="btn-crop-apply"
+                class="btn-primary-mobile"
+                style="flex: 2; margin-bottom: 0; padding: 12px"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span>Aplicar Recorte</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= 8. FRAME & SHAPE ADJUSTER MODAL ================= -->
+        <div id="frame-modal" class="mobile-modal-overlay hidden">
+          <div class="crop-modal-container">
+            <!-- Header -->
+            <div class="crop-modal-header">
+              <div class="crop-header-title">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="9" />
+                  <circle cx="12" cy="12" r="3" />
+                  <line x1="12" y1="3" x2="12" y2="7" />
+                  <line x1="12" y1="17" x2="12" y2="21" />
+                  <line x1="3" y1="12" x2="7" y2="12" />
+                  <line x1="17" y1="12" x2="21" y2="12" />
+                </svg>
+                <span>Ajustar Encuadre de la Forma</span>
+              </div>
+              <button
+                class="ig-close-btn"
+                id="btn-close-frame-adjust"
+                title="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+
+            <!-- Frame Canvas Workspace -->
+            <div class="crop-workspace" id="frame-canvas-wrap">
+              <canvas
+                id="frame-canvas"
+                style="border-radius: 12px; cursor: grab"
+              ></canvas>
+            </div>
+
+            <!-- Zoom & Center Controls -->
+            <div class="frame-adjust-controls">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  font-size: 12px;
+                  color: var(--text-secondary);
+                  margin-bottom: 6px;
+                "
+              >
+                <span>Zoom de la imagen:</span>
+                <span id="frame-zoom-val" style="font-weight: 700; color: #fff"
+                  >1.0x</span
+                >
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px">
+                <span style="font-size: 11px">1x</span>
+                <input
+                  type="range"
+                  id="frame-zoom-slider"
+                  min="1.0"
+                  max="3.5"
+                  step="0.05"
+                  value="1.0"
+                  style="flex: 1"
+                />
+                <span style="font-size: 11px">3.5x</span>
+              </div>
+            </div>
+
+            <!-- Thumb-Zone CTAs -->
+            <div class="crop-modal-footer">
+              <button
+                id="btn-frame-reset"
+                class="btn-secondary-mobile"
+                style="flex: 1; padding: 12px"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                <span>Centrar</span>
+              </button>
+              <button
+                id="btn-frame-apply"
+                class="btn-primary-mobile"
+                style="flex: 2; margin-bottom: 0; padding: 12px"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span>Aplicar Encuadre</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= 9. EXPORT MODAL (PEAK-END CELEBRATION) ================= -->
+        <div id="export-modal" class="mobile-modal-overlay hidden">
+          <div class="export-sheet-card">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+              "
+            >
+              <div>
+                <div class="export-hero-badge">TU HISTORIA, LISTA</div>
+                <div class="export-title">Que siga la historia.</div>
+                <div class="export-subtitle">
+                  Cortado automáticamente en alta resolución (1080p).
+                </div>
+              </div>
+              <button class="drawer-close-btn" id="btn-close-export-sheet">
+                ✕
+              </button>
+            </div>
+
+            <!-- Horizontal Previews Strip -->
+            <div class="export-strip-scroll" id="export-strip-container"></div>
+
+            <!-- Primary Thumb Action: Download ZIP -->
+            <button id="btn-download-zip" class="btn-primary-mobile">
+              <span>📦 Descargar ZIP Completo (3 slides)</span>
+            </button>
+
+            <!-- Secondary Action: Full Panorama -->
+            <button id="btn-download-panorama" class="btn-secondary-mobile">
+              <span>Descargar panorama completo</span>
+            </button>
+
+            <div
+              role="status"
+              id="export-status-label"
+              style="
+                text-align: center;
+                font-size: 11px;
+                color: var(--text-tertiary);
+                margin-top: 10px;
+              "
+            >
+              Descarga instantánea generada en tu dispositivo
+            </div>
+          </div>
+        </div>
+
+        <dialog id="new-project-dialog" class="studio-dialog">
+          <form id="new-project-form">
+            <div class="dialog-top">
+              <span class="eyebrow">UNA NUEVA HISTORIA</span
+              ><button type="button" data-close-dialog aria-label="Cerrar">
+                ✕
+              </button>
+            </div>
+            <h2>Hazlo tuyo.</h2>
+            <p>Un lienzo continuo. Todas tus ideas.</p>
+            <label for="new-project-name">Nombre del proyecto</label
+            ><input
+              id="new-project-name"
+              maxlength="60"
+              placeholder="Mi próxima historia"
+              autocomplete="off"
+            />
+            <label for="new-project-ratio">Formato</label
+            ><select id="new-project-ratio">
+              <option value="4:5">4:5 · Retrato — 1080 × 1350</option>
+              <option value="1:1">1:1 · Cuadrado — 1080 × 1080</option>
+              <option value="9:16">9:16 · Historia — 1080 × 1920</option>
+            </select>
+            <label for="new-project-count">Número de páginas</label>
+            <div class="count-input">
+              <input
+                id="new-project-count"
+                type="number"
+                min="1"
+                max="10"
+                value="3"
+                required
+              /><span>De 1 a 10 páginas conectadas</span>
+            </div>
+            <button type="submit" class="create-project-btn">
+              Empezar a crear <span aria-hidden="true">↗</span>
+            </button>
+          </form>
+        </dialog>
+        <dialog id="help-dialog" class="studio-dialog">
+          <div class="dialog-top">
+            <span class="eyebrow">TU ESTUDIO DE BOLSILLO</span
+            ><button data-close-dialog aria-label="Cerrar ayuda">✕</button>
+          </div>
+          <h2>De la idea al carrusel.</h2>
+          <ol class="help-steps">
+            <li>
+              <b>01</b>
+              <div>
+                <strong>Empieza con lo que te inspira</strong>
+                <p>Elige una plantilla o crea un lienzo en blanco.</p>
+              </div>
+            </li>
+            <li>
+              <b>02</b>
+              <div>
+                <strong>Haz que todo conecte</strong>
+                <p>
+                  Añade fotos y texto. Arrastra los elementos entre páginas;
+                  pellizca para acercarte.
+                </p>
+              </div>
+            </li>
+            <li>
+              <b>03</b>
+              <div>
+                <strong>Mira, descarga y comparte</strong>
+                <p>
+                  Prueba el carrusel en Vista previa. Exporta las páginas PNG
+                  juntas en un ZIP.
+                </p>
+              </div>
+            </li>
+          </ol>
+          <p class="help-storage">
+            Tus proyectos se guardan en este navegador. Descargar el ZIP
+            conserva tus imágenes, pero no un proyecto editable. Borrar los
+            datos del navegador elimina los proyectos.
+          </p>
+        </dialog>
+        <div id="studio-toast" role="status" class="hidden"></div>
+      </div>
+    </div>
+
+    <!-- Main Script Bundle -->
+    <script src="js/notscrl.bundle.js"></script>
+  </body>
+</html>

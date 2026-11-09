@@ -1,0 +1,7 @@
+.agents
+.artifacts
+tests
+*.md
+start.bat
+build.js
+.git
