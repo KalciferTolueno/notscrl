@@ -402,7 +402,8 @@ export class CanvasEngine {
     const data = { ...item };
     delete data.image;
     const snapshot = structuredClone(data);
-    if (item.image) snapshot.imageSrc = item.image.src;
+    snapshot.imageSrc =
+      item.mediaType === 'video' || !item.image ? '' : item.image.src;
     return snapshot;
   }
 
@@ -419,12 +420,16 @@ export class CanvasEngine {
     const restored = await Promise.all(snapshot.items.map(async data => {
       let item;
       if (data.type === 'image' || data.type === 'sticker') {
-        const image = new Image();
-        image.src = data.imageSrc;
-        try { await image.decode(); } catch { /* Keep the layer available if its source is missing. */ }
-        item = data.type === 'sticker'
-          ? new StickerItem(image, data.x, data.y, data.width, data.height, data.title)
-          : new ImageItem(image, data.x, data.y, data.width, data.height);
+        if (data.mediaType === 'video') {
+          item = await this.restoreVideoItem(data);
+        } else {
+          const image = new Image();
+          image.src = data.imageSrc;
+          try { await image.decode(); } catch { /* Keep the layer available if its source is missing. */ }
+          item = data.type === 'sticker'
+            ? new StickerItem(image, data.x, data.y, data.width, data.height, data.title)
+            : new ImageItem(image, data.x, data.y, data.width, data.height);
+        }
       } else {
         item = new TextItem(data.text, data.x, data.y, data.width, data.height);
       }
@@ -445,6 +450,33 @@ export class CanvasEngine {
     this.triggerChange();
   }
 
+  async restoreVideoItem(data) {
+    const { ImageItem } = window.__notScrlObjects;
+    const video = document.createElement('video');
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.autoplay = true;
+
+    if (data.originalKey && this.loadMediaBlob) {
+      try {
+        const blob = await this.loadMediaBlob(data.originalKey);
+        video.src = URL.createObjectURL(blob);
+        await new Promise((resolve) => {
+          video.onloadeddata = resolve;
+          video.onerror = resolve;
+        });
+        video.play?.().catch(() => {});
+      } catch {
+        /* Keep the frame as an empty slot if the video is unavailable. */
+      }
+    }
+
+    const item = new ImageItem(video, data.x, data.y, data.width, data.height);
+    item.mediaType = 'video';
+    return item;
+  }
+
   async restoreProject(snapshot) {
     if (snapshot) await this.restoreHistory(snapshot, true);
   }
@@ -455,6 +487,21 @@ export class CanvasEngine {
     if (this.onCanvasChange) {
       this.onCanvasChange();
     }
+  }
+
+  hasAnimatedMedia() {
+    return this.items.some(
+      (item) => item.mediaType === 'video' || item.mediaType === 'gif'
+    );
+  }
+
+  ensureAnimationLoop() {
+    if (typeof requestAnimationFrame !== 'function' || this.animationFrame) return;
+    this.animationFrame = requestAnimationFrame(() => {
+      this.animationFrame = null;
+      if (!this.hasAnimatedMedia()) return;
+      this.render();
+    });
   }
 
   bindEvents() {
@@ -1029,6 +1076,7 @@ export class CanvasEngine {
     }
 
     ctx.restore();
+    this.ensureAnimationLoop();
     this.onViewChange?.();
   }
 

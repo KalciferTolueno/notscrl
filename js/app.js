@@ -25,6 +25,7 @@ class NotScrlMobileApp {
 
     this.engine = new CanvasEngine(this.canvasEl, this.workspaceEl);
     this.storage = new StorageManager(this.engine);
+    this.engine.loadMediaBlob = (key) => this.storage.loadOriginal(key);
     this.loadingProject = true;
     this.exporter = new CanvasExporter(this.engine, this.storage);
     this.preview = new PreviewSimulator(this.exporter, document.getElementById('preview-modal'));
@@ -49,6 +50,7 @@ class NotScrlMobileApp {
     this.bindBottomNavAndDrawer();
     this.bindExportSheet();
     this.bindFileUpload();
+    this.bindGiphy();
 
     // Populate drawer content
     this.populateStickers();
@@ -494,6 +496,11 @@ class NotScrlMobileApp {
     const targetTab = document.getElementById(`drawer-tab-${tabName}`);
     if (targetTab) targetTab.classList.add('active');
 
+    if (tabName === 'stickers' && this.giphyLoaded === false) {
+      this.giphyLoaded = true;
+      this.loadGiphy('');
+    }
+
     if (this.drawerTitle) this.drawerTitle.textContent = title;
     this.drawer.classList.remove('hidden');
     this.drawer.focus({ preventScroll: true });
@@ -579,7 +586,23 @@ class NotScrlMobileApp {
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
         if (projectId !== this.storage.projectId) break;
+        if (file.type.startsWith('video/')) {
+          try {
+            await this.addVideoFile(file, i);
+          } catch (error) {
+            this.studio.toast(error.message || 'Este vídeo no se pudo abrir. Prueba con MP4 o WebM.');
+          }
+          continue;
+        }
         if (!file.type.startsWith('image/')) continue;
+        if (file.type === 'image/gif') {
+          try {
+            await this.addGifFile(file, i);
+          } catch (error) {
+            this.studio.toast(error.message || 'Este GIF no se pudo abrir.');
+          }
+          continue;
+        }
         try {
           const url = URL.createObjectURL(file);
           let img;
@@ -620,6 +643,139 @@ class NotScrlMobileApp {
       }
     });
     return this.uploadQueue;
+  }
+
+  async addVideoFile(file, index) {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.autoplay = true;
+    video.src = URL.createObjectURL(file);
+    await new Promise((resolve, reject) => {
+      video.onloadeddata = resolve;
+      video.onerror = () => reject(new Error('Este vídeo no se pudo abrir. Prueba con MP4 o WebM.'));
+    });
+    video.play().catch(() => {});
+    const originalKey = await this.storage.saveOriginal(file).catch(() => null);
+    await this.addMediaItem(video, 'video', index, originalKey ? { originalKey } : {});
+  }
+
+  async addGifFile(file, index) {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Este GIF no se pudo abrir.'));
+      reader.readAsDataURL(file);
+    });
+    const img = new Image();
+    img.src = dataUrl;
+    await img.decode();
+    await this.addMediaItem(img, 'gif', index, {});
+  }
+
+  async addMediaItem(media, mediaType, index, extra) {
+    const width = media.videoWidth || media.naturalWidth;
+    const height = media.videoHeight || media.naturalHeight;
+    const scale = Math.min(1, this.engine.slideWidth * 0.75 / Math.max(width, height));
+    const w = Math.round(width * scale);
+    const h = Math.round(height * scale);
+    const item = new ImageItem(
+      media,
+      this.getSpawnX(w) + index * 24,
+      Math.max(0, (this.engine.slideHeight - h) / 2) + index * 24,
+      w,
+      h
+    );
+    item.mediaType = mediaType;
+    item.borderRadius = 8;
+    Object.assign(item, extra);
+    this.engine.addItem(item);
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
+
+  bindGiphy() {
+    this.giphyGrid = document.getElementById('giphy-grid');
+    if (!this.giphyGrid) return;
+    this.giphyStatus = document.getElementById('giphy-status');
+    this.giphyKeyRow = document.getElementById('giphy-key-row');
+    this.giphyKeyInput = document.getElementById('giphy-key-input');
+    this.giphyLoaded = false;
+
+    const savedKey = localStorage.getItem('notscrl_giphy_key');
+    if (savedKey && this.giphyKeyInput) this.giphyKeyInput.value = savedKey;
+    if (!savedKey) this.giphyKeyRow?.classList.remove('hidden');
+
+    document.getElementById('giphy-key-save')?.addEventListener('click', () => {
+      const key = (this.giphyKeyInput?.value || '').trim();
+      if (key) localStorage.setItem('notscrl_giphy_key', key);
+      else localStorage.removeItem('notscrl_giphy_key');
+      this.giphyKeyRow?.classList.add('hidden');
+      this.giphyLoaded = true;
+      this.loadGiphy(document.getElementById('giphy-search-input')?.value || '');
+    });
+
+    document.getElementById('giphy-search-form')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      this.loadGiphy(document.getElementById('giphy-search-input')?.value || '');
+    });
+  }
+
+  async loadGiphy(query) {
+    if (!this.giphyGrid) return;
+    const key = localStorage.getItem('notscrl_giphy_key') || '';
+    this.giphyGrid.innerHTML = '';
+    this.setGiphyStatus('Cargando GIFs…');
+    try {
+      const res = await fetch(`api/giphy/search?q=${encodeURIComponent(query)}`, {
+        headers: key ? { 'x-giphy-key': key } : {}
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (data.error === 'missing_key') {
+          this.giphyKeyRow?.classList.remove('hidden');
+          this.setGiphyStatus('Añade tu API key de GIPHY (developers.giphy.com) para usar GIFs.');
+        } else {
+          this.setGiphyStatus('No se pudieron cargar los GIFs.');
+        }
+        return;
+      }
+      this.setGiphyStatus('');
+      const items = data.items || [];
+      items.forEach((gif) => {
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'mobile-sticker-card giphy-cell';
+        cell.innerHTML = `<img src="api/giphy/media?id=${encodeURIComponent(gif.id)}" alt="${gif.title}" loading="lazy"/>`;
+        cell.addEventListener('click', () => this.addGiphyItem(gif));
+        this.giphyGrid.appendChild(cell);
+      });
+      if (!items.length) this.setGiphyStatus('Sin resultados.');
+    } catch {
+      this.setGiphyStatus('No se pudieron cargar los GIFs. Revisa tu conexión.');
+    }
+  }
+
+  addGiphyItem(gif) {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = gif.width && gif.height ? gif.width / gif.height : 1;
+      const w = this.engine.slideWidth * 0.7;
+      const h = w / ratio;
+      const item = new ImageItem(img, this.getSpawnX(w), 280, Math.round(w), Math.round(h));
+      item.mediaType = 'gif';
+      item.borderRadius = 8;
+      this.engine.addItem(item);
+      this.closeDrawer();
+    };
+    img.onerror = () => this.studio.toast('No se pudo cargar el GIF.');
+    img.src = `api/giphy/media?id=${encodeURIComponent(gif.id)}`;
+  }
+
+  setGiphyStatus(text) {
+    if (!this.giphyStatus) return;
+    this.giphyStatus.textContent = text;
+    this.giphyStatus.classList.toggle('hidden', !text);
   }
 
   // 6. POPULATE MOBILE STICKER GALLERY

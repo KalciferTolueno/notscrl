@@ -625,8 +625,9 @@ class ImageItem extends CanvasItem {
   constructor(image, x, y, width, height) {
     super('image', x, y, width, height);
     this.image = image;
-    this.naturalWidth = image.naturalWidth || width;
-    this.naturalHeight = image.naturalHeight || height;
+    this.mediaType = 'image'; // 'image', 'gif' or 'video'
+    this.naturalWidth = image.naturalWidth || image.videoWidth || width;
+    this.naturalHeight = image.naturalHeight || image.videoHeight || height;
     this.aspectRatio = this.naturalWidth / this.naturalHeight;
 
     // Styling, Clipping & Frames
@@ -649,10 +650,10 @@ class ImageItem extends CanvasItem {
    * ZERO distortion, zero squishing, with optional manual pan and zoom framing.
    */
   drawImageCover(ctx, dx, dy, dw, dh) {
-    if (!this.image || !this.image.complete || !this.image.naturalWidth) return;
+    if (!this.isReady()) return;
 
-    const natW = this.image.naturalWidth || this.naturalWidth || dw;
-    const natH = this.image.naturalHeight || this.naturalHeight || dh;
+    const natW = this.mediaWidth() || this.naturalWidth || dw;
+    const natH = this.mediaHeight() || this.naturalHeight || dh;
     const crop = this.cropReference || this.crop || { x: 0, y: 0, width: 1, height: 1 };
     const fit = this.fitOffset || { x: 0, y: 0, zoom: 1.0 };
 
@@ -710,8 +711,25 @@ class ImageItem extends CanvasItem {
     }
   }
 
+  mediaWidth() {
+    const media = this.image;
+    return media ? media.videoWidth || media.naturalWidth || 0 : 0;
+  }
+
+  mediaHeight() {
+    const media = this.image;
+    return media ? media.videoHeight || media.naturalHeight || 0 : 0;
+  }
+
+  isReady() {
+    const media = this.image;
+    if (!media) return false;
+    if (media.tagName === 'VIDEO') return media.readyState >= 2 && media.videoWidth > 0;
+    return Boolean(media.complete && media.naturalWidth > 0);
+  }
+
   hasImage() {
-    return Boolean(this.image && this.image.complete && this.image.naturalWidth > 0);
+    return this.isReady();
   }
 
   drawPlaceholder(ctx, dx, dy, dw, dh) {
@@ -1384,7 +1402,8 @@ class CanvasEngine {
     const data = { ...item };
     delete data.image;
     const snapshot = structuredClone(data);
-    if (item.image) snapshot.imageSrc = item.image.src;
+    snapshot.imageSrc =
+      item.mediaType === 'video' || !item.image ? '' : item.image.src;
     return snapshot;
   }
 
@@ -1401,12 +1420,16 @@ class CanvasEngine {
     const restored = await Promise.all(snapshot.items.map(async data => {
       let item;
       if (data.type === 'image' || data.type === 'sticker') {
-        const image = new Image();
-        image.src = data.imageSrc;
-        try { await image.decode(); } catch { /* Keep the layer available if its source is missing. */ }
-        item = data.type === 'sticker'
-          ? new StickerItem(image, data.x, data.y, data.width, data.height, data.title)
-          : new ImageItem(image, data.x, data.y, data.width, data.height);
+        if (data.mediaType === 'video') {
+          item = await this.restoreVideoItem(data);
+        } else {
+          const image = new Image();
+          image.src = data.imageSrc;
+          try { await image.decode(); } catch { /* Keep the layer available if its source is missing. */ }
+          item = data.type === 'sticker'
+            ? new StickerItem(image, data.x, data.y, data.width, data.height, data.title)
+            : new ImageItem(image, data.x, data.y, data.width, data.height);
+        }
       } else {
         item = new TextItem(data.text, data.x, data.y, data.width, data.height);
       }
@@ -1427,6 +1450,33 @@ class CanvasEngine {
     this.triggerChange();
   }
 
+  async restoreVideoItem(data) {
+    const { ImageItem } = window.__notScrlObjects;
+    const video = document.createElement('video');
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.autoplay = true;
+
+    if (data.originalKey && this.loadMediaBlob) {
+      try {
+        const blob = await this.loadMediaBlob(data.originalKey);
+        video.src = URL.createObjectURL(blob);
+        await new Promise((resolve) => {
+          video.onloadeddata = resolve;
+          video.onerror = resolve;
+        });
+        video.play?.().catch(() => {});
+      } catch {
+        /* Keep the frame as an empty slot if the video is unavailable. */
+      }
+    }
+
+    const item = new ImageItem(video, data.x, data.y, data.width, data.height);
+    item.mediaType = 'video';
+    return item;
+  }
+
   async restoreProject(snapshot) {
     if (snapshot) await this.restoreHistory(snapshot, true);
   }
@@ -1437,6 +1487,21 @@ class CanvasEngine {
     if (this.onCanvasChange) {
       this.onCanvasChange();
     }
+  }
+
+  hasAnimatedMedia() {
+    return this.items.some(
+      (item) => item.mediaType === 'video' || item.mediaType === 'gif'
+    );
+  }
+
+  ensureAnimationLoop() {
+    if (typeof requestAnimationFrame !== 'function' || this.animationFrame) return;
+    this.animationFrame = requestAnimationFrame(() => {
+      this.animationFrame = null;
+      if (!this.hasAnimatedMedia()) return;
+      this.render();
+    });
   }
 
   bindEvents() {
@@ -2011,6 +2076,7 @@ class CanvasEngine {
     }
 
     ctx.restore();
+    this.ensureAnimationLoop();
     this.onViewChange?.();
   }
 
@@ -2431,7 +2497,7 @@ class CanvasExporter {
     const items = engine.items.map(item => Object.assign(Object.create(Object.getPrototypeOf(item)), item));
     try {
       for (const item of items) {
-        if (!item.originalKey) {
+        if (!item.originalKey || item.mediaType === 'video') {
           item.render(ctx);
           continue;
         }
@@ -4092,6 +4158,7 @@ class NotScrlMobileApp {
 
     this.engine = new CanvasEngine(this.canvasEl, this.workspaceEl);
     this.storage = new StorageManager(this.engine);
+    this.engine.loadMediaBlob = (key) => this.storage.loadOriginal(key);
     this.loadingProject = true;
     this.exporter = new CanvasExporter(this.engine, this.storage);
     this.preview = new PreviewSimulator(this.exporter, document.getElementById('preview-modal'));
@@ -4116,6 +4183,7 @@ class NotScrlMobileApp {
     this.bindBottomNavAndDrawer();
     this.bindExportSheet();
     this.bindFileUpload();
+    this.bindGiphy();
 
     // Populate drawer content
     this.populateStickers();
@@ -4561,6 +4629,11 @@ class NotScrlMobileApp {
     const targetTab = document.getElementById(`drawer-tab-${tabName}`);
     if (targetTab) targetTab.classList.add('active');
 
+    if (tabName === 'stickers' && this.giphyLoaded === false) {
+      this.giphyLoaded = true;
+      this.loadGiphy('');
+    }
+
     if (this.drawerTitle) this.drawerTitle.textContent = title;
     this.drawer.classList.remove('hidden');
     this.drawer.focus({ preventScroll: true });
@@ -4646,7 +4719,23 @@ class NotScrlMobileApp {
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
         if (projectId !== this.storage.projectId) break;
+        if (file.type.startsWith('video/')) {
+          try {
+            await this.addVideoFile(file, i);
+          } catch (error) {
+            this.studio.toast(error.message || 'Este vídeo no se pudo abrir. Prueba con MP4 o WebM.');
+          }
+          continue;
+        }
         if (!file.type.startsWith('image/')) continue;
+        if (file.type === 'image/gif') {
+          try {
+            await this.addGifFile(file, i);
+          } catch (error) {
+            this.studio.toast(error.message || 'Este GIF no se pudo abrir.');
+          }
+          continue;
+        }
         try {
           const url = URL.createObjectURL(file);
           let img;
@@ -4687,6 +4776,139 @@ class NotScrlMobileApp {
       }
     });
     return this.uploadQueue;
+  }
+
+  async addVideoFile(file, index) {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.autoplay = true;
+    video.src = URL.createObjectURL(file);
+    await new Promise((resolve, reject) => {
+      video.onloadeddata = resolve;
+      video.onerror = () => reject(new Error('Este vídeo no se pudo abrir. Prueba con MP4 o WebM.'));
+    });
+    video.play().catch(() => {});
+    const originalKey = await this.storage.saveOriginal(file).catch(() => null);
+    await this.addMediaItem(video, 'video', index, originalKey ? { originalKey } : {});
+  }
+
+  async addGifFile(file, index) {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Este GIF no se pudo abrir.'));
+      reader.readAsDataURL(file);
+    });
+    const img = new Image();
+    img.src = dataUrl;
+    await img.decode();
+    await this.addMediaItem(img, 'gif', index, {});
+  }
+
+  async addMediaItem(media, mediaType, index, extra) {
+    const width = media.videoWidth || media.naturalWidth;
+    const height = media.videoHeight || media.naturalHeight;
+    const scale = Math.min(1, this.engine.slideWidth * 0.75 / Math.max(width, height));
+    const w = Math.round(width * scale);
+    const h = Math.round(height * scale);
+    const item = new ImageItem(
+      media,
+      this.getSpawnX(w) + index * 24,
+      Math.max(0, (this.engine.slideHeight - h) / 2) + index * 24,
+      w,
+      h
+    );
+    item.mediaType = mediaType;
+    item.borderRadius = 8;
+    Object.assign(item, extra);
+    this.engine.addItem(item);
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
+
+  bindGiphy() {
+    this.giphyGrid = document.getElementById('giphy-grid');
+    if (!this.giphyGrid) return;
+    this.giphyStatus = document.getElementById('giphy-status');
+    this.giphyKeyRow = document.getElementById('giphy-key-row');
+    this.giphyKeyInput = document.getElementById('giphy-key-input');
+    this.giphyLoaded = false;
+
+    const savedKey = localStorage.getItem('notscrl_giphy_key');
+    if (savedKey && this.giphyKeyInput) this.giphyKeyInput.value = savedKey;
+    if (!savedKey) this.giphyKeyRow?.classList.remove('hidden');
+
+    document.getElementById('giphy-key-save')?.addEventListener('click', () => {
+      const key = (this.giphyKeyInput?.value || '').trim();
+      if (key) localStorage.setItem('notscrl_giphy_key', key);
+      else localStorage.removeItem('notscrl_giphy_key');
+      this.giphyKeyRow?.classList.add('hidden');
+      this.giphyLoaded = true;
+      this.loadGiphy(document.getElementById('giphy-search-input')?.value || '');
+    });
+
+    document.getElementById('giphy-search-form')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      this.loadGiphy(document.getElementById('giphy-search-input')?.value || '');
+    });
+  }
+
+  async loadGiphy(query) {
+    if (!this.giphyGrid) return;
+    const key = localStorage.getItem('notscrl_giphy_key') || '';
+    this.giphyGrid.innerHTML = '';
+    this.setGiphyStatus('Cargando GIFs…');
+    try {
+      const res = await fetch(`api/giphy/search?q=${encodeURIComponent(query)}`, {
+        headers: key ? { 'x-giphy-key': key } : {}
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (data.error === 'missing_key') {
+          this.giphyKeyRow?.classList.remove('hidden');
+          this.setGiphyStatus('Añade tu API key de GIPHY (developers.giphy.com) para usar GIFs.');
+        } else {
+          this.setGiphyStatus('No se pudieron cargar los GIFs.');
+        }
+        return;
+      }
+      this.setGiphyStatus('');
+      const items = data.items || [];
+      items.forEach((gif) => {
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'mobile-sticker-card giphy-cell';
+        cell.innerHTML = `<img src="api/giphy/media?id=${encodeURIComponent(gif.id)}" alt="${gif.title}" loading="lazy"/>`;
+        cell.addEventListener('click', () => this.addGiphyItem(gif));
+        this.giphyGrid.appendChild(cell);
+      });
+      if (!items.length) this.setGiphyStatus('Sin resultados.');
+    } catch {
+      this.setGiphyStatus('No se pudieron cargar los GIFs. Revisa tu conexión.');
+    }
+  }
+
+  addGiphyItem(gif) {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = gif.width && gif.height ? gif.width / gif.height : 1;
+      const w = this.engine.slideWidth * 0.7;
+      const h = w / ratio;
+      const item = new ImageItem(img, this.getSpawnX(w), 280, Math.round(w), Math.round(h));
+      item.mediaType = 'gif';
+      item.borderRadius = 8;
+      this.engine.addItem(item);
+      this.closeDrawer();
+    };
+    img.onerror = () => this.studio.toast('No se pudo cargar el GIF.');
+    img.src = `api/giphy/media?id=${encodeURIComponent(gif.id)}`;
+  }
+
+  setGiphyStatus(text) {
+    if (!this.giphyStatus) return;
+    this.giphyStatus.textContent = text;
+    this.giphyStatus.classList.toggle('hidden', !text);
   }
 
   // 6. POPULATE MOBILE STICKER GALLERY

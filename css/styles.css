@@ -1077,6 +1077,56 @@ h1 {
   max-width: 100%;
   max-height: 80px;
 }
+.giphy-search,
+.giphy-key {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.giphy-search input,
+.giphy-key input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #ddd8ca;
+  border-radius: 10px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
+.giphy-search button,
+.giphy-key button {
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: #111827;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.giphy-key button {
+  background: #fff;
+  color: #111827;
+  border: 1px solid #ddd8ca;
+}
+.giphy-key.hidden,
+.giphy-status.hidden {
+  display: none;
+}
+.giphy-status {
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--text-tertiary, #78716c);
+}
+.giphy-cell {
+  padding: 8px;
+}
+.giphy-cell img {
+  max-height: 120px;
+}
 .mobile-text-preset-btn {
   display: block;
   text-align: left;

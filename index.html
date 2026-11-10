@@ -663,13 +663,13 @@
                   </svg>
                 </div>
                 <div class="upload-text-wrap">
-                  <h4>Añadir tus fotos</h4>
+                  <h4>Añadir fotos, GIFs o vídeos</h4>
                   <p>Desde tu galería, directo a tu historia</p>
                 </div></button
               ><input
                 type="file"
                 id="mobile-file-input"
-                accept="image/*"
+                accept="image/*,video/*"
                 multiple
                 class="hidden"
               />
@@ -748,6 +748,33 @@
                 Cintas Washi, Sellos y Vintage
               </div>
               <div class="drawer-grid-2col" id="mobile-stickers-grid"></div>
+
+              <div class="drawer-section-label">GIFs · GIPHY</div>
+              <form class="giphy-search" id="giphy-search-form">
+                <input
+                  id="giphy-search-input"
+                  type="search"
+                  placeholder="Buscar GIFs…"
+                  aria-label="Buscar GIFs en GIPHY"
+                />
+                <button type="submit">Buscar</button>
+              </form>
+              <div class="giphy-key hidden" id="giphy-key-row">
+                <input
+                  id="giphy-key-input"
+                  type="text"
+                  autocomplete="off"
+                  placeholder="Pega tu API key de GIPHY"
+                  aria-label="API key de GIPHY"
+                />
+                <button type="button" id="giphy-key-save">Guardar</button>
+              </div>
+              <div class="giphy-status hidden" id="giphy-status"></div>
+              <div
+                class="drawer-grid-2col"
+                id="giphy-grid"
+                aria-label="Resultados de GIFs"
+              ></div>
             </div>
 
             <!-- 4. Templates Tab -->

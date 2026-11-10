@@ -52,7 +52,7 @@ export class CanvasExporter {
     const items = engine.items.map(item => Object.assign(Object.create(Object.getPrototypeOf(item)), item));
     try {
       for (const item of items) {
-        if (!item.originalKey) {
+        if (!item.originalKey || item.mediaType === 'video') {
           item.render(ctx);
           continue;
         }

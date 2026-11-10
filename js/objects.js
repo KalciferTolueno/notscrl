@@ -123,8 +123,9 @@ export class ImageItem extends CanvasItem {
   constructor(image, x, y, width, height) {
     super('image', x, y, width, height);
     this.image = image;
-    this.naturalWidth = image.naturalWidth || width;
-    this.naturalHeight = image.naturalHeight || height;
+    this.mediaType = 'image'; // 'image', 'gif' or 'video'
+    this.naturalWidth = image.naturalWidth || image.videoWidth || width;
+    this.naturalHeight = image.naturalHeight || image.videoHeight || height;
     this.aspectRatio = this.naturalWidth / this.naturalHeight;
 
     // Styling, Clipping & Frames
@@ -147,10 +148,10 @@ export class ImageItem extends CanvasItem {
    * ZERO distortion, zero squishing, with optional manual pan and zoom framing.
    */
   drawImageCover(ctx, dx, dy, dw, dh) {
-    if (!this.image || !this.image.complete || !this.image.naturalWidth) return;
+    if (!this.isReady()) return;
 
-    const natW = this.image.naturalWidth || this.naturalWidth || dw;
-    const natH = this.image.naturalHeight || this.naturalHeight || dh;
+    const natW = this.mediaWidth() || this.naturalWidth || dw;
+    const natH = this.mediaHeight() || this.naturalHeight || dh;
     const crop = this.cropReference || this.crop || { x: 0, y: 0, width: 1, height: 1 };
     const fit = this.fitOffset || { x: 0, y: 0, zoom: 1.0 };
 
@@ -208,8 +209,25 @@ export class ImageItem extends CanvasItem {
     }
   }
 
+  mediaWidth() {
+    const media = this.image;
+    return media ? media.videoWidth || media.naturalWidth || 0 : 0;
+  }
+
+  mediaHeight() {
+    const media = this.image;
+    return media ? media.videoHeight || media.naturalHeight || 0 : 0;
+  }
+
+  isReady() {
+    const media = this.image;
+    if (!media) return false;
+    if (media.tagName === 'VIDEO') return media.readyState >= 2 && media.videoWidth > 0;
+    return Boolean(media.complete && media.naturalWidth > 0);
+  }
+
   hasImage() {
-    return Boolean(this.image && this.image.complete && this.image.naturalWidth > 0);
+    return this.isReady();
   }
 
   drawPlaceholder(ctx, dx, dy, dw, dh) {
