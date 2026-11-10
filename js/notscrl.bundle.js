@@ -162,7 +162,7 @@ class SimpleZip {
 
 // ---- BEGIN js/assets.js ----
 /**
- * Sample Assets: Stickers, Frames, Sample Photos, and Palettes
+ * Decorative Assets: Stickers and Palettes
  * All built as high-quality SVGs / Vector assets so they work 100% offline with zero dependencies!
  */
 
@@ -197,208 +197,27 @@ function svgToUri(svgString) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svgString.trim())}`;
 }
 
-// Procedural sample photography-style illustrations (High-resolution 1600x1200 SVGs with lush gradients)
-const SAMPLE_PHOTOS = [
-  {
-    id: 'photo_mountain',
-    title: 'Alpine Panorama',
-    category: 'Landscape',
-    aspect: 16 / 9,
-    url: svgToUri(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
-        <defs>
-          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#fd746c"/>
-            <stop offset="35%" stop-color="#ff9068"/>
-            <stop offset="70%" stop-color="#ffb199"/>
-            <stop offset="100%" stop-color="#ffe6d9"/>
-          </linearGradient>
-          <linearGradient id="sun" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#fff5c0"/>
-            <stop offset="100%" stop-color="#ff9a44"/>
-          </linearGradient>
-          <linearGradient id="mtn1" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#3b3b58"/>
-            <stop offset="100%" stop-color="#1e1e30"/>
-          </linearGradient>
-          <linearGradient id="mtn2" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#6c5b7b"/>
-            <stop offset="100%" stop-color="#355c7d"/>
-          </linearGradient>
-          <linearGradient id="lake" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#c06c84"/>
-            <stop offset="100%" stop-color="#355c7d"/>
-          </linearGradient>
-        </defs>
-        <rect width="1600" height="900" fill="url(#sky)"/>
-        <circle cx="800" cy="460" r="160" fill="url(#sun)" opacity="0.85"/>
-        <polygon points="-50,650 300,320 650,650" fill="url(#mtn2)" opacity="0.8"/>
-        <polygon points="500,680 950,260 1400,680" fill="url(#mtn2)" opacity="0.9"/>
-        <polygon points="1100,680 1450,380 1800,680" fill="url(#mtn2)" opacity="0.7"/>
-        <polygon points="150,750 550,390 950,750" fill="url(#mtn1)"/>
-        <polygon points="800,750 1200,430 1650,750" fill="url(#mtn1)"/>
-        <!-- Snow caps -->
-        <polygon points="950,260 900,310 930,340 960,320 980,350 1020,310" fill="#ffffff" opacity="0.95"/>
-        <polygon points="550,390 510,440 540,460 560,440 580,470 600,430" fill="#ffffff" opacity="0.9"/>
-        <rect y="680" width="1600" height="220" fill="url(#lake)"/>
-        <!-- Reflections -->
-        <ellipse cx="800" cy="740" rx="140" ry="25" fill="#ffe6d9" opacity="0.35"/>
-        <!-- Pine silhouettes -->
-        <path d="M50 780 L70 700 L90 780 Z M120 800 L145 690 L170 800 Z M220 820 L240 730 L260 820 Z M1400 810 L1420 720 L1440 810 Z M1500 790 L1525 680 L1550 790 Z" fill="#141420"/>
-      </svg>
-    `)
-  },
-  {
-    id: 'photo_ocean',
-    title: 'Pacific Coastline',
-    category: 'Nature',
-    aspect: 16 / 9,
-    url: svgToUri(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
-        <defs>
-          <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#0f2027"/>
-            <stop offset="50%" stop-color="#203a43"/>
-            <stop offset="100%" stop-color="#2c5364"/>
-          </linearGradient>
-          <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#1cb5e0"/>
-            <stop offset="100%" stop-color="#000046"/>
-          </linearGradient>
-          <linearGradient id="sand" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stop-color="#eacda3"/>
-            <stop offset="100%" stop-color="#d6ae7b"/>
-          </linearGradient>
-        </defs>
-        <rect width="1600" height="900" fill="url(#sky2)"/>
-        <circle cx="1200" cy="280" r="80" fill="#fff" opacity="0.9"/>
-        <rect y="480" width="1600" height="420" fill="url(#sea)"/>
-        <path d="M0 650 Q 400 580 800 680 T 1600 620 L 1600 900 L 0 900 Z" fill="url(#sand)"/>
-        <path d="M0 635 Q 400 565 800 665 T 1600 605" stroke="#ffffff" stroke-width="8" fill="none" opacity="0.7"/>
-        <path d="M0 610 Q 380 545 820 645 T 1600 585" stroke="#ffffff" stroke-width="4" fill="none" opacity="0.4"/>
-      </svg>
-    `)
-  },
-  {
-    id: 'photo_minimal_arch',
-    title: 'Minimalist Architecture',
-    category: 'Architecture',
-    aspect: 4 / 5,
-    url: svgToUri(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
-        <defs>
-          <linearGradient id="archSky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#6190e8"/>
-            <stop offset="100%" stop-color="#a7bfe8"/>
-          </linearGradient>
-          <linearGradient id="wall1" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#fafafa"/>
-            <stop offset="100%" stop-color="#e5e5e5"/>
-          </linearGradient>
-          <linearGradient id="wall2" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stop-color="#d4d4d4"/>
-            <stop offset="100%" stop-color="#a3a3a3"/>
-          </linearGradient>
-          <linearGradient id="terracotta" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#d97736"/>
-            <stop offset="100%" stop-color="#a84e1b"/>
-          </linearGradient>
-        </defs>
-        <rect width="1080" height="1350" fill="url(#archSky)"/>
-        <polygon points="0,500 580,200 580,1350 0,1350" fill="url(#wall1)"/>
-        <polygon points="580,200 1080,480 1080,1350 580,1350" fill="url(#wall2)"/>
-        <!-- Arch doorway -->
-        <path d="M220,1350 L220,850 A120,120 0 0,1 460,850 L460,1350 Z" fill="#18181b"/>
-        <!-- Terracotta plant pot -->
-        <path d="M720,1200 L760,1350 L880,1350 L920,1200 Z" fill="url(#terracotta)"/>
-        <!-- Palm leaf shadow -->
-        <path d="M600,100 Q 800,400 950,900" stroke="#333333" stroke-width="28" stroke-linecap="round" opacity="0.25"/>
-        <path d="M700,250 Q 850,550 1020,950" stroke="#333333" stroke-width="22" stroke-linecap="round" opacity="0.2"/>
-      </svg>
-    `)
-  },
-  {
-    id: 'photo_editorial_portrait',
-    title: 'Editorial Muse',
-    category: 'Portrait',
-    aspect: 4 / 5,
-    url: svgToUri(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
-        <defs>
-          <linearGradient id="bgPort" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#e0d7c7"/>
-            <stop offset="100%" stop-color="#c8bca9"/>
-          </linearGradient>
-        </defs>
-        <rect width="1080" height="1350" fill="url(#bgPort)"/>
-        <!-- Abstract fashion silhouette -->
-        <circle cx="540" cy="460" r="180" fill="#2d2926"/>
-        <path d="M420,400 C430,300 650,300 660,400 C670,480 620,560 540,560 C460,560 410,480 420,400 Z" fill="#d4a373"/>
-        <path d="M300,1350 L340,800 C360,700 720,700 740,800 L780,1350 Z" fill="#1c1917"/>
-        <!-- Gold necklace / luxury accent -->
-        <ellipse cx="540" cy="720" rx="90" ry="40" fill="none" stroke="#d4af37" stroke-width="12"/>
-        <circle cx="540" cy="760" r="16" fill="#d4af37"/>
-        <!-- Oversized sunglasses -->
-        <rect x="440" y="440" width="90" height="50" rx="14" fill="#09090b"/>
-        <rect x="550" y="440" width="90" height="50" rx="14" fill="#09090b"/>
-        <line x1="530" y1="460" x2="550" y2="460" stroke="#09090b" stroke-width="8"/>
-      </svg>
-    `)
-  },
-  {
-    id: 'photo_analog_grain',
-    title: 'Golden Dunes',
-    category: 'Landscape',
-    aspect: 16 / 9,
-    url: svgToUri(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
-        <defs>
-          <linearGradient id="desertSky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#4a5568"/>
-            <stop offset="60%" stop-color="#ed8936"/>
-            <stop offset="100%" stop-color="#fbd38d"/>
-          </linearGradient>
-          <linearGradient id="dune1" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stop-color="#dd6b20"/>
-            <stop offset="100%" stop-color="#7b341e"/>
-          </linearGradient>
-          <linearGradient id="dune2" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stop-color="#c05621"/>
-            <stop offset="100%" stop-color="#9c4221"/>
-          </linearGradient>
-        </defs>
-        <rect width="1600" height="900" fill="url(#desertSky)"/>
-        <circle cx="450" cy="400" r="120" fill="#feebc8" opacity="0.9"/>
-        <path d="M0,600 Q 400,450 900,680 T 1600,520 L 1600,900 L 0,900 Z" fill="url(#dune2)"/>
-        <path d="M0,720 Q 600,560 1200,750 T 1600,680 L 1600,900 L 0,900 Z" fill="url(#dune1)"/>
-      </svg>
-    `)
-  }
-];
-
 // Aesthetic stickers and decorative overlays
 const STICKERS = [
   {
     id: 'washi_tape_cream',
-    title: 'Washi Tape (Cream)',
-    category: 'Tape',
+    title: 'Washi Tape (Crema)',
+    category: 'Cinta',
     width: 220,
     height: 55,
     url: svgToUri(`
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 55" width="220" height="55">
         <polygon points="5,5 215,3 218,52 2,50" fill="#fdf6e2" opacity="0.88"/>
-        <!-- Torn edges -->
         <path d="M2,50 L5,5 L1,15 L6,25 L2,35 L5,45 Z" fill="#eae1c9"/>
         <path d="M215,3 L218,52 L214,40 L219,30 L213,20 L217,10 Z" fill="#eae1c9"/>
-        <!-- Texture grid -->
         <line x1="10" y1="28" x2="210" y2="28" stroke="#d5c8a5" stroke-dasharray="4,4" stroke-width="1.5" opacity="0.6"/>
       </svg>
     `)
   },
   {
     id: 'washi_tape_blush',
-    title: 'Washi Tape (Blush)',
-    category: 'Tape',
+    title: 'Washi Tape (Rosa)',
+    category: 'Cinta',
     width: 220,
     height: 55,
     url: svgToUri(`
@@ -410,9 +229,56 @@ const STICKERS = [
     `)
   },
   {
+    id: 'washi_tape_sage',
+    title: 'Washi Tape (Salvia)',
+    category: 'Cinta',
+    width: 220,
+    height: 55,
+    url: svgToUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 55" width="220" height="55">
+        <polygon points="5,4 215,6 217,51 3,49" fill="#d8e5d5" opacity="0.9"/>
+        <path d="M3,49 L5,4 L1,16 L6,28 L1,40 L4,48 Z" fill="#a8c3a2" opacity="0.7"/>
+        <path d="M215,6 L217,51 L213,39 L218,27 L212,15 L216,7 Z" fill="#a8c3a2" opacity="0.7"/>
+        <g fill="#8fae89" opacity="0.55">
+          <circle cx="40" cy="18" r="2.2"/><circle cx="80" cy="34" r="2.2"/>
+          <circle cx="120" cy="16" r="2.2"/><circle cx="160" cy="36" r="2.2"/>
+          <circle cx="196" cy="20" r="2.2"/>
+        </g>
+      </svg>
+    `)
+  },
+  {
+    id: 'washi_tape_terracotta',
+    title: 'Washi Tape (Terracota)',
+    category: 'Cinta',
+    width: 220,
+    height: 55,
+    url: svgToUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 55" width="220" height="55">
+        <polygon points="4,5 216,3 215,52 3,50" fill="#e8b79e" opacity="0.92"/>
+        <path d="M3,50 L4,5 L1,17 L6,29 L1,41 L4,49 Z" fill="#c98060" opacity="0.65"/>
+        <path d="M216,3 L215,52 L218,40 L213,28 L219,16 L215,6 Z" fill="#c98060" opacity="0.65"/>
+        <path d="M30,28 H190" stroke="#f7e3d8" stroke-width="3" stroke-dasharray="10,7" opacity="0.8"/>
+      </svg>
+    `)
+  },
+  {
+    id: 'corner_tape',
+    title: 'Esquineros de Cinta',
+    category: 'Cinta',
+    width: 150,
+    height: 150,
+    url: svgToUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" width="150" height="150">
+        <path d="M4,4 L56,4 L4,56 Z" fill="#f4ecd9" stroke="#e0d3b6" stroke-width="2"/>
+        <path d="M146,146 L94,146 L146,94 Z" fill="#f4ecd9" stroke="#e0d3b6" stroke-width="2"/>
+      </svg>
+    `)
+  },
+  {
     id: 'stamp_scrl_aesthetic',
-    title: 'SCRL Issue Stamp',
-    category: 'Stamp',
+    title: 'Sello SCRL',
+    category: 'Sello',
     width: 140,
     height: 140,
     url: svgToUri(`
@@ -426,22 +292,166 @@ const STICKERS = [
     `)
   },
   {
-    id: 'starburst_retro',
-    title: 'Retro Sparkle',
-    category: 'Symbol',
-    width: 100,
+    id: 'stamp_approved',
+    title: 'Sello Aprobado',
+    category: 'Sello',
+    width: 140,
+    height: 140,
+    url: svgToUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140" width="140" height="140">
+        <circle cx="70" cy="70" r="60" fill="none" stroke="#b91c1c" stroke-width="4"/>
+        <circle cx="70" cy="70" r="50" fill="none" stroke="#b91c1c" stroke-width="1.5" stroke-dasharray="3,3"/>
+        <text x="70" y="64" font-family="'Oswald', Impact, sans-serif" font-size="21" font-weight="700" text-anchor="middle" fill="#b91c1c" letter-spacing="1">APPROVED</text>
+        <text x="70" y="86" font-family="'Inter', sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#b91c1c" letter-spacing="4">OK · SCRL</text>
+      </svg>
+    `)
+  },
+  {
+    id: 'grid_note',
+    title: 'Nota Cuadriculada',
+    category: 'Papel',
+    width: 200,
+    height: 200,
+    url: svgToUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+        <defs>
+          <pattern id="paperGrid" width="16" height="16" patternUnits="userSpaceOnUse">
+            <path d="M16 0 H0 V16" fill="none" stroke="#c8d3c6" stroke-width="1" opacity="0.8"/>
+          </pattern>
+        </defs>
+        <rect x="6" y="10" width="188" height="184" rx="3" fill="#fbfaf6" stroke="#ddd8ca" stroke-width="2" transform="rotate(-2 100 100)"/>
+        <rect x="6" y="10" width="188" height="184" rx="3" fill="url(#paperGrid)" transform="rotate(-2 100 100)"/>
+        <rect x="66" y="4" width="70" height="18" fill="#f0e6cd" opacity="0.9" transform="rotate(3 100 12)"/>
+      </svg>
+    `)
+  },
+  {
+    id: 'ticket_stub',
+    title: 'Ticket',
+    category: 'Etiqueta',
+    width: 200,
+    height: 90,
+    url: svgToUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 90" width="200" height="90">
+        <rect x="3" y="3" width="194" height="84" rx="8" fill="#1c1917"/>
+        <circle cx="3" cy="45" r="7" fill="#fff" opacity="0.001"/>
+        <path d="M120,3 V87" stroke="#57534e" stroke-width="2" stroke-dasharray="5,5"/>
+        <text x="16" y="38" font-family="'Inter', sans-serif" font-size="11" font-weight="700" fill="#fafaf9" letter-spacing="3">ADMIT ONE</text>
+        <text x="16" y="62" font-family="'Courier Prime', monospace" font-size="10" fill="#a8a29e">N° 00024</text>
+        <text x="158" y="52" font-family="'Oswald', Impact, sans-serif" font-size="20" font-weight="700" fill="#fafaf9" text-anchor="middle">24A</text>
+      </svg>
+    `)
+  },
+  {
+    id: 'label_price_tag',
+    title: 'Etiqueta de Precio',
+    category: 'Etiqueta',
+    width: 150,
+    height: 90,
+    url: svgToUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 90" width="150" height="90">
+        <path d="M18,16 L96,16 L132,45 L96,74 L18,74 Z" fill="#fef3c7" stroke="#d6bb7e" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="34" cy="45" r="6" fill="none" stroke="#d6bb7e" stroke-width="2"/>
+        <text x="52" y="40" font-family="'Courier Prime', monospace" font-size="12" fill="#78350f">handmade</text>
+        <text x="52" y="62" font-family="'Oswald', Impact, sans-serif" font-size="18" font-weight="700" fill="#78350f">N° 08</text>
+      </svg>
+    `)
+  },
+  {
+    id: 'label_no_filter',
+    title: 'Etiqueta Sin Filtro',
+    category: 'Etiqueta',
+    width: 200,
+    height: 50,
+    url: svgToUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50" width="200" height="50">
+        <rect x="2" y="2" width="196" height="46" rx="23" fill="#111827"/>
+        <text x="100" y="31" font-family="'Inter', sans-serif" font-size="15" font-weight="800" text-anchor="middle" fill="#f9fafb" letter-spacing="4">NO FILTER</text>
+      </svg>
+    `)
+  },
+  {
+    id: 'label_issue',
+    title: 'Etiqueta Issue',
+    category: 'Etiqueta',
+    width: 170,
+    height: 60,
+    url: svgToUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 60" width="170" height="60">
+        <rect x="2" y="2" width="166" height="56" fill="none" stroke="#292524" stroke-width="2.5"/>
+        <text x="12" y="27" font-family="'Inter', sans-serif" font-size="10" font-weight="700" fill="#292524" letter-spacing="3">SCR L</text>
+        <text x="12" y="48" font-family="'Playfair Display', serif" font-size="18" font-weight="700" fill="#292524">ISSUE 08</text>
+      </svg>
+    `)
+  },
+  {
+    id: 'star_five',
+    title: 'Estrella',
+    category: 'Dibujo',
+    width: 110,
+    height: 110,
+    url: svgToUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 110" width="110" height="110">
+        <path d="M55,8 L67,42 L103,42 L74,63 L85,97 L55,76 L25,97 L36,63 L7,42 L43,42 Z" fill="#f59e0b" stroke="#b45309" stroke-width="2" stroke-linejoin="round"/>
+      </svg>
+    `)
+  },
+  {
+    id: 'doodle_heart',
+    title: 'Corazón',
+    category: 'Dibujo',
+    width: 120,
+    height: 110,
+    url: svgToUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 110" width="120" height="110">
+        <path d="M60,96 C30,74 8,56 8,36 C8,20 20,10 34,10 C46,10 55,18 60,28 C65,18 74,10 86,10 C100,10 112,20 112,36 C112,56 90,74 60,96 Z" fill="none" stroke="#e11d48" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    `)
+  },
+  {
+    id: 'doodle_arrow',
+    title: 'Flecha',
+    category: 'Dibujo',
+    width: 170,
     height: 100,
     url: svgToUri(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
-        <path d="M50,0 Q50,50 100,50 Q50,50 50,100 Q50,50 0,50 Q50,50 50,0 Z" fill="#18181b"/>
-        <circle cx="85" cy="15" r="5" fill="#18181b"/>
-        <circle cx="15" cy="85" r="5" fill="#18181b"/>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 100" width="170" height="100">
+        <path d="M12,84 C40,30 96,18 152,46" fill="none" stroke="#292524" stroke-width="4" stroke-linecap="round"/>
+        <path d="M128,28 L154,46 L130,64" fill="none" stroke="#292524" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    `)
+  },
+  {
+    id: 'doodle_smiley',
+    title: 'Carita',
+    category: 'Dibujo',
+    width: 120,
+    height: 120,
+    url: svgToUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+        <circle cx="60" cy="60" r="50" fill="none" stroke="#292524" stroke-width="4"/>
+        <circle cx="42" cy="50" r="4.5" fill="#292524"/>
+        <circle cx="78" cy="50" r="4.5" fill="#292524"/>
+        <path d="M38,70 C48,86 72,86 82,70" fill="none" stroke="#292524" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+    `)
+  },
+  {
+    id: 'quote_marks',
+    title: 'Comillas',
+    category: 'Dibujo',
+    width: 120,
+    height: 90,
+    url: svgToUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90" width="120" height="90">
+        <path d="M14,72 C4,64 2,44 10,28 C18,12 32,4 44,6 L40,18 C30,20 22,28 20,38 C24,36 28,36 32,40 C38,46 38,58 32,66 C26,74 18,76 14,72 Z" fill="#292524"/>
+        <path d="M74,72 C64,64 62,44 70,28 C78,12 92,4 104,6 L100,18 C90,20 82,28 80,38 C84,36 88,36 92,40 C98,46 98,58 92,66 C86,74 78,76 74,72 Z" fill="#292524"/>
       </svg>
     `)
   },
   {
     id: 'film_35mm_barcode',
-    title: '35mm Film Barcode',
+    title: 'Código de Película 35mm',
     category: 'Vintage',
     width: 180,
     height: 60,
@@ -450,7 +460,6 @@ const STICKERS = [
         <rect width="180" height="60" fill="#000000" rx="4"/>
         <text x="14" y="20" font-family="monospace" font-size="12" fill="#eab308" font-weight="bold">KODAK 400</text>
         <text x="135" y="20" font-family="monospace" font-size="14" fill="#eab308" font-weight="bold">24A</text>
-        <!-- Barcode lines -->
         <g fill="#ffffff">
           <rect x="14" y="28" width="4" height="22"/>
           <rect x="22" y="28" width="2" height="22"/>
@@ -473,8 +482,8 @@ const STICKERS = [
   },
   {
     id: 'polaroid_clip',
-    title: 'Paperclip (Silver)',
-    category: 'Office',
+    title: 'Clip Plateado',
+    category: 'Oficina',
     width: 50,
     height: 120,
     url: svgToUri(`
@@ -701,6 +710,30 @@ class ImageItem extends CanvasItem {
     }
   }
 
+  hasImage() {
+    return Boolean(this.image && this.image.complete && this.image.naturalWidth > 0);
+  }
+
+  drawPlaceholder(ctx, dx, dy, dw, dh) {
+    if (dw <= 0 || dh <= 0) return;
+    ctx.save();
+    ctx.fillStyle = '#ece7de';
+    ctx.fillRect(dx, dy, dw, dh);
+    const inset = Math.max(6, Math.min(dw, dh) * 0.04);
+    ctx.strokeStyle = '#c9c2b6';
+    ctx.lineWidth = Math.max(2, Math.min(dw, dh) * 0.008);
+    ctx.setLineDash([Math.max(8, dw * 0.03), Math.max(8, dw * 0.02)]);
+    ctx.strokeRect(dx + inset, dy + inset, dw - inset * 2, dh - inset * 2);
+    ctx.setLineDash([]);
+    const size = Math.max(14, Math.min(dw, dh) * 0.15);
+    ctx.fillStyle = '#a8a29e';
+    ctx.font = `600 ${Math.round(size)}px 'Inter', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Tu foto', dx + dw / 2, dy + dh / 2);
+    ctx.restore();
+  }
+
   draw(ctx) {
     const w = this.width;
     const h = this.height;
@@ -721,8 +754,9 @@ class ImageItem extends CanvasItem {
       const imgW = w - padSide * 2;
       const imgH = h - padTop - padBottom;
 
-      if (imgW > 0 && imgH > 0 && this.image.complete) {
-        this.drawImageCover(ctx, padSide, padTop, imgW, imgH);
+      if (imgW > 0 && imgH > 0) {
+        if (this.hasImage()) this.drawImageCover(ctx, padSide, padTop, imgW, imgH);
+        else this.drawPlaceholder(ctx, padSide, padTop, imgW, imgH);
       }
 
       if (this.caption) {
@@ -752,8 +786,9 @@ class ImageItem extends CanvasItem {
       }
 
       const imgH = h - borderH * 2;
-      if (w > 0 && imgH > 0 && this.image.complete) {
-        this.drawImageCover(ctx, 0, borderH, w, imgH);
+      if (w > 0 && imgH > 0) {
+        if (this.hasImage()) this.drawImageCover(ctx, 0, borderH, w, imgH);
+        else this.drawPlaceholder(ctx, 0, borderH, w, imgH);
       }
       return;
     }
@@ -763,8 +798,10 @@ class ImageItem extends CanvasItem {
     this.createShapePath(ctx, w, h);
     ctx.clip();
 
-    if (this.image && this.image.complete) {
+    if (this.hasImage()) {
       this.drawImageCover(ctx, 0, 0, w, h);
+    } else {
+      this.drawPlaceholder(ctx, 0, 0, w, h);
     }
     ctx.restore();
 
@@ -3299,10 +3336,6 @@ class FrameAdjuster {
  * elegant editorial typography, polaroids, and stickers.
  */
 
-function getSamplePhoto(id) {
-  return SAMPLE_PHOTOS.find(p => p.id === id) || SAMPLE_PHOTOS[0];
-}
-
 function getSticker(id) {
   return STICKERS.find(s => s.id === id) || STICKERS[0];
 }
@@ -3326,9 +3359,7 @@ async function applyTemplate(engine, templateName) {
     engine.background = '#f5f0ea';
 
     // 1. Wide landscape spanning across slide 1, 2 and 3 seamlessly!
-    const mtnData = getSamplePhoto('photo_mountain');
-    const mtnImg = await loadImage(mtnData.url);
-    const mtnItem = new ImageItem(mtnImg, 180, 260, 2400, 750);
+    const mtnItem = new ImageItem(new Image(), 180, 260, 2400, 750);
     mtnItem.borderRadius = 8;
     mtnItem.shadow.enabled = true;
     mtnItem.shadow.blur = 28;
@@ -3354,9 +3385,7 @@ async function applyTemplate(engine, templateName) {
     engine.addItem(subtitle);
 
     // 4. Polaroid portrait photo on slide 3
-    const archData = getSamplePhoto('photo_minimal_arch');
-    const archImg = await loadImage(archData.url);
-    const archItem = new ImageItem(archImg, 2380, 620, 540, 620);
+    const archItem = new ImageItem(new Image(), 2380, 620, 540, 620);
     archItem.frameStyle = 'polaroid';
     archItem.caption = 'altitude 3,200m';
     archItem.rotation = -3;
@@ -3394,18 +3423,14 @@ async function applyTemplate(engine, templateName) {
     engine.addItem(t1);
 
     // Arch photo bridging slide 1 and slide 2 across seam 1!
-    const archData = getSamplePhoto('photo_minimal_arch');
-    const archImg = await loadImage(archData.url);
-    const archItem = new ImageItem(archImg, 720, 200, 720, 900);
+    const archItem = new ImageItem(new Image(), 720, 200, 720, 900);
     archItem.borderRadius = 4;
     archItem.shadow.enabled = true;
     archItem.shadow.blur = 36;
     engine.addItem(archItem);
 
     // Muse photo bridging slide 2 and slide 3 across seam 2!
-    const museData = getSamplePhoto('photo_editorial_portrait');
-    const museImg = await loadImage(museData.url);
-    const museItem = new ImageItem(museImg, 1780, 280, 680, 850);
+    const museItem = new ImageItem(new Image(), 1780, 280, 680, 850);
     museItem.borderRadius = 4;
     museItem.shadow.enabled = true;
     museItem.shadow.blur = 36;
@@ -3420,10 +3445,10 @@ async function applyTemplate(engine, templateName) {
     quote.textAlign = 'left';
     engine.addItem(quote);
 
-    // Starburst accent
-    const starData = getSticker('starburst_retro');
+    // Star accent
+    const starData = getSticker('star_five');
     const starImg = await loadImage(starData.url);
-    const starItem = new StickerItem(starImg, 860, 130, 80, 80, 'Retro Star');
+    const starItem = new StickerItem(starImg, 860, 130, 80, 80, 'Estrella');
     engine.addItem(starItem);
 
   } else if (templateName === 'scrapbook') {
@@ -3433,9 +3458,7 @@ async function applyTemplate(engine, templateName) {
     engine.background = '#ede8df';
 
     // Polaroid 1 on Slide 1
-    const p1Data = getSamplePhoto('photo_ocean');
-    const p1Img = await loadImage(p1Data.url);
-    const p1 = new ImageItem(p1Img, 140, 240, 620, 720);
+    const p1 = new ImageItem(new Image(), 140, 240, 620, 720);
     p1.frameStyle = 'polaroid';
     p1.caption = 'ocean breeze';
     p1.rotation = -5;
@@ -3443,9 +3466,7 @@ async function applyTemplate(engine, templateName) {
     engine.addItem(p1);
 
     // Polaroid 2 crossing Seam 1 (between Slide 1 and Slide 2!)
-    const p2Data = getSamplePhoto('photo_analog_grain');
-    const p2Img = await loadImage(p2Data.url);
-    const p2 = new ImageItem(p2Img, 820, 360, 640, 740);
+    const p2 = new ImageItem(new Image(), 820, 360, 640, 740);
     p2.frameStyle = 'polaroid';
     p2.caption = 'golden dunes';
     p2.rotation = 4;
@@ -3453,9 +3474,7 @@ async function applyTemplate(engine, templateName) {
     engine.addItem(p2);
 
     // Polaroid 3 crossing Seam 2 (between Slide 2 and Slide 3!)
-    const p3Data = getSamplePhoto('photo_mountain');
-    const p3Img = await loadImage(p3Data.url);
-    const p3 = new ImageItem(p3Img, 1680, 220, 680, 760);
+    const p3 = new ImageItem(new Image(), 1680, 220, 680, 760);
     p3.frameStyle = 'polaroid';
     p3.caption = 'take me back';
     p3.rotation = -3;
@@ -3493,11 +3512,8 @@ async function applyTemplate(engine, templateName) {
     engine.background = '#0d0d11';
 
     // 3 Film strip images
-    const photos = ['photo_ocean', 'photo_mountain', 'photo_analog_grain'];
     for (let i = 0; i < 3; i++) {
-      const pData = getSamplePhoto(photos[i]);
-      const pImg = await loadImage(pData.url);
-      const filmItem = new ImageItem(pImg, 120 + i * 1040, 360, 920, 640);
+      const filmItem = new ImageItem(new Image(), 120 + i * 1040, 360, 920, 640);
       filmItem.frameStyle = 'film';
       engine.addItem(filmItem);
     }
@@ -4102,7 +4118,6 @@ class NotScrlMobileApp {
     this.bindFileUpload();
 
     // Populate drawer content
-    this.populateSamplePhotos();
     this.populateStickers();
     this.populatePalettes();
 
@@ -4674,35 +4689,7 @@ class NotScrlMobileApp {
     return this.uploadQueue;
   }
 
-  // 6. POPULATE MOBILE SAMPLE GALLERIES
-  populateSamplePhotos() {
-    const grid = document.getElementById('mobile-sample-photos-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
-
-    SAMPLE_PHOTOS.forEach(photo => {
-      const card = document.createElement('button');
-      card.className = 'mobile-photo-card';
-      card.innerHTML = `
-        <img src="${photo.url}" alt="${photo.title}" loading="lazy"/>
-        <div class="mobile-photo-label">${photo.title}</div>
-      `;
-      card.addEventListener('click', () => {
-        const img = new Image();
-        img.onload = () => {
-          const w = photo.aspect > 1 ? this.engine.slideWidth * 1.3 : this.engine.slideWidth * 0.7;
-          const h = w / photo.aspect;
-          const item = new ImageItem(img, this.getSpawnX(w), 280, Math.round(w), Math.round(h));
-          item.borderRadius = 8;
-          this.engine.addItem(item);
-          this.closeDrawer();
-        };
-        img.src = photo.url;
-      });
-      grid.appendChild(card);
-    });
-  }
-
+  // 6. POPULATE MOBILE STICKER GALLERY
   populateStickers() {
     const grid = document.getElementById('mobile-stickers-grid');
     if (!grid) return;

@@ -208,6 +208,30 @@ export class ImageItem extends CanvasItem {
     }
   }
 
+  hasImage() {
+    return Boolean(this.image && this.image.complete && this.image.naturalWidth > 0);
+  }
+
+  drawPlaceholder(ctx, dx, dy, dw, dh) {
+    if (dw <= 0 || dh <= 0) return;
+    ctx.save();
+    ctx.fillStyle = '#ece7de';
+    ctx.fillRect(dx, dy, dw, dh);
+    const inset = Math.max(6, Math.min(dw, dh) * 0.04);
+    ctx.strokeStyle = '#c9c2b6';
+    ctx.lineWidth = Math.max(2, Math.min(dw, dh) * 0.008);
+    ctx.setLineDash([Math.max(8, dw * 0.03), Math.max(8, dw * 0.02)]);
+    ctx.strokeRect(dx + inset, dy + inset, dw - inset * 2, dh - inset * 2);
+    ctx.setLineDash([]);
+    const size = Math.max(14, Math.min(dw, dh) * 0.15);
+    ctx.fillStyle = '#a8a29e';
+    ctx.font = `600 ${Math.round(size)}px 'Inter', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Tu foto', dx + dw / 2, dy + dh / 2);
+    ctx.restore();
+  }
+
   draw(ctx) {
     const w = this.width;
     const h = this.height;
@@ -228,8 +252,9 @@ export class ImageItem extends CanvasItem {
       const imgW = w - padSide * 2;
       const imgH = h - padTop - padBottom;
 
-      if (imgW > 0 && imgH > 0 && this.image.complete) {
-        this.drawImageCover(ctx, padSide, padTop, imgW, imgH);
+      if (imgW > 0 && imgH > 0) {
+        if (this.hasImage()) this.drawImageCover(ctx, padSide, padTop, imgW, imgH);
+        else this.drawPlaceholder(ctx, padSide, padTop, imgW, imgH);
       }
 
       if (this.caption) {
@@ -259,8 +284,9 @@ export class ImageItem extends CanvasItem {
       }
 
       const imgH = h - borderH * 2;
-      if (w > 0 && imgH > 0 && this.image.complete) {
-        this.drawImageCover(ctx, 0, borderH, w, imgH);
+      if (w > 0 && imgH > 0) {
+        if (this.hasImage()) this.drawImageCover(ctx, 0, borderH, w, imgH);
+        else this.drawPlaceholder(ctx, 0, borderH, w, imgH);
       }
       return;
     }
@@ -270,8 +296,10 @@ export class ImageItem extends CanvasItem {
     this.createShapePath(ctx, w, h);
     ctx.clip();
 
-    if (this.image && this.image.complete) {
+    if (this.hasImage()) {
       this.drawImageCover(ctx, 0, 0, w, h);
+    } else {
+      this.drawPlaceholder(ctx, 0, 0, w, h);
     }
     ctx.restore();
 

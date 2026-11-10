@@ -13,7 +13,7 @@ import { FrameAdjuster } from './frame-adjuster.js';
 import { StorageManager } from './storage.js';
 import { Studio } from './studio.js';
 import { applyTemplate } from './templates.js';
-import { PALETTES, FONTS, SAMPLE_PHOTOS, STICKERS } from './assets.js';
+import { PALETTES, FONTS, STICKERS } from './assets.js';
 
 // Expose object types globally for history deserialization
 window.__notScrlObjects = { ImageItem, TextItem, StickerItem };
@@ -51,7 +51,6 @@ class NotScrlMobileApp {
     this.bindFileUpload();
 
     // Populate drawer content
-    this.populateSamplePhotos();
     this.populateStickers();
     this.populatePalettes();
 
@@ -623,35 +622,7 @@ class NotScrlMobileApp {
     return this.uploadQueue;
   }
 
-  // 6. POPULATE MOBILE SAMPLE GALLERIES
-  populateSamplePhotos() {
-    const grid = document.getElementById('mobile-sample-photos-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
-
-    SAMPLE_PHOTOS.forEach(photo => {
-      const card = document.createElement('button');
-      card.className = 'mobile-photo-card';
-      card.innerHTML = `
-        <img src="${photo.url}" alt="${photo.title}" loading="lazy"/>
-        <div class="mobile-photo-label">${photo.title}</div>
-      `;
-      card.addEventListener('click', () => {
-        const img = new Image();
-        img.onload = () => {
-          const w = photo.aspect > 1 ? this.engine.slideWidth * 1.3 : this.engine.slideWidth * 0.7;
-          const h = w / photo.aspect;
-          const item = new ImageItem(img, this.getSpawnX(w), 280, Math.round(w), Math.round(h));
-          item.borderRadius = 8;
-          this.engine.addItem(item);
-          this.closeDrawer();
-        };
-        img.src = photo.url;
-      });
-      grid.appendChild(card);
-    });
-  }
-
+  // 6. POPULATE MOBILE STICKER GALLERY
   populateStickers() {
     const grid = document.getElementById('mobile-stickers-grid');
     if (!grid) return;
