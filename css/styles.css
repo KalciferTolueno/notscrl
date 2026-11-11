@@ -2838,3 +2838,155 @@ h1 {
 .home-nav button {
   border-radius: 999px;
 }
+
+/* Slimmer navigation bars */
+#mobile-header {
+  min-height: 48px;
+  padding: 6px 10px;
+  padding-top: max(6px, env(safe-area-inset-top));
+  gap: 6px;
+}
+#mobile-header .icon-btn-circle {
+  width: 34px;
+  height: 34px;
+}
+.btn-header-cta {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 11px;
+  gap: 5px;
+}
+.btn-header-cta svg {
+  width: 14px;
+  height: 14px;
+}
+.project-heading input {
+  font-size: 13px;
+}
+.project-heading span {
+  font-size: 8px;
+}
+
+/* Floating canvas toolbar */
+.canvas-float-top {
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  padding: 3px 6px;
+  gap: 4px;
+}
+.glass-chip-btn {
+  min-height: 30px;
+  padding: 0 8px;
+  font-size: 9px;
+}
+.glass-chip-btn svg {
+  width: 15px;
+  height: 15px;
+}
+#editor-settings {
+  gap: 3px;
+}
+#editor-settings select {
+  min-height: 30px;
+  max-width: 106px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+#editor-settings .stepper-pill {
+  font-size: 9px;
+}
+#editor-settings .stepper-btn {
+  width: 26px;
+  height: 30px;
+  font-size: 14px;
+}
+#editor-settings #btn-layers {
+  width: 30px;
+  height: 30px;
+}
+
+/* Pages strip */
+.pages-bar {
+  padding: 3px 8px 4px;
+}
+#page-strip {
+  max-height: 36px;
+  gap: 5px;
+}
+.page-thumb {
+  height: 34px;
+  min-width: 28px;
+  padding: 2px;
+  border-radius: 12px;
+}
+.page-thumb canvas {
+  height: 27px;
+  border-radius: 9px;
+}
+.page-thumb span {
+  font-size: 6px;
+  padding: 1px 3px;
+}
+.pages-bar .icon-btn-circle {
+  width: 32px;
+  height: 32px;
+}
+.pages-bar .icon-btn-circle svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Bottom navigation */
+#mobile-bottom-bar,
+#mobile-bottom-bar.liquid-glass {
+  margin: 0 6px max(6px, env(safe-area-inset-bottom));
+  padding: 3px 8px;
+  border-radius: 22px;
+}
+.nav-tab-btn {
+  min-height: 38px;
+  gap: 2px;
+  font-size: 8px;
+  border-radius: 999px;
+}
+.nav-tab-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.nav-tab-btn span {
+  letter-spacing: 0.02em;
+}
+
+/* Selection context bar */
+#context-action-bar {
+  min-height: 42px;
+  padding: 2px 8px;
+}
+.context-btn {
+  min-width: 46px;
+  min-height: 38px;
+  gap: 3px;
+  font-size: 8px;
+}
+.context-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Home navigation */
+.home-nav {
+  padding: 3px;
+}
+.home-nav button {
+  min-height: 36px;
+  font-size: 11px;
+}
+.home-header {
+  min-height: 52px;
+  padding: 6px 14px;
+}
+.home-icon-btn {
+  width: 36px;
+  height: 36px;
+}

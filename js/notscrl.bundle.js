@@ -1162,7 +1162,7 @@ class CanvasEngine {
     const paddingX = Math.max(12, Math.min(32, this.viewportWidth * 0.05));
     const paddingY = Math.max(16, Math.min(48, this.viewportHeight * 0.06));
     // The canvas toolbar floats over the workspace, so the artwork starts below it.
-    const topInset = isMobile ? 58 : 0;
+    const topInset = isMobile ? 46 : 0;
     const availW = Math.max(40, this.viewportWidth - paddingX * 2);
     const availH = Math.max(40, this.viewportHeight - paddingY * 2 - topInset);
 
