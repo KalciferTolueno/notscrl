@@ -1161,8 +1161,10 @@ class CanvasEngine {
     const isMobile = this.viewportWidth <= 640 || this.viewportWidth < this.viewportHeight;
     const paddingX = Math.max(12, Math.min(32, this.viewportWidth * 0.05));
     const paddingY = Math.max(16, Math.min(48, this.viewportHeight * 0.06));
+    // The canvas toolbar floats over the workspace, so the artwork starts below it.
+    const topInset = isMobile ? 68 : 0;
     const availW = Math.max(40, this.viewportWidth - paddingX * 2);
-    const availH = Math.max(40, this.viewportHeight - paddingY * 2);
+    const availH = Math.max(40, this.viewportHeight - paddingY * 2 - topInset);
 
     // On mobile or portrait orientation, fit to slide height so slides fill the vertical screen natively!
     const shouldFitSlideHeight = forceSlideFit !== null ? forceSlideFit : isMobile;
@@ -1173,7 +1175,7 @@ class CanvasEngine {
       const activeSlide = Math.min(this.slideCount - 1, previousSlide);
       const targetCenterX = activeSlide * this.slideWidth + this.slideWidth / 2;
       this.panX = this.viewportWidth / 2 - targetCenterX * this.zoom;
-      this.panY = (this.viewportHeight - this.slideHeight * this.zoom) / 2;
+      this.panY = topInset + paddingY + (availH - this.slideHeight * this.zoom) / 2;
       this.viewMode = 'slide';
     } else {
       // Full panoramic ribbon overview (all slides in view)
@@ -1181,7 +1183,7 @@ class CanvasEngine {
       const scaleH = availH / this.totalHeight;
       this.zoom = Math.min(scaleW, scaleH);
       this.panX = (this.viewportWidth - this.totalWidth * this.zoom) / 2;
-      this.panY = (this.viewportHeight - this.totalHeight * this.zoom) / 2;
+      this.panY = topInset + paddingY + (availH - this.totalHeight * this.zoom) / 2;
       this.viewMode = 'panorama';
     }
 
