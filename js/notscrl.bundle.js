@@ -3692,8 +3692,10 @@ class Studio {
         this.busy = true;
         try {
           this.renderPages();
-          if (await this.storage.flush()) await this.showHome("projects");
-          else
+          if (await this.storage.flush()) {
+            this.toast("Borrador guardado.");
+            await this.showHome("projects");
+          } else
             this.toast(
               "No se pudo guardar el borrador. Tu edición sigue abierta.",
             );
@@ -3785,6 +3787,8 @@ class Studio {
   setSavingStatus(state) {
     const el = document.getElementById("save-status");
     el.dataset.state = state;
+    const back = document.getElementById("btn-back-home");
+    if (back) back.dataset.state = state;
     el.textContent = {
       saving: "Guardando…",
       saved: "Borrador guardado",
