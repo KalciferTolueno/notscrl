@@ -241,12 +241,14 @@ export class ImageItem extends CanvasItem {
     ctx.setLineDash([Math.max(8, dw * 0.03), Math.max(8, dw * 0.02)]);
     ctx.strokeRect(dx + inset, dy + inset, dw - inset * 2, dh - inset * 2);
     ctx.setLineDash([]);
-    const size = Math.max(14, Math.min(dw, dh) * 0.15);
-    ctx.fillStyle = '#a8a29e';
-    ctx.font = `600 ${Math.round(size)}px 'Inter', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Tu foto', dx + dw / 2, dy + dh / 2);
+    if (!this.hidePlaceholderText) {
+      const size = Math.max(14, Math.min(dw, dh) * 0.15);
+      ctx.fillStyle = '#a8a29e';
+      ctx.font = `600 ${Math.round(size)}px 'Inter', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Tu foto', dx + dw / 2, dy + dh / 2);
+    }
     ctx.restore();
   }
 

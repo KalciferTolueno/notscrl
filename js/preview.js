@@ -122,6 +122,7 @@ export class PreviewSimulator {
       if (this.dotsContainer) {
         const dot = document.createElement('button');
         dot.setAttribute('aria-label', `Ver página ${idx + 1}`);
+        dot.setAttribute('aria-pressed', String(idx === 0));
         dot.className = `ig-dot ${idx === 0 ? 'active' : ''}`;
         dot.addEventListener('click', () => this.goToSlide(idx));
         this.dotsContainer.appendChild(dot);

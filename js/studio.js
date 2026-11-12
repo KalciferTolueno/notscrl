@@ -1,5 +1,5 @@
 import { applyTemplate } from "./templates.js";
-import { CanvasExporter } from "./exporter.js";
+import { CanvasExporter, pageCountLabel } from "./exporter.js";
 
 const TEMPLATE_INFO = [
   ["panorama", "Horizontes", "Paisajes que siguen contigo", "01"],
@@ -7,6 +7,81 @@ const TEMPLATE_INFO = [
   ["scrapbook", "Pequeños recuerdos", "Un diario de tus días favoritos", "03"],
   ["filmstrip", "En analógico", "Historias con alma de 35 mm", "04"],
 ];
+
+// Preview framing: the slide that holds each template's focal composition.
+// Scrapbook's handwritten title sits on the first seam, so its preview window
+// is centred on that seam instead of cutting the words at the slide edge.
+const TEMPLATE_PREVIEW_SLIDE = {
+  panorama: 0,
+  editorial: 0,
+  scrapbook: 710 / 1080,
+  filmstrip: 0,
+};
+const PREVIEW_WIDTH = 280;
+const PREVIEW_MIN_CARD = 126;
+const PREVIEW_MIN_TEXT = 10;
+const PREVIEW_PAD = 10;
+
+// Renders a 4:5 cover of the template without touching how it builds projects:
+// scales the headline to stay legible at the smallest card, keeps it inside the
+// frame, and drops the type that cannot reach the legibility floor.
+function renderTemplatePreview(model, id) {
+  const index = TEMPLATE_PREVIEW_SLIDE[id] || 0;
+  const windowX = index * model.slideWidth;
+  const texts = model.items.filter((item) => item.type === "text");
+  const title = texts.reduce(
+    (lead, item) => (item.fontSize > lead.fontSize ? item : lead),
+    texts[0],
+  );
+  const target = Math.ceil((PREVIEW_MIN_TEXT * model.slideWidth) / PREVIEW_MIN_CARD);
+
+  if (title) {
+    // Tracking tuned for slide scale would swallow the preview's margins.
+    title.letterSpacing = 0;
+    const probe = document.createElement("canvas").getContext("2d");
+    probe.font = `${title.fontStyle} ${title.fontWeight} ${target}px ${title.fontFamily}`;
+    const spacing = title.letterSpacing || 0;
+    let width = 0;
+    for (const line of title.text.split("\n")) {
+      width = Math.max(width, probe.measureText(line).width + spacing * line.length);
+    }
+
+    const boxLeft = title.x - windowX;
+    const pad = title.padding || 0;
+    let start = boxLeft + pad;
+    if (title.textAlign === "center") start = boxLeft + title.width / 2 - width / 2;
+    else if (title.textAlign === "right") start = boxLeft + title.width - pad - width;
+
+    const right = model.slideWidth - PREVIEW_PAD;
+    const shift = Math.max(
+      -Math.max(0, PREVIEW_PAD - start),
+      Math.min(Math.max(0, start - PREVIEW_PAD), start + width - right),
+    );
+    const fitted =
+      start - shift + width > right
+        ? (target * (model.slideWidth - 2 * PREVIEW_PAD)) / width
+        : target;
+
+    if ((fitted * PREVIEW_MIN_CARD) / model.slideWidth < PREVIEW_MIN_TEXT) {
+      model.items = model.items.filter((item) => item !== title);
+    } else {
+      const drawn = (width * fitted) / target;
+      title.fontSize = fitted;
+      if (title.textAlign === "left" && shift > 0 && drawn <= model.slideWidth - 2 * PREVIEW_PAD) {
+        title.x = windowX + (model.slideWidth - drawn) / 2 - pad;
+      } else {
+        title.x -= shift;
+      }
+    }
+  }
+
+  for (const item of model.items) {
+    if (item.frameStyle === "polaroid") item.caption = "";
+    if (item.type === "image") item.hidePlaceholderText = true;
+  }
+
+  return new CanvasExporter(model).renderThumbnail(index, PREVIEW_WIDTH);
+}
 
 export class Studio {
   constructor(app) {
@@ -21,12 +96,27 @@ export class Studio {
     this.update();
   }
 
-  toast(message) {
+  toast(message, action = null) {
     const el = document.getElementById("studio-toast");
-    el.textContent = message;
+    el.replaceChildren(document.createTextNode(message));
+    if (action) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "toast-action";
+      button.textContent = action.label;
+      button.addEventListener("click", () => {
+        el.classList.add("hidden");
+        action.run();
+      });
+      el.appendChild(button);
+    }
+    el.classList.toggle("toast-actionable", Boolean(action));
     el.classList.remove("hidden");
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => el.classList.add("hidden"), 4000);
+    this.toastTimer = setTimeout(
+      () => el.classList.add("hidden"),
+      action ? 6000 : 4000,
+    );
   }
 
   bind() {
@@ -99,7 +189,7 @@ export class Studio {
           const saved = await this.storage.flush();
           this.toast(
             saved
-              ? "Borrador guardado. Puedes retomarlo desde Borradores."
+              ? "Borrador guardado. Está en Borradores."
               : "No se pudo guardar. Tu edición sigue abierta.",
           );
         } finally {
@@ -122,6 +212,13 @@ export class Studio {
       name.value = this.storage.projectName;
     });
     document.getElementById("btn-layers").addEventListener("click", () => {
+      if (this.app.usesDesktopInspector()) {
+        this.renderLayers();
+        const row = document.querySelector("#layers-list .layer-row");
+        if (row) row.focus({ preventScroll: true });
+        row?.scrollIntoView({ block: "nearest" });
+        return;
+      }
       this.app.openDrawer("adjust", "Capas del proyecto");
       document.getElementById("object-adjustments").classList.add("hidden");
       document.getElementById("layers-list").classList.remove("hidden");
@@ -164,10 +261,140 @@ export class Studio {
       if (event.persisted && this.view !== "editor") this.renderProjects();
     });
     this.engine.onViewChange = () => this.updateActivePage();
+    this.bindPageStrip();
     new ResizeObserver(() => {
-      if (this.view === "editor")
-        this.engine.fitToScreen(this.engine.viewMode === "slide");
+      if (this.view === "editor") this.engine.fitForViewport();
     }).observe(this.app.workspaceEl);
+  }
+
+  bindPageStrip() {
+    const strip = document.getElementById("page-strip");
+    if (!strip) return;
+    let drag = null;
+    const finish = (commit) => {
+      if (!drag) return;
+      const state = drag;
+      drag = null;
+      clearTimeout(state.timer);
+      strip.classList.remove("page-reorder-mode");
+      state.thumb.classList.remove("page-reorder-active");
+      strip
+        .querySelectorAll(".page-reorder-target")
+        .forEach((el) => el.classList.remove("page-reorder-target"));
+      if (state.active) {
+        try {
+          state.thumb.releasePointerCapture(state.pointerId);
+        } catch {
+          /* The browser already released the pointer. */
+        }
+      }
+      if (commit && state.active && state.target !== null && state.target !== state.from) {
+        this.movePage(state.from, state.target);
+      }
+    };
+    strip.addEventListener("pointerdown", (event) => {
+      if (drag || event.button !== 0) return;
+      const thumb = event.target.closest(".page-thumb");
+      if (!thumb) return;
+      const page = Number(thumb.dataset.page);
+      drag = {
+        thumb,
+        from: page,
+        target: page,
+        startX: event.clientX,
+        startY: event.clientY,
+        pointerId: event.pointerId,
+        active: false,
+        timer: null,
+      };
+      const hold = event.pointerType === "mouse" ? 180 : 320;
+      drag.timer = setTimeout(() => {
+        if (!drag) return;
+        drag.active = true;
+        strip.classList.add("page-reorder-mode");
+        thumb.classList.add("page-reorder-active");
+        try {
+          thumb.setPointerCapture(drag.pointerId);
+        } catch {
+          /* Pointer capture is a progressive enhancement. */
+        }
+      }, hold);
+    });
+    strip.addEventListener("pointermove", (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      if (!drag.active) {
+        if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 8) {
+          finish(false);
+        }
+        return;
+      }
+      event.preventDefault();
+      const target = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest?.(".page-thumb");
+      if (!target || !strip.contains(target)) return;
+      const page = Number(target.dataset.page);
+      if (page === drag.target) return;
+      drag.target = page;
+      strip.querySelectorAll(".page-thumb").forEach((el) => {
+        el.classList.toggle(
+          "page-reorder-target",
+          Number(el.dataset.page) === page,
+        );
+      });
+    });
+    const release = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      finish(true);
+    };
+    strip.addEventListener("pointerup", release);
+    document.addEventListener("pointerup", release);
+    strip.addEventListener("pointercancel", (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      finish(false);
+    });
+    strip.addEventListener("lostpointercapture", (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      finish(false);
+    });
+    strip.addEventListener("contextmenu", (event) => {
+      if (drag?.active) event.preventDefault();
+    });
+    document.addEventListener(
+      "touchmove",
+      (event) => {
+        if (drag?.active) event.preventDefault();
+      },
+      { passive: false },
+    );
+    window.addEventListener("blur", () => finish(false));
+    strip.addEventListener("keydown", (event) => {
+      const thumb = event.target.closest(".page-thumb");
+      if (!thumb || !event.altKey) return;
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const from = Number(thumb.dataset.page);
+      const to = from + (event.key === "ArrowRight" ? 1 : -1);
+      if (to >= 0 && to < this.engine.slideCount) this.movePage(from, to);
+    });
+    strip.addEventListener("scroll", () => this.updatePageStripCue(), {
+      passive: true,
+    });
+    window.addEventListener("resize", () => this.updatePageStripCue());
+  }
+
+  movePage(from, to) {
+    if (!this.engine.moveSlide(from, to)) return false;
+    this.suppressPageClick = true;
+    setTimeout(() => {
+      this.suppressPageClick = false;
+    }, 0);
+    this.renderPages();
+    this.toast(`Página ${from + 1} movida a la posición ${to + 1}.`);
+    document
+      .querySelector(`#page-strip .page-thumb[data-page="${to}"]`)
+      ?.focus({ preventScroll: true });
+    return true;
   }
 
   setSavingStatus(state) {
@@ -178,7 +405,7 @@ export class Studio {
     el.textContent = {
       saving: "Guardando…",
       saved: "Borrador guardado",
-      fallback: "Guardado · solo proyecto actual",
+      fallback: "Guardado solo en este proyecto",
       error: "No se pudo guardar · revisa el espacio",
     }[state];
     const status = document.getElementById("drafts-storage-status");
@@ -187,7 +414,7 @@ export class Studio {
       saving: "Guardando los últimos cambios…",
       saved: "Tus borradores están guardados en este dispositivo.",
       fallback:
-        "El respaldo actual está guardado. La biblioteca no está disponible.",
+        "El proyecto actual está guardado. La lista de borradores no está disponible.",
       error:
         "No se pudo guardar. Vuelve al editor y revisa el espacio disponible.",
     }[state];
@@ -243,11 +470,13 @@ export class Studio {
     document.getElementById("editor-view").classList.remove("hidden");
     document.getElementById("project-name").value = this.storage.projectName;
     this.engine.selectItem(null);
+    this.engine.userViewMode = null;
     if (this.app.workspaceEl.getBoundingClientRect().width <= 900)
       this.engine.focusSlide(0);
     else this.engine.fitToScreen(false);
     this.renderPages();
     this.update();
+    this.app.syncInspector?.(true);
   }
 
   async newProject(template, settings = {}) {
@@ -313,7 +542,7 @@ export class Studio {
       const empty = document.createElement("div");
       empty.className = "empty-drafts";
       empty.innerHTML =
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6m-6 4h6m-6 4h3"/></svg><strong>Aquí siguen tus ideas.</strong><p>Crea tu primer carrusel. Lo guardaremos como borrador mientras editas.</p><button class="text-link">Crear un carrusel <span aria-hidden="true">↗</span></button>';
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6m-6 4h6m-6 4h3"/></svg><strong>Todavía no hay borradores.</strong><p>Crea tu primer carrusel. Se guarda solo mientras editas.</p><button class="text-link">Crear un carrusel <span aria-hidden="true">↗</span></button>';
       empty
         .querySelector("button")
         .addEventListener("click", () =>
@@ -342,7 +571,7 @@ export class Studio {
         "es-CL",
         { day: "numeric", month: "short" },
       );
-      meta.textContent = `${project.slideCount} páginas · ${project.aspectRatioName}`;
+      meta.textContent = `${pageCountLabel(project.slideCount)} · ${project.aspectRatioName}`;
       const saved = document.createElement("small");
       saved.className = "draft-saved-date";
       saved.textContent = `Guardado ${date}`;
@@ -395,7 +624,7 @@ export class Studio {
     for (const [id, name, description, number] of TEMPLATE_INFO) {
       const tile = document.createElement("button");
       tile.className = "template-tile";
-      tile.innerHTML = `<div class="template-cover"><span class="template-number">${number} / COLLECTION</span></div><strong>${name}</strong><small>${description}</small>`;
+      tile.innerHTML = `<div class="template-cover"><span class="template-number">${number} / COLECCIÓN</span></div><strong>${name}</strong><small>${description}</small>`;
       tile.addEventListener("click", () => this.newProject(id));
       container.appendChild(tile);
       // Render the actual template with the existing engine's object models.
@@ -420,8 +649,10 @@ export class Studio {
       };
       try {
         await applyTemplate(model, id);
-        const preview = new CanvasExporter(model).renderThumbnail(0, 280);
-        tile.querySelector(".template-cover").prepend(preview);
+        const preview = renderTemplatePreview(model, id);
+        const cover = tile.querySelector(".template-cover");
+        cover.style.background = model.background;
+        cover.prepend(preview);
         this.templatePreviews.set(id, preview);
         const drawerCard = document.querySelector(
           `.mobile-template-card[data-template="${id}"]`,
@@ -432,6 +663,7 @@ export class Studio {
           copy.height = preview.height;
           copy.getContext("2d").drawImage(preview, 0, 0);
           copy.className = "drawer-template-preview";
+          copy.setAttribute("aria-hidden", "true");
           drawerCard.prepend(copy);
         }
       } catch (error) {
@@ -456,12 +688,18 @@ export class Studio {
       const btn = document.createElement("button");
       btn.className = "page-thumb";
       btn.setAttribute("aria-label", `Ir a página ${i + 1}`);
+      btn.setAttribute("aria-keyshortcuts", "Alt+ArrowLeft Alt+ArrowRight");
+      btn.title = "Mantén presionada para mover · Alt + ← / →";
       btn.dataset.page = i;
       btn.appendChild(this.app.exporter.renderThumbnail(i, 64));
       const number = document.createElement("span");
       number.textContent = String(i + 1).padStart(2, "0");
       btn.appendChild(number);
       btn.addEventListener("click", () => {
+        if (this.suppressPageClick) {
+          this.suppressPageClick = false;
+          return;
+        }
         this.engine.selectItem(null);
         this.engine.focusSlide(i);
       });
@@ -481,15 +719,47 @@ export class Studio {
     deletePage.title = `Eliminar página ${index + 1} y sus elementos (se puede deshacer)`;
     document.getElementById("active-page-label").textContent =
       this.engine.viewMode === "panorama"
-        ? `PANORAMA · ${this.engine.slideCount} PÁGINAS`
-        : `PÁGINA ${String(index + 1).padStart(2, "0")} / ${String(this.engine.slideCount).padStart(2, "0")}`;
+        ? `Panorama · ${pageCountLabel(this.engine.slideCount)}`
+        : `Página ${String(index + 1).padStart(2, "0")}/${String(this.engine.slideCount).padStart(2, "0")}`;
     document.getElementById("canvas-zoom-label").textContent =
       `${Math.round(this.engine.zoom * 100)}%`;
+    const pageStatus = document.getElementById("page-status-pill");
+    if (pageStatus) {
+      const current = String(index + 1).padStart(2, "0");
+      const total = String(this.engine.slideCount).padStart(2, "0");
+      pageStatus.textContent = `${current}/${total} · ${Math.round(this.engine.zoom * 100)}%`;
+    }
+    const fitToggle = document.getElementById("btn-zoom-fit");
+    const panorama = this.engine.viewMode === "panorama";
+    fitToggle.classList.toggle("active", panorama);
+    fitToggle.setAttribute("aria-pressed", String(panorama));
+    fitToggle.title = panorama ? "Ver una página" : "Ver panorama completo";
+    const strip = document.getElementById("page-strip");
     document.querySelectorAll(".page-thumb").forEach((btn) => {
       const active = Number(btn.dataset.page) === index;
       btn.classList.toggle("active", active);
       btn.setAttribute("aria-pressed", active);
+      if (!active) return;
+      // Keep the active page thumb clear of the strip's overflow fade.
+      const view = strip.getBoundingClientRect();
+      const thumb = btn.getBoundingClientRect();
+      const inset = 28;
+      if (thumb.left < view.left + inset || thumb.right > view.right - inset) {
+        strip.scrollLeft += Math.round(thumb.left - view.left - inset);
+      }
     });
+    this.updatePageStripCue();
+  }
+
+  updatePageStripCue() {
+    const strip = document.getElementById("page-strip");
+    const cue = document.getElementById("page-strip-cue");
+    if (!strip || !cue) return;
+    const overflow = strip.scrollWidth > strip.clientWidth + 2;
+    const more =
+      overflow && strip.scrollWidth - strip.clientWidth - strip.scrollLeft > 4;
+    strip.classList.toggle("has-overflow", overflow);
+    cue.classList.toggle("hidden", !more);
   }
 
   renderLayers() {

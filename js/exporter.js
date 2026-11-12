@@ -6,6 +6,10 @@
 
 import { SimpleZip } from './zip.js';
 
+export function pageCountLabel(count) {
+  return `${count} ${count === 1 ? 'página' : 'páginas'}`;
+}
+
 export class CanvasExporter {
   constructor(engine, storage = null) {
     this.engine = engine;
@@ -17,6 +21,7 @@ export class CanvasExporter {
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = Math.round(width * engine.slideHeight / engine.slideWidth);
+    canvas.setAttribute?.('aria-hidden', 'true');
     const ctx = canvas.getContext('2d');
     ctx.scale(width / engine.slideWidth, width / engine.slideWidth);
     ctx.translate(-index * engine.slideWidth, 0);

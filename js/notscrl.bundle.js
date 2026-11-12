@@ -743,12 +743,14 @@ class ImageItem extends CanvasItem {
     ctx.setLineDash([Math.max(8, dw * 0.03), Math.max(8, dw * 0.02)]);
     ctx.strokeRect(dx + inset, dy + inset, dw - inset * 2, dh - inset * 2);
     ctx.setLineDash([]);
-    const size = Math.max(14, Math.min(dw, dh) * 0.15);
-    ctx.fillStyle = '#a8a29e';
-    ctx.font = `600 ${Math.round(size)}px 'Inter', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Tu foto', dx + dw / 2, dy + dh / 2);
+    if (!this.hidePlaceholderText) {
+      const size = Math.max(14, Math.min(dw, dh) * 0.15);
+      ctx.fillStyle = '#a8a29e';
+      ctx.font = `600 ${Math.round(size)}px 'Inter', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Tu foto', dx + dw / 2, dy + dh / 2);
+    }
     ctx.restore();
   }
 
@@ -1028,6 +1030,8 @@ class CanvasEngine {
     this.zoom = 0.28;
     this.panX = 20;
     this.panY = 40;
+    this.viewMode = 'panorama';
+    this.userViewMode = null;
     this.isPanning = false;
     this.startPanPoint = { x: 0, y: 0 };
     this.isSpacePressed = false;
@@ -1070,7 +1074,7 @@ class CanvasEngine {
   init() {
     this.resizeCanvas();
     window.addEventListener('resize', () => {
-      if (this.enabled) this.fitToScreen(this.viewMode === 'slide');
+      if (this.enabled) this.fitForViewport();
     });
 
     this.bindEvents();
@@ -1136,6 +1140,64 @@ class CanvasEngine {
     return true;
   }
 
+  insertSlide(index = this.getActiveSlideIndex() + 1) {
+    if (this.slideCount >= 10) return false;
+    const at = Number.isFinite(index)
+      ? Math.max(0, Math.min(this.slideCount, Math.trunc(index)))
+      : this.slideCount;
+    this.selectItem(null);
+    this.items.forEach(item => {
+      if (this.getItemSlideIndex(item) >= at) item.x += this.slideWidth;
+    });
+    this.slideCount++;
+    this.focusSlide(at);
+    this.triggerChange();
+    this.saveHistory(`Añadir página ${at + 1}`);
+    return true;
+  }
+
+  duplicateSlide(index = this.getActiveSlideIndex()) {
+    if (this.slideCount >= 10 || !Number.isInteger(index) || index < 0 || index >= this.slideCount) return false;
+    const width = this.slideWidth;
+    const source = this.items.filter(item => this.getItemSlideIndex(item) === index);
+    const copies = source.map((item, i) => {
+      const copy = Object.assign(Object.create(Object.getPrototypeOf(item)), item);
+      Object.assign(copy, this.serializeItem(item));
+      delete copy.imageSrc;
+      copy.id = `item_${Date.now()}_${i}`;
+      copy.x += width;
+      return copy;
+    });
+    this.selectItem(null);
+    this.items.forEach(item => {
+      if (this.getItemSlideIndex(item) > index) item.x += width;
+    });
+    this.slideCount++;
+    this.items.push(...copies);
+    this.items.forEach((item, i) => { item.zIndex = i; });
+    this.focusSlide(index + 1);
+    this.triggerChange();
+    this.saveHistory(`Duplicar página ${index + 1}`);
+    return true;
+  }
+
+  moveSlide(from, to) {
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from === to) return false;
+    if (from < 0 || to < 0 || from >= this.slideCount || to >= this.slideCount) return false;
+    const width = this.slideWidth;
+    this.selectItem(null);
+    this.items.forEach(item => {
+      const page = this.getItemSlideIndex(item);
+      if (page === from) item.x += (to - from) * width;
+      else if (from < to && page > from && page <= to) item.x -= width;
+      else if (from > to && page >= to && page < from) item.x += width;
+    });
+    this.focusSlide(to);
+    this.triggerChange();
+    this.saveHistory(`Mover página ${from + 1} a ${to + 1}`);
+    return true;
+  }
+
   // Clear everything to a clean white canvas
   clearToBlankCanvas() {
     this.items = [];
@@ -1162,7 +1224,7 @@ class CanvasEngine {
     const paddingX = Math.max(12, Math.min(32, this.viewportWidth * 0.05));
     const paddingY = Math.max(16, Math.min(48, this.viewportHeight * 0.06));
     // The canvas toolbar floats over the workspace, so the artwork starts below it.
-    const topInset = isMobile ? 46 : 0;
+    const topInset = isMobile ? 64 : this.viewportHeight < 500 ? 0 : 88;
     const availW = Math.max(40, this.viewportWidth - paddingX * 2);
     const availH = Math.max(40, this.viewportHeight - paddingY * 2 - topInset);
 
@@ -1187,6 +1249,64 @@ class CanvasEngine {
       this.viewMode = 'panorama';
     }
 
+    this.render();
+  }
+
+  toggleViewMode() {
+    this.userViewMode = this.viewMode === 'slide' ? 'panorama' : 'slide';
+    this.fitToScreen(this.userViewMode === 'slide');
+  }
+
+  fitForViewport() {
+    const forced =
+      this.userViewMode === 'panorama'
+        ? false
+        : this.userViewMode === 'slide'
+          ? true
+          : null;
+    const slideIndex = this.selectedItem
+      ? this.getItemSlideIndex(this.selectedItem)
+      : null;
+    this.fitToScreen(forced, slideIndex);
+  }
+
+  // Keep the active page (and the selected object) inside the canvas area
+  // that remains visible above an open bottom sheet.
+  frameAboveSheet(sheetTop) {
+    if (!this.enabled || !this.viewportWidth) return;
+    const rect = this.container.getBoundingClientRect();
+    const visibleHeight = Math.max(120, Math.min(rect.height, sheetTop - rect.top));
+    this.resizeCanvas();
+    const isMobile = this.viewportWidth <= 640 || this.viewportWidth < this.viewportHeight;
+    const paddingX = Math.max(12, Math.min(32, this.viewportWidth * 0.05));
+    // The sheet already gives the lower edge its breathing room.
+    const paddingY = 12;
+    const topInset = isMobile ? 56 : 80;
+    const availW = Math.max(40, this.viewportWidth - paddingX * 2);
+    const availH = Math.max(60, visibleHeight - topInset - paddingY * 2);
+
+    const slide = this.selectedItem
+      ? this.getItemSlideIndex(this.selectedItem)
+      : this.getActiveSlideIndex();
+    let minX = slide * this.slideWidth;
+    let maxX = minX + this.slideWidth;
+    let minY = 0;
+    let maxY = this.slideHeight;
+    if (this.selectedItem) {
+      const item = this.selectedItem;
+      minX = Math.min(minX, item.x);
+      maxX = Math.max(maxX, item.x + item.width);
+      minY = Math.min(minY, item.y);
+      maxY = Math.max(maxY, item.y + item.height);
+    }
+
+    const frameW = Math.max(1, maxX - minX);
+    const frameH = Math.max(1, maxY - minY);
+    this.zoom = Math.min(availW / frameW, availH / frameH);
+    this.panX = this.viewportWidth / 2 - ((minX + maxX) / 2) * this.zoom;
+    this.panY =
+      topInset + paddingY + (availH - frameH * this.zoom) / 2 - minY * this.zoom;
+    this.viewMode = 'slide';
     this.render();
   }
 
@@ -1411,6 +1531,7 @@ class CanvasEngine {
 
   async restoreHistory(snapshot, resetHistory = false) {
     const revision = this.restoreRevision = (this.restoreRevision || 0) + 1;
+    const selectedIndex = this.selectedItem ? this.items.indexOf(this.selectedItem) : -1;
     this.isRestoringHistory = true;
     this.slideCount = snapshot.slideCount;
     this.slideWidth = snapshot.slideWidth;
@@ -1450,6 +1571,10 @@ class CanvasEngine {
     }
     this.fitToScreen();
     this.triggerChange();
+    // Keep the object selected across undo/redo so the inspector stays useful.
+    if (selectedIndex > -1 && this.items[selectedIndex]) {
+      this.selectItem(this.items[selectedIndex]);
+    }
   }
 
   async restoreVideoItem(data) {
@@ -1532,7 +1657,8 @@ class CanvasEngine {
     }, { passive: false });
 
     window.addEventListener('keydown', (e) => {
-      if (!this.enabled || e.target.closest('input,textarea,select,dialog,[role=dialog]') || document.querySelector('.mobile-modal-overlay:not(.hidden)')) return;
+      const typing = e.target instanceof Element && e.target.closest('input,textarea,select,dialog,[role=dialog]');
+      if (!this.enabled || typing || document.querySelector('.mobile-modal-overlay:not(.hidden)')) return;
 
       if (e.code === 'Space' && !this.isSpacePressed) {
         e.preventDefault();
@@ -1596,6 +1722,7 @@ class CanvasEngine {
           return;
         }
         const nextMode = this.viewMode === 'slide' ? false : true;
+        this.userViewMode = nextMode ? 'slide' : 'panorama';
         this.fitToScreen(nextMode);
         this.lastTapTime = 0;
         return;
@@ -2453,6 +2580,10 @@ class StorageManager {
  * Slices the panoramic ribbon into individual slide PNGs and creates a instant ZIP package.
  */
 
+function pageCountLabel(count) {
+  return `${count} ${count === 1 ? 'página' : 'páginas'}`;
+}
+
 class CanvasExporter {
   constructor(engine, storage = null) {
     this.engine = engine;
@@ -2464,6 +2595,7 @@ class CanvasExporter {
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = Math.round(width * engine.slideHeight / engine.slideWidth);
+    canvas.setAttribute?.('aria-hidden', 'true');
     const ctx = canvas.getContext('2d');
     ctx.scale(width / engine.slideWidth, width / engine.slideWidth);
     ctx.translate(-index * engine.slideWidth, 0);
@@ -2744,6 +2876,7 @@ class PreviewSimulator {
       if (this.dotsContainer) {
         const dot = document.createElement('button');
         dot.setAttribute('aria-label', `Ver página ${idx + 1}`);
+        dot.setAttribute('aria-pressed', String(idx === 0));
         dot.className = `ig-dot ${idx === 0 ? 'active' : ''}`;
         dot.addEventListener('click', () => this.goToSlide(idx));
         this.dotsContainer.appendChild(dot);
@@ -3622,6 +3755,81 @@ const TEMPLATE_INFO = [
   ["filmstrip", "En analógico", "Historias con alma de 35 mm", "04"],
 ];
 
+// Preview framing: the slide that holds each template's focal composition.
+// Scrapbook's handwritten title sits on the first seam, so its preview window
+// is centred on that seam instead of cutting the words at the slide edge.
+const TEMPLATE_PREVIEW_SLIDE = {
+  panorama: 0,
+  editorial: 0,
+  scrapbook: 710 / 1080,
+  filmstrip: 0,
+};
+const PREVIEW_WIDTH = 280;
+const PREVIEW_MIN_CARD = 126;
+const PREVIEW_MIN_TEXT = 10;
+const PREVIEW_PAD = 10;
+
+// Renders a 4:5 cover of the template without touching how it builds projects:
+// scales the headline to stay legible at the smallest card, keeps it inside the
+// frame, and drops the type that cannot reach the legibility floor.
+function renderTemplatePreview(model, id) {
+  const index = TEMPLATE_PREVIEW_SLIDE[id] || 0;
+  const windowX = index * model.slideWidth;
+  const texts = model.items.filter((item) => item.type === "text");
+  const title = texts.reduce(
+    (lead, item) => (item.fontSize > lead.fontSize ? item : lead),
+    texts[0],
+  );
+  const target = Math.ceil((PREVIEW_MIN_TEXT * model.slideWidth) / PREVIEW_MIN_CARD);
+
+  if (title) {
+    // Tracking tuned for slide scale would swallow the preview's margins.
+    title.letterSpacing = 0;
+    const probe = document.createElement("canvas").getContext("2d");
+    probe.font = `${title.fontStyle} ${title.fontWeight} ${target}px ${title.fontFamily}`;
+    const spacing = title.letterSpacing || 0;
+    let width = 0;
+    for (const line of title.text.split("\n")) {
+      width = Math.max(width, probe.measureText(line).width + spacing * line.length);
+    }
+
+    const boxLeft = title.x - windowX;
+    const pad = title.padding || 0;
+    let start = boxLeft + pad;
+    if (title.textAlign === "center") start = boxLeft + title.width / 2 - width / 2;
+    else if (title.textAlign === "right") start = boxLeft + title.width - pad - width;
+
+    const right = model.slideWidth - PREVIEW_PAD;
+    const shift = Math.max(
+      -Math.max(0, PREVIEW_PAD - start),
+      Math.min(Math.max(0, start - PREVIEW_PAD), start + width - right),
+    );
+    const fitted =
+      start - shift + width > right
+        ? (target * (model.slideWidth - 2 * PREVIEW_PAD)) / width
+        : target;
+
+    if ((fitted * PREVIEW_MIN_CARD) / model.slideWidth < PREVIEW_MIN_TEXT) {
+      model.items = model.items.filter((item) => item !== title);
+    } else {
+      const drawn = (width * fitted) / target;
+      title.fontSize = fitted;
+      if (title.textAlign === "left" && shift > 0 && drawn <= model.slideWidth - 2 * PREVIEW_PAD) {
+        title.x = windowX + (model.slideWidth - drawn) / 2 - pad;
+      } else {
+        title.x -= shift;
+      }
+    }
+  }
+
+  for (const item of model.items) {
+    if (item.frameStyle === "polaroid") item.caption = "";
+    if (item.type === "image") item.hidePlaceholderText = true;
+  }
+
+  return new CanvasExporter(model).renderThumbnail(index, PREVIEW_WIDTH);
+}
+
 class Studio {
   constructor(app) {
     this.app = app;
@@ -3635,12 +3843,27 @@ class Studio {
     this.update();
   }
 
-  toast(message) {
+  toast(message, action = null) {
     const el = document.getElementById("studio-toast");
-    el.textContent = message;
+    el.replaceChildren(document.createTextNode(message));
+    if (action) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "toast-action";
+      button.textContent = action.label;
+      button.addEventListener("click", () => {
+        el.classList.add("hidden");
+        action.run();
+      });
+      el.appendChild(button);
+    }
+    el.classList.toggle("toast-actionable", Boolean(action));
     el.classList.remove("hidden");
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => el.classList.add("hidden"), 4000);
+    this.toastTimer = setTimeout(
+      () => el.classList.add("hidden"),
+      action ? 6000 : 4000,
+    );
   }
 
   bind() {
@@ -3713,7 +3936,7 @@ class Studio {
           const saved = await this.storage.flush();
           this.toast(
             saved
-              ? "Borrador guardado. Puedes retomarlo desde Borradores."
+              ? "Borrador guardado. Está en Borradores."
               : "No se pudo guardar. Tu edición sigue abierta.",
           );
         } finally {
@@ -3736,6 +3959,13 @@ class Studio {
       name.value = this.storage.projectName;
     });
     document.getElementById("btn-layers").addEventListener("click", () => {
+      if (this.app.usesDesktopInspector()) {
+        this.renderLayers();
+        const row = document.querySelector("#layers-list .layer-row");
+        if (row) row.focus({ preventScroll: true });
+        row?.scrollIntoView({ block: "nearest" });
+        return;
+      }
       this.app.openDrawer("adjust", "Capas del proyecto");
       document.getElementById("object-adjustments").classList.add("hidden");
       document.getElementById("layers-list").classList.remove("hidden");
@@ -3778,10 +4008,140 @@ class Studio {
       if (event.persisted && this.view !== "editor") this.renderProjects();
     });
     this.engine.onViewChange = () => this.updateActivePage();
+    this.bindPageStrip();
     new ResizeObserver(() => {
-      if (this.view === "editor")
-        this.engine.fitToScreen(this.engine.viewMode === "slide");
+      if (this.view === "editor") this.engine.fitForViewport();
     }).observe(this.app.workspaceEl);
+  }
+
+  bindPageStrip() {
+    const strip = document.getElementById("page-strip");
+    if (!strip) return;
+    let drag = null;
+    const finish = (commit) => {
+      if (!drag) return;
+      const state = drag;
+      drag = null;
+      clearTimeout(state.timer);
+      strip.classList.remove("page-reorder-mode");
+      state.thumb.classList.remove("page-reorder-active");
+      strip
+        .querySelectorAll(".page-reorder-target")
+        .forEach((el) => el.classList.remove("page-reorder-target"));
+      if (state.active) {
+        try {
+          state.thumb.releasePointerCapture(state.pointerId);
+        } catch {
+          /* The browser already released the pointer. */
+        }
+      }
+      if (commit && state.active && state.target !== null && state.target !== state.from) {
+        this.movePage(state.from, state.target);
+      }
+    };
+    strip.addEventListener("pointerdown", (event) => {
+      if (drag || event.button !== 0) return;
+      const thumb = event.target.closest(".page-thumb");
+      if (!thumb) return;
+      const page = Number(thumb.dataset.page);
+      drag = {
+        thumb,
+        from: page,
+        target: page,
+        startX: event.clientX,
+        startY: event.clientY,
+        pointerId: event.pointerId,
+        active: false,
+        timer: null,
+      };
+      const hold = event.pointerType === "mouse" ? 180 : 320;
+      drag.timer = setTimeout(() => {
+        if (!drag) return;
+        drag.active = true;
+        strip.classList.add("page-reorder-mode");
+        thumb.classList.add("page-reorder-active");
+        try {
+          thumb.setPointerCapture(drag.pointerId);
+        } catch {
+          /* Pointer capture is a progressive enhancement. */
+        }
+      }, hold);
+    });
+    strip.addEventListener("pointermove", (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      if (!drag.active) {
+        if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 8) {
+          finish(false);
+        }
+        return;
+      }
+      event.preventDefault();
+      const target = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest?.(".page-thumb");
+      if (!target || !strip.contains(target)) return;
+      const page = Number(target.dataset.page);
+      if (page === drag.target) return;
+      drag.target = page;
+      strip.querySelectorAll(".page-thumb").forEach((el) => {
+        el.classList.toggle(
+          "page-reorder-target",
+          Number(el.dataset.page) === page,
+        );
+      });
+    });
+    const release = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      finish(true);
+    };
+    strip.addEventListener("pointerup", release);
+    document.addEventListener("pointerup", release);
+    strip.addEventListener("pointercancel", (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      finish(false);
+    });
+    strip.addEventListener("lostpointercapture", (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      finish(false);
+    });
+    strip.addEventListener("contextmenu", (event) => {
+      if (drag?.active) event.preventDefault();
+    });
+    document.addEventListener(
+      "touchmove",
+      (event) => {
+        if (drag?.active) event.preventDefault();
+      },
+      { passive: false },
+    );
+    window.addEventListener("blur", () => finish(false));
+    strip.addEventListener("keydown", (event) => {
+      const thumb = event.target.closest(".page-thumb");
+      if (!thumb || !event.altKey) return;
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const from = Number(thumb.dataset.page);
+      const to = from + (event.key === "ArrowRight" ? 1 : -1);
+      if (to >= 0 && to < this.engine.slideCount) this.movePage(from, to);
+    });
+    strip.addEventListener("scroll", () => this.updatePageStripCue(), {
+      passive: true,
+    });
+    window.addEventListener("resize", () => this.updatePageStripCue());
+  }
+
+  movePage(from, to) {
+    if (!this.engine.moveSlide(from, to)) return false;
+    this.suppressPageClick = true;
+    setTimeout(() => {
+      this.suppressPageClick = false;
+    }, 0);
+    this.renderPages();
+    this.toast(`Página ${from + 1} movida a la posición ${to + 1}.`);
+    document
+      .querySelector(`#page-strip .page-thumb[data-page="${to}"]`)
+      ?.focus({ preventScroll: true });
+    return true;
   }
 
   setSavingStatus(state) {
@@ -3792,7 +4152,7 @@ class Studio {
     el.textContent = {
       saving: "Guardando…",
       saved: "Borrador guardado",
-      fallback: "Guardado · solo proyecto actual",
+      fallback: "Guardado solo en este proyecto",
       error: "No se pudo guardar · revisa el espacio",
     }[state];
     const status = document.getElementById("drafts-storage-status");
@@ -3801,7 +4161,7 @@ class Studio {
       saving: "Guardando los últimos cambios…",
       saved: "Tus borradores están guardados en este dispositivo.",
       fallback:
-        "El respaldo actual está guardado. La biblioteca no está disponible.",
+        "El proyecto actual está guardado. La lista de borradores no está disponible.",
       error:
         "No se pudo guardar. Vuelve al editor y revisa el espacio disponible.",
     }[state];
@@ -3857,11 +4217,13 @@ class Studio {
     document.getElementById("editor-view").classList.remove("hidden");
     document.getElementById("project-name").value = this.storage.projectName;
     this.engine.selectItem(null);
+    this.engine.userViewMode = null;
     if (this.app.workspaceEl.getBoundingClientRect().width <= 900)
       this.engine.focusSlide(0);
     else this.engine.fitToScreen(false);
     this.renderPages();
     this.update();
+    this.app.syncInspector?.(true);
   }
 
   async newProject(template, settings = {}) {
@@ -3927,7 +4289,7 @@ class Studio {
       const empty = document.createElement("div");
       empty.className = "empty-drafts";
       empty.innerHTML =
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6m-6 4h6m-6 4h3"/></svg><strong>Aquí siguen tus ideas.</strong><p>Crea tu primer carrusel. Lo guardaremos como borrador mientras editas.</p><button class="text-link">Crear un carrusel <span aria-hidden="true">↗</span></button>';
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6m-6 4h6m-6 4h3"/></svg><strong>Todavía no hay borradores.</strong><p>Crea tu primer carrusel. Se guarda solo mientras editas.</p><button class="text-link">Crear un carrusel <span aria-hidden="true">↗</span></button>';
       empty
         .querySelector("button")
         .addEventListener("click", () =>
@@ -3956,7 +4318,7 @@ class Studio {
         "es-CL",
         { day: "numeric", month: "short" },
       );
-      meta.textContent = `${project.slideCount} páginas · ${project.aspectRatioName}`;
+      meta.textContent = `${pageCountLabel(project.slideCount)} · ${project.aspectRatioName}`;
       const saved = document.createElement("small");
       saved.className = "draft-saved-date";
       saved.textContent = `Guardado ${date}`;
@@ -4009,7 +4371,7 @@ class Studio {
     for (const [id, name, description, number] of TEMPLATE_INFO) {
       const tile = document.createElement("button");
       tile.className = "template-tile";
-      tile.innerHTML = `<div class="template-cover"><span class="template-number">${number} / COLLECTION</span></div><strong>${name}</strong><small>${description}</small>`;
+      tile.innerHTML = `<div class="template-cover"><span class="template-number">${number} / COLECCIÓN</span></div><strong>${name}</strong><small>${description}</small>`;
       tile.addEventListener("click", () => this.newProject(id));
       container.appendChild(tile);
       // Render the actual template with the existing engine's object models.
@@ -4034,8 +4396,10 @@ class Studio {
       };
       try {
         await applyTemplate(model, id);
-        const preview = new CanvasExporter(model).renderThumbnail(0, 280);
-        tile.querySelector(".template-cover").prepend(preview);
+        const preview = renderTemplatePreview(model, id);
+        const cover = tile.querySelector(".template-cover");
+        cover.style.background = model.background;
+        cover.prepend(preview);
         this.templatePreviews.set(id, preview);
         const drawerCard = document.querySelector(
           `.mobile-template-card[data-template="${id}"]`,
@@ -4046,6 +4410,7 @@ class Studio {
           copy.height = preview.height;
           copy.getContext("2d").drawImage(preview, 0, 0);
           copy.className = "drawer-template-preview";
+          copy.setAttribute("aria-hidden", "true");
           drawerCard.prepend(copy);
         }
       } catch (error) {
@@ -4070,12 +4435,18 @@ class Studio {
       const btn = document.createElement("button");
       btn.className = "page-thumb";
       btn.setAttribute("aria-label", `Ir a página ${i + 1}`);
+      btn.setAttribute("aria-keyshortcuts", "Alt+ArrowLeft Alt+ArrowRight");
+      btn.title = "Mantén presionada para mover · Alt + ← / →";
       btn.dataset.page = i;
       btn.appendChild(this.app.exporter.renderThumbnail(i, 64));
       const number = document.createElement("span");
       number.textContent = String(i + 1).padStart(2, "0");
       btn.appendChild(number);
       btn.addEventListener("click", () => {
+        if (this.suppressPageClick) {
+          this.suppressPageClick = false;
+          return;
+        }
         this.engine.selectItem(null);
         this.engine.focusSlide(i);
       });
@@ -4095,15 +4466,47 @@ class Studio {
     deletePage.title = `Eliminar página ${index + 1} y sus elementos (se puede deshacer)`;
     document.getElementById("active-page-label").textContent =
       this.engine.viewMode === "panorama"
-        ? `PANORAMA · ${this.engine.slideCount} PÁGINAS`
-        : `PÁGINA ${String(index + 1).padStart(2, "0")} / ${String(this.engine.slideCount).padStart(2, "0")}`;
+        ? `Panorama · ${pageCountLabel(this.engine.slideCount)}`
+        : `Página ${String(index + 1).padStart(2, "0")}/${String(this.engine.slideCount).padStart(2, "0")}`;
     document.getElementById("canvas-zoom-label").textContent =
       `${Math.round(this.engine.zoom * 100)}%`;
+    const pageStatus = document.getElementById("page-status-pill");
+    if (pageStatus) {
+      const current = String(index + 1).padStart(2, "0");
+      const total = String(this.engine.slideCount).padStart(2, "0");
+      pageStatus.textContent = `${current}/${total} · ${Math.round(this.engine.zoom * 100)}%`;
+    }
+    const fitToggle = document.getElementById("btn-zoom-fit");
+    const panorama = this.engine.viewMode === "panorama";
+    fitToggle.classList.toggle("active", panorama);
+    fitToggle.setAttribute("aria-pressed", String(panorama));
+    fitToggle.title = panorama ? "Ver una página" : "Ver panorama completo";
+    const strip = document.getElementById("page-strip");
     document.querySelectorAll(".page-thumb").forEach((btn) => {
       const active = Number(btn.dataset.page) === index;
       btn.classList.toggle("active", active);
       btn.setAttribute("aria-pressed", active);
+      if (!active) return;
+      // Keep the active page thumb clear of the strip's overflow fade.
+      const view = strip.getBoundingClientRect();
+      const thumb = btn.getBoundingClientRect();
+      const inset = 28;
+      if (thumb.left < view.left + inset || thumb.right > view.right - inset) {
+        strip.scrollLeft += Math.round(thumb.left - view.left - inset);
+      }
     });
+    this.updatePageStripCue();
+  }
+
+  updatePageStripCue() {
+    const strip = document.getElementById("page-strip");
+    const cue = document.getElementById("page-strip-cue");
+    if (!strip || !cue) return;
+    const overflow = strip.scrollWidth > strip.clientWidth + 2;
+    const more =
+      overflow && strip.scrollWidth - strip.clientWidth - strip.scrollLeft > 4;
+    strip.classList.toggle("has-overflow", overflow);
+    cue.classList.toggle("hidden", !more);
   }
 
   renderLayers() {
@@ -4190,6 +4593,8 @@ class NotScrlMobileApp {
     this.bindExportSheet();
     this.bindFileUpload();
     this.bindGiphy();
+    this.bindStickerSegments();
+    this.bindDesktopInspector();
 
     // Populate drawer content
     this.populateStickers();
@@ -4217,7 +4622,7 @@ class NotScrlMobileApp {
     this.engine.selectItem(null);
     this.loadingProject = false;
     this.studio = new Studio(this);
-    this.studio.renderPages();
+    this.studio?.renderPages();
     this.bindTextStyles();
     this.bindDialogAccessibility();
     if (savedProject) await this.storage.flush();
@@ -4238,24 +4643,28 @@ class NotScrlMobileApp {
     }
 
     // Slide Count Stepper
-    const btnMinus = document.getElementById('btn-minus-slide');
     const btnPlus = document.getElementById('btn-plus-slide');
 
-    for (const button of [btnMinus, document.getElementById('btn-delete-page')]) {
-      button?.addEventListener('click', () => {
-        const index = this.engine.getActiveSlideIndex();
-        if (this.engine.removeSlide(index)) {
-          this.updateHeaderUI();
-          this.studio.toast(`Página ${index + 1} eliminada. Puedes deshacer.`);
-        }
-      });
-    }
+    document.getElementById('btn-delete-page')?.addEventListener('click', () => this.deleteActivePage());
+
+    document.getElementById('btn-duplicate-page')?.addEventListener('click', () => {
+      const index = this.engine.getActiveSlideIndex();
+      if (this.engine.duplicateSlide(index)) {
+        this.updateHeaderUI();
+        this.studio?.renderPages();
+        this.studio?.toast(`Página ${index + 1} duplicada.`);
+      } else if (this.engine.slideCount >= 10) {
+        this.studio?.toast('Máximo 10 páginas. Elimina una antes de duplicar.');
+      }
+    });
 
     if (btnPlus) {
       btnPlus.addEventListener('click', () => {
-        if (this.engine.slideCount < 10) {
-          this.engine.setSlideCount(this.engine.slideCount + 1);
+        if (this.engine.insertSlide(this.engine.getActiveSlideIndex() + 1)) {
           this.updateHeaderUI();
+          this.studio?.renderPages();
+        } else {
+          this.studio?.toast('Máximo 10 páginas por carrusel. Elimina o reordena las que ya tienes.');
         }
       });
     }
@@ -4276,16 +4685,43 @@ class NotScrlMobileApp {
     }
   }
 
+  deleteActivePage() {
+    const index = this.engine.getActiveSlideIndex();
+    if (!this.engine.removeSlide(index)) return;
+    this.updateHeaderUI();
+    this.studio?.renderPages();
+    const historyIndex = this.engine.historyIndex;
+    this.studio?.toast(`Página ${index + 1} eliminada.`, {
+      label: 'Deshacer',
+      run: () => {
+        if (this.engine.historyIndex !== historyIndex) {
+          this.studio?.toast('Ya hay otros cambios. Usa Deshacer del lienzo.');
+          return;
+        }
+        this.engine.undo();
+      }
+    });
+  }
+
   updateHeaderUI() {
     document.getElementById('aspect-ratio-select').value = this.engine.aspectRatioName;
-    document.getElementById('btn-minus-slide').disabled = this.engine.slideCount <= 1;
     document.getElementById('btn-delete-page').disabled = this.engine.slideCount <= 1;
-    document.getElementById('btn-plus-slide').disabled = this.engine.slideCount >= 10;
+    const plus = document.getElementById('btn-plus-slide');
+    if (plus) {
+      const atMax = this.engine.slideCount >= 10;
+      plus.title = atMax
+        ? 'Máximo 10 páginas por carrusel'
+        : 'Añadir página después de la actual · máximo 10';
+    }
     document.getElementById('btn-undo').disabled = this.engine.historyIndex <= 0 || this.engine.isRestoringHistory;
     document.getElementById('btn-redo').disabled = this.engine.historyIndex >= this.engine.history.length - 1 || this.engine.isRestoringHistory;
     const slideCountEl = document.getElementById('slide-count-display');
     if (slideCountEl) {
       slideCountEl.textContent = this.engine.slideCount;
+    }
+    const slideCountUnit = document.getElementById('slide-count-unit');
+    if (slideCountUnit) {
+      slideCountUnit.textContent = this.engine.slideCount === 1 ? 'página' : 'páginas';
     }
   }
 
@@ -4302,6 +4738,7 @@ class NotScrlMobileApp {
       btnGuides.addEventListener('click', () => {
         this.engine.showGuides = !this.engine.showGuides;
         btnGuides.classList.toggle('active', this.engine.showGuides);
+        btnGuides.setAttribute('aria-pressed', String(this.engine.showGuides));
         this.engine.render();
       });
     }
@@ -4309,10 +4746,7 @@ class NotScrlMobileApp {
     // Fit / View Toggle
     const btnFit = document.getElementById('btn-zoom-fit');
     if (btnFit) {
-      btnFit.addEventListener('click', () => {
-        const nextMode = this.engine.viewMode === 'slide' ? false : true;
-        this.engine.fitToScreen(nextMode);
-      });
+      btnFit.addEventListener('click', () => this.engine.toggleViewMode());
     }
 
     // Double-click canvas to crop or toggle view
@@ -4320,8 +4754,7 @@ class NotScrlMobileApp {
       if (this.engine.selectedItem && this.engine.selectedItem.type === 'image') {
         this.cropper.open(this.engine.selectedItem);
       } else {
-        const nextMode = this.engine.viewMode === 'slide' ? false : true;
-        this.engine.fitToScreen(nextMode);
+        this.engine.toggleViewMode();
       }
     });
 
@@ -4336,14 +4769,25 @@ class NotScrlMobileApp {
   // 3. CONTEXT ACTION BAR (FLOATING AT TOP UNDER HEADER)
   bindContextActionBar() {
     this.contextBar = document.getElementById('context-action-bar');
-    for (const id of ['btn-ctx-fill-slide', 'btn-align-fill-slide']) {
-      document.getElementById(id)?.addEventListener('click', () => {
-        const item = this.engine.selectedItem;
-        if (!item || item.type !== 'image') return;
-        this.engine.fillImageToSlide(item);
-        this.studio.toast('Foto a página completa. Puedes deshacer.');
-      });
-    }
+    this.moreBtn = document.getElementById('btn-ctx-more');
+    this.moreSheet = document.getElementById('context-more-sheet');
+    this.moreBtn?.addEventListener('click', () => {
+      this.setMoreOpen(this.moreBtn.getAttribute('aria-expanded') !== 'true');
+    });
+    this.moreSheet?.addEventListener('click', (event) => {
+      if (event.target.closest('.context-btn')) this.setMoreOpen(false);
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || this.moreBtn?.getAttribute('aria-expanded') !== 'true') return;
+      event.preventDefault();
+      this.setMoreOpen(false);
+    });
+    document.getElementById('btn-ctx-fill-slide')?.addEventListener('click', () => {
+      const item = this.engine.selectedItem;
+      if (!item || item.type !== 'image') return;
+      this.engine.fillImageToSlide(item);
+      this.studio?.toast('Foto a página completa. Puedes deshacer.');
+    });
 
     // 1. Center inside current slide
     document.getElementById('btn-ctx-center-slide')?.addEventListener('click', () => {
@@ -4382,7 +4826,7 @@ class NotScrlMobileApp {
 
     // 6. Open shape selection drawer
     document.getElementById('btn-ctx-shapes')?.addEventListener('click', () => {
-      this.openDrawer('adjust', 'Formas y Ajustes');
+      this.openDrawer('adjust', 'Formas y ajustes');
     });
     document.getElementById('btn-ctx-adjust').addEventListener('click', () => {
       this.openDrawer('adjust', this.engine.selectedItem?.type === 'text' ? 'Editar texto' : 'Editar elemento');
@@ -4425,6 +4869,166 @@ class NotScrlMobileApp {
 
     // Bind Fine-Tuning Drawer Controls
     this.bindFineTuningControls();
+  }
+
+  setMoreOpen(open, restoreFocus = true) {
+    if (!this.moreBtn || !this.moreSheet) return;
+    this.moreSheet.classList.toggle('hidden', !open);
+    this.moreBtn.setAttribute('aria-expanded', String(open));
+    if (open) {
+      this.moreSheet.querySelector('.context-btn:not(.hidden)')?.focus();
+    } else if (restoreFocus && this.moreSheet.contains(document.activeElement)) {
+      this.moreBtn.focus();
+    } else if (this.moreSheet.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
+  }
+
+  usesDesktopInspector() {
+    return !!this.inspectorMedia?.matches;
+  }
+
+  bindDesktopInspector() {
+    this.inspector = document.getElementById('desktop-inspector');
+    if (!this.inspector) return;
+    this.inspectorBody = this.inspector.querySelector('.inspector-body');
+    this.inspectorSelection = document.getElementById('inspector-selection');
+    this.inspectorTransform = document.getElementById('inspector-transform');
+    this.inspectorEmpty = document.getElementById('inspector-empty');
+    this.inspectorFields = {
+      x: document.getElementById('insp-x'),
+      y: document.getElementById('insp-y'),
+      rotation: document.getElementById('insp-rotation'),
+      width: document.getElementById('insp-width'),
+      height: document.getElementById('insp-height')
+    };
+    this.inspectorAdjustmentsHost = document.getElementById('inspector-adjustments');
+    this.inspectorLayersHost = document.getElementById('inspector-layers-host');
+
+    const commit = (property, minimum) => {
+      const item = this.engine.selectedItem;
+      const input = this.inspectorFields[property];
+      if (!item || !input) return;
+      const value = Number(String(input.value).replace(',', '.'));
+      if (!Number.isFinite(value)) {
+        this.syncInspectorFields(true);
+        return;
+      }
+      let next = Math.round(value);
+      if (minimum !== undefined) next = Math.max(minimum, next);
+      if (property === 'rotation') next = ((next % 360) + 360) % 360;
+      if (item[property] === next) {
+        if (input.value !== String(next)) input.value = next;
+        return;
+      }
+      item[property] = next;
+      input.value = next;
+      this.engine.triggerChange();
+      // One history entry per committed value, never per keystroke.
+      this.engine.saveHistory('Ajustar propiedades');
+    };
+
+    for (const [property, minimum] of [['x'], ['y'], ['rotation'], ['width', 1], ['height', 1]]) {
+      const input = this.inspectorFields[property];
+      input.addEventListener('change', () => commit(property, minimum));
+      input.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        commit(property, minimum);
+        input.select();
+      });
+    }
+
+    this.inspectorMedia = window.matchMedia('(min-width: 1024px)');
+    this.placeInspectorContent();
+    const onChange = () => this.placeInspectorContent();
+    if (this.inspectorMedia.addEventListener) this.inspectorMedia.addEventListener('change', onChange);
+    else this.inspectorMedia.addListener?.(onChange);
+  }
+
+  // Move the object controls to the inspector on desktop and back into the
+  // sheet on smaller screens. One node, one surface; listeners survive moves.
+  placeInspectorContent() {
+    const layers = document.getElementById('layers-list');
+    const adjustments = document.getElementById('object-adjustments');
+    const drawerTab = document.getElementById('drawer-tab-adjust');
+    if (!layers || !adjustments || !drawerTab) return;
+    if (this.usesDesktopInspector()) {
+      if (!this.drawer.classList.contains('hidden') && document.getElementById('drawer-tab-adjust')?.classList.contains('active')) {
+        this.closeDrawer();
+      }
+      this.inspectorLayersHost.appendChild(layers);
+      this.inspectorAdjustmentsHost.appendChild(adjustments);
+      layers.classList.remove('hidden');
+      adjustments.classList.remove('hidden');
+    } else if (layers.parentElement !== drawerTab) {
+      drawerTab.prepend(layers);
+      adjustments.classList.remove('hidden');
+      drawerTab.insertBefore(adjustments, layers.nextSibling);
+      layers.classList.add('hidden');
+    }
+    this.syncInspector(true);
+  }
+
+  focusInspector() {
+    if (!this.usesDesktopInspector()) return false;
+    const target = this.engine.selectedItem ? this.inspectorFields.x : this.inspector;
+    this.inspectorBody.scrollTop = 0;
+    target?.focus({ preventScroll: true });
+    return true;
+  }
+
+  syncInspector(full = false) {
+    if (!this.inspector || !this.usesDesktopInspector()) return;
+    const item = this.engine.selectedItem;
+    this.inspectorTransform.classList.toggle('hidden', !item);
+    this.inspectorEmpty.classList.toggle('hidden', !!item);
+    document.getElementById('object-adjustments')?.classList.toggle('hidden', !item);
+    if (!item) {
+      this.inspectorSelection.textContent = 'Sin selección';
+      this.syncInspectorFields(true);
+      if (full) this.studio?.renderLayers();
+      return;
+    }
+    this.inspectorSelection.textContent = this.describeItem(item);
+    this.syncInspectorFields();
+    if (full) {
+      this.syncAdjustmentPanel();
+      this.studio?.renderLayers();
+    }
+  }
+
+  syncInspectorFields(force = false) {
+    const item = this.engine.selectedItem;
+    if (!item) {
+      for (const input of Object.values(this.inspectorFields)) input.value = '';
+      return;
+    }
+    const values = {
+      x: item.x,
+      y: item.y,
+      rotation: item.rotation || 0,
+      width: item.width,
+      height: item.height
+    };
+    for (const [key, value] of Object.entries(values)) {
+      const input = this.inspectorFields[key];
+      if (!input || (!force && document.activeElement === input)) continue;
+      input.value = Math.round(value);
+    }
+  }
+
+  describeItem(item) {
+    if (item.type === 'text') {
+      const text = (item.text || '').trim().replace(/\s+/g, ' ');
+      return text ? `Texto · ${text.slice(0, 24)}${text.length > 24 ? '…' : ''}` : 'Texto';
+    }
+    if (item.type === 'image') {
+      if (item.mediaType === 'video') return 'Vídeo';
+      if (item.mediaType === 'gif') return 'GIF';
+      return 'Fotografía';
+    }
+    return item.title ? `Sticker · ${item.title}` : 'Sticker';
   }
 
   bindFineTuningControls() {
@@ -4560,16 +5164,17 @@ class NotScrlMobileApp {
   // 4. BOTTOM NAVIGATION & BOTTOM SHEET DRAWER
   bindBottomNavAndDrawer() {
     this.drawer = document.getElementById('bottom-sheet-drawer');
+    this.navBar = document.getElementById('mobile-bottom-bar');
     this.drawerTitle = document.getElementById('drawer-title-text');
     this.navBtns = document.querySelectorAll('.nav-tab-btn');
     this.drawerTabs = document.querySelectorAll('.drawer-tab-content');
 
     const tabTitles = {
-      photos: 'Añadir Fotos',
-      text: 'Añadir Tipografía',
-      stickers: 'Stickers & Vintage',
+      photos: 'Añadir fotos',
+      text: 'Añadir tipografía',
+      stickers: 'Stickers & vintage',
       templates: 'Plantillas SCRL',
-      background: 'Color de Fondo'
+      background: 'Color de fondo'
     };
 
     this.navBtns.forEach(btn => {
@@ -4624,24 +5229,76 @@ class NotScrlMobileApp {
         await this.studio.newProject(tName === 'blank' ? null : tName);
       });
     });
+
+    // The sheet grows with its content; keep the artwork framed as it does.
+    new ResizeObserver(() => {
+      if (this.drawer.classList.contains('hidden')) return;
+      this.syncSheetOffset();
+      this.frameForDrawer();
+    }).observe(this.drawer);
+    window.addEventListener('resize', () => {
+      if (this.drawer.classList.contains('hidden')) return;
+      this.syncSheetOffset();
+      this.frameForDrawer();
+    });
+  }
+
+  usesBottomSheet() {
+    return !window.matchMedia('(min-width: 1024px)').matches;
+  }
+
+  // Sit the sheet on top of the floating tool rail instead of covering it.
+  syncSheetOffset() {
+    if (!this.usesBottomSheet()) {
+      this.drawer.style.removeProperty('--sheet-rail-offset');
+      return;
+    }
+    const offset = Math.max(
+      0,
+      Math.round(window.innerHeight - this.navBar.getBoundingClientRect().top)
+    );
+    this.drawer.style.setProperty('--sheet-rail-offset', `${offset}px`);
+  }
+
+  frameForDrawer() {
+    if (this.drawer.classList.contains('hidden')) return;
+    if (this.studio?.view !== 'editor' || !this.usesBottomSheet()) return;
+    this.engine.frameAboveSheet(this.drawer.getBoundingClientRect().top);
   }
 
   openDrawer(tabName, title) {
+    // On desktop the selected object's controls live in the persistent
+    // inspector; keep a single surface for that job.
+    if (tabName === 'adjust' && this.usesDesktopInspector()) {
+      this.syncInspector(true);
+      this.focusInspector();
+      return;
+    }
     this.drawerReturnFocus = this.drawer.classList.contains('hidden') ? document.activeElement : this.drawerReturnFocus;
     document.getElementById('drawer-backdrop').classList.remove('hidden');
-    document.getElementById('object-adjustments').classList.remove('hidden');
-    document.getElementById('layers-list').classList.add('hidden');
+    if (this.usesBottomSheet()) {
+      document.getElementById('object-adjustments').classList.remove('hidden');
+      document.getElementById('layers-list').classList.add('hidden');
+    }
     this.drawerTabs.forEach(t => t.classList.remove('active'));
     const targetTab = document.getElementById(`drawer-tab-${tabName}`);
     if (targetTab) targetTab.classList.add('active');
 
     if (tabName === 'stickers' && this.giphyLoaded === false) {
-      this.giphyLoaded = true;
-      this.loadGiphy('');
+      if (this.getGiphyKey()) {
+        this.giphyLoaded = true;
+        this.loadGiphy('');
+      } else {
+        this.showGiphySetup();
+      }
+    }
+    if (tabName === 'stickers') {
+      this.selectStickerSegment?.(this.stickerSegment || 'stickers');
     }
 
     if (this.drawerTitle) this.drawerTitle.textContent = title;
     this.drawer.classList.remove('hidden');
+    document.getElementById('editor-view').classList.add('inspector-open');
     this.drawer.focus({ preventScroll: true });
     this.navBtns.forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tab === tabName);
@@ -4650,51 +5307,63 @@ class NotScrlMobileApp {
 
     // Update adjust drawer values if opened for item
     if (tabName === 'adjust' && this.engine.selectedItem) {
-      const it = this.engine.selectedItem;
-      const isImg = it.type === 'image';
-      const isTxt = it.type === 'text';
-      document.getElementById('shape-section-label').classList.toggle('hidden', !isImg);
-      if (isTxt) {
-        const fields = document.getElementById('object-adjustments');
-        fields.prepend(document.getElementById('text-style-controls'));
-        fields.prepend(document.getElementById('mobile-field-text'));
-      }
-      document.getElementById('text-style-controls').classList.toggle('hidden', !isTxt);
-      document.getElementById('radius-field').classList.toggle('hidden', !isImg);
-      document.getElementById('btn-open-frame-adjust').classList.toggle('hidden', !isImg);
-
-      document.getElementById('shape-selector-grid').style.display = isImg ? 'grid' : 'none';
-      document.getElementById('mobile-field-polaroid').classList.toggle('hidden', !isImg || it.frameStyle !== 'polaroid');
-      document.getElementById('mobile-field-text').classList.toggle('hidden', !isTxt);
-
-      if (isImg) {
-        const currentShape = it.frameStyle === 'polaroid' ? 'polaroid' : (it.frameStyle === 'film' ? 'film' : (it.clipShape || 'rect'));
-        document.querySelectorAll('#shape-selector-grid .shape-choice-btn').forEach(b => {
-          b.classList.toggle('active', b.dataset.shape === currentShape);
-        });
-
-        document.getElementById('mobile-input-polaroid').value = it.caption || '';
-        document.getElementById('mobile-slider-radius').value = it.borderRadius || 0;
-      }
-
-      if (isTxt) {
-        document.getElementById('mobile-input-text').value = it.text || '';
-        document.getElementById('text-font').value = it.fontFamily;
-        document.getElementById('text-size').value = it.fontSize;
-        document.getElementById('text-color').value = it.color;
-        document.getElementById('text-align').value = it.textAlign;
-      }
-
-      document.getElementById('mobile-slider-opacity').value = it.opacity;
-      document.getElementById('mobile-toggle-shadow').checked = it.shadow?.enabled || false;
+      this.syncAdjustmentPanel();
     }
+
+    this.syncSheetOffset();
+    this.frameForDrawer();
+  }
+
+  syncAdjustmentPanel() {
+    if (!this.engine.selectedItem) return;
+    const it = this.engine.selectedItem;
+    const isImg = it.type === 'image';
+    const isTxt = it.type === 'text';
+    document.getElementById('shape-section-label').classList.toggle('hidden', !isImg);
+    if (isTxt) {
+      const fields = document.getElementById('object-adjustments');
+      fields.prepend(document.getElementById('text-style-controls'));
+      fields.prepend(document.getElementById('mobile-field-text'));
+    }
+    document.getElementById('text-style-controls').classList.toggle('hidden', !isTxt);
+    document.getElementById('radius-field').classList.toggle('hidden', !isImg);
+    document.getElementById('btn-open-frame-adjust').classList.toggle('hidden', !isImg);
+
+    document.getElementById('shape-selector-grid').style.display = isImg ? 'grid' : 'none';
+    document.getElementById('mobile-field-polaroid').classList.toggle('hidden', !isImg || it.frameStyle !== 'polaroid');
+    document.getElementById('mobile-field-text').classList.toggle('hidden', !isTxt);
+
+    if (isImg) {
+      const currentShape = it.frameStyle === 'polaroid' ? 'polaroid' : (it.frameStyle === 'film' ? 'film' : (it.clipShape || 'rect'));
+      document.querySelectorAll('#shape-selector-grid .shape-choice-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.shape === currentShape);
+      });
+
+      document.getElementById('mobile-input-polaroid').value = it.caption || '';
+      document.getElementById('mobile-slider-radius').value = it.borderRadius || 0;
+    }
+
+    if (isTxt) {
+      document.getElementById('mobile-input-text').value = it.text || '';
+      document.getElementById('text-font').value = it.fontFamily;
+      document.getElementById('text-size').value = it.fontSize;
+      document.getElementById('text-color').value = it.color;
+      document.getElementById('text-align').value = it.textAlign;
+    }
+
+    document.getElementById('mobile-slider-opacity').value = it.opacity;
+    document.getElementById('mobile-toggle-shadow').checked = it.shadow?.enabled || false;
   }
 
   closeDrawer() {
     const wasOpen = !this.drawer.classList.contains('hidden');
     this.drawer.classList.add('hidden');
     document.getElementById('drawer-backdrop').classList.add('hidden');
+    document.getElementById('editor-view').classList.remove('inspector-open');
     this.navBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-expanded', 'false'); });
+    if (wasOpen && this.studio?.view === 'editor' && this.usesBottomSheet()) {
+      this.engine.fitForViewport();
+    }
     if (wasOpen && this.drawerReturnFocus?.isConnected) this.drawerReturnFocus.focus({ preventScroll: true });
   }
 
@@ -4729,7 +5398,7 @@ class NotScrlMobileApp {
           try {
             await this.addVideoFile(file, i);
           } catch (error) {
-            this.studio.toast(error.message || 'Este vídeo no se pudo abrir. Prueba con MP4 o WebM.');
+            this.studio?.toast(error.message || 'Este vídeo no se pudo abrir. Prueba con MP4 o WebM.');
           }
           continue;
         }
@@ -4738,7 +5407,7 @@ class NotScrlMobileApp {
           try {
             await this.addGifFile(file, i);
           } catch (error) {
-            this.studio.toast(error.message || 'Este GIF no se pudo abrir.');
+            this.studio?.toast(error.message || 'Este GIF no se pudo abrir.');
           }
           continue;
         }
@@ -4777,7 +5446,7 @@ class NotScrlMobileApp {
           this.engine.addItem(item);
           await new Promise(resolve => setTimeout(resolve, 0));
         } catch (error) {
-          this.studio.toast(error.message || 'Esta foto no se pudo abrir. Prueba con JPG, PNG o WebP.');
+          this.studio?.toast(error.message || 'Esta foto no se pudo abrir. Prueba con JPG, PNG o WebP.');
         }
       }
     });
@@ -4836,46 +5505,141 @@ class NotScrlMobileApp {
   bindGiphy() {
     this.giphyGrid = document.getElementById('giphy-grid');
     if (!this.giphyGrid) return;
+    this.giphySetup = document.getElementById('giphy-setup');
+    this.giphyPanel = document.getElementById('giphy-panel');
+    this.giphyHelp = document.getElementById('giphy-help');
     this.giphyStatus = document.getElementById('giphy-status');
     this.giphyKeyRow = document.getElementById('giphy-key-row');
     this.giphyKeyInput = document.getElementById('giphy-key-input');
     this.giphyLoaded = false;
+    this.giphyKey = '';
 
-    const savedKey = localStorage.getItem('notscrl_giphy_key');
-    if (savedKey && this.giphyKeyInput) this.giphyKeyInput.value = savedKey;
-    if (!savedKey) this.giphyKeyRow?.classList.remove('hidden');
+    const savedKey = this.getGiphyKey();
+    if (savedKey) {
+      if (this.giphyKeyInput) this.giphyKeyInput.value = savedKey;
+      this.showGiphyPanel();
+    } else {
+      this.showGiphySetup();
+    }
+
+    document.getElementById('giphy-activate')?.addEventListener('click', () => {
+      this.showGiphyPanel();
+      this.giphyKeyRow?.classList.remove('hidden');
+      this.giphyHelp?.classList.remove('hidden');
+      this.giphyKeyInput?.focus();
+    });
 
     document.getElementById('giphy-key-save')?.addEventListener('click', () => {
       const key = (this.giphyKeyInput?.value || '').trim();
-      if (key) localStorage.setItem('notscrl_giphy_key', key);
-      else localStorage.removeItem('notscrl_giphy_key');
+      if (!key) {
+        this.giphyKeyRow?.classList.remove('hidden');
+        this.setGiphyStatus('Pega tu clave de GIPHY para activar los GIFs.');
+        return;
+      }
+      this.giphyKey = key;
+      const persisted = this.persistGiphyKey(key);
       this.giphyKeyRow?.classList.add('hidden');
+      this.giphyHelp?.classList.add('hidden');
       this.giphyLoaded = true;
+      if (!persisted) this.studio?.toast('Clave activa solo en esta sesión: el navegador no permite guardarla.');
       this.loadGiphy(document.getElementById('giphy-search-input')?.value || '');
     });
 
     document.getElementById('giphy-search-form')?.addEventListener('submit', (event) => {
       event.preventDefault();
+      if (!this.getGiphyKey()) {
+        this.showGiphySetup();
+        return;
+      }
       this.loadGiphy(document.getElementById('giphy-search-input')?.value || '');
     });
   }
 
+  bindStickerSegments() {
+    this.stickerSegment = 'stickers';
+    const buttons = [...document.querySelectorAll('[data-sticker-segment]')];
+    if (!buttons.length) return;
+    const select = (name) => {
+      if (name !== 'stickers' && name !== 'gifs') return;
+      this.stickerSegment = name;
+      buttons.forEach(btn => {
+        const active = btn.dataset.stickerSegment === name;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', String(active));
+      });
+      document.getElementById('segment-stickers')?.classList.toggle('hidden', name !== 'stickers');
+      document.getElementById('segment-gifs')?.classList.toggle('hidden', name !== 'gifs');
+      if (name === 'gifs') {
+        if (!this.getGiphyKey()) this.showGiphySetup();
+        else if (!this.giphyLoaded) {
+          this.giphyLoaded = true;
+          this.loadGiphy('');
+        }
+      }
+      this.frameForDrawer();
+    };
+    buttons.forEach(btn => btn.addEventListener('click', () => select(btn.dataset.stickerSegment)));
+    this.selectStickerSegment = select;
+  }
+
+  getGiphyKey() {
+    if (this.giphyKey) return this.giphyKey;
+    try {
+      return localStorage.getItem('notscrl_giphy_key') || '';
+    } catch {
+      return '';
+    }
+  }
+
+  persistGiphyKey(key) {
+    try {
+      if (key) localStorage.setItem('notscrl_giphy_key', key);
+      else localStorage.removeItem('notscrl_giphy_key');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  showGiphySetup() {
+    this.giphySetup?.classList.remove('hidden');
+    this.giphyPanel?.classList.add('hidden');
+    this.setGiphyStatus('');
+  }
+
+  showGiphyPanel() {
+    this.giphySetup?.classList.add('hidden');
+    this.giphyPanel?.classList.remove('hidden');
+  }
+
   async loadGiphy(query) {
     if (!this.giphyGrid) return;
-    const key = localStorage.getItem('notscrl_giphy_key') || '';
+    const key = this.getGiphyKey();
+    if (!key) {
+      this.showGiphySetup();
+      return;
+    }
+    this.showGiphyPanel();
     this.giphyGrid.innerHTML = '';
     this.setGiphyStatus('Cargando GIFs…');
     try {
       const res = await fetch(`api/giphy/search?q=${encodeURIComponent(query)}`, {
-        headers: key ? { 'x-giphy-key': key } : {}
+        headers: { 'x-giphy-key': key }
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (data.error === 'missing_key') {
           this.giphyKeyRow?.classList.remove('hidden');
-          this.setGiphyStatus('Añade tu API key de GIPHY (developers.giphy.com) para usar GIFs.');
+          this.giphyHelp?.classList.remove('hidden');
+          this.setGiphyStatus('Activa los GIFs con tu clave de GIPHY para buscarlos.');
+        } else if (res.status === 401 || res.status === 403) {
+          this.giphyKeyRow?.classList.remove('hidden');
+          this.giphyHelp?.classList.remove('hidden');
+          this.setGiphyStatus('GIPHY rechazó esta clave. Revísala o pega otra.');
+        } else if (res.status === 429) {
+          this.setGiphyStatus('GIPHY limitó las búsquedas por ahora. Inténtalo en unos minutos.');
         } else {
-          this.setGiphyStatus('No se pudieron cargar los GIFs.');
+          this.setGiphyStatus('No se pudieron cargar los GIFs. Inténtalo de nuevo.');
         }
         return;
       }
@@ -4885,11 +5649,15 @@ class NotScrlMobileApp {
         const cell = document.createElement('button');
         cell.type = 'button';
         cell.className = 'mobile-sticker-card giphy-cell';
-        cell.innerHTML = `<img src="api/giphy/media?id=${encodeURIComponent(gif.id)}" alt="${gif.title}" loading="lazy"/>`;
+        const image = document.createElement('img');
+        image.src = `api/giphy/media?id=${encodeURIComponent(gif.id)}`;
+        image.alt = gif.title || 'GIF';
+        image.loading = 'lazy';
+        cell.appendChild(image);
         cell.addEventListener('click', () => this.addGiphyItem(gif));
         this.giphyGrid.appendChild(cell);
       });
-      if (!items.length) this.setGiphyStatus('Sin resultados.');
+      if (!items.length) this.setGiphyStatus('Sin resultados. Prueba otra búsqueda.');
     } catch {
       this.setGiphyStatus('No se pudieron cargar los GIFs. Revisa tu conexión.');
     }
@@ -4907,7 +5675,7 @@ class NotScrlMobileApp {
       this.engine.addItem(item);
       this.closeDrawer();
     };
-    img.onerror = () => this.studio.toast('No se pudo cargar el GIF.');
+    img.onerror = () => this.studio?.toast('No se pudo cargar el GIF.');
     img.src = `api/giphy/media?id=${encodeURIComponent(gif.id)}`;
   }
 
@@ -4963,9 +5731,9 @@ class NotScrlMobileApp {
 
   // 7. SELECTION CHANGE CALLBACK
   onSelectionChanged(item) {
+    this.setMoreOpen(false, !!item);
     document.getElementById('selection-toolbar').classList.toggle('has-selection', !!item);
     document.getElementById('btn-ctx-fill-slide')?.classList.toggle('hidden', item?.type !== 'image');
-    document.getElementById('btn-align-fill-slide')?.classList.toggle('hidden', item?.type !== 'image');
     if (item) {
       document.getElementById('selection-hint').classList.add('hidden');
       this.contextBar.classList.remove('hidden');
@@ -4980,10 +5748,12 @@ class NotScrlMobileApp {
         this.closeDrawer();
       }
     }
+    this.syncInspector(true);
   }
 
   onCanvasChanged() {
     this.updateHeaderUI();
+    this.syncInspector(false);
     if (this.loadingProject) return;
     this.studio?.update();
     // Auto-save project into persistent cache (IndexedDB + localStorage)
@@ -5059,7 +5829,9 @@ class NotScrlMobileApp {
     const observer = new MutationObserver(() => {
       const modal = activeModal();
       const changed = modal !== previousModal;
-      document.getElementById('editor-view').inert = !!modal;
+      // Keep the tool rail reachable while the sheet is open; switching tools
+      // should not require closing the sheet first.
+      document.getElementById('editor-view').inert = !!modal && modal !== this.drawer;
       document.getElementById('home-view').inert = !!modal;
       this.drawer.inert = !!modal && modal !== this.drawer;
       overlays.forEach(el => { el.inert = !!modal && el !== modal; });
@@ -5110,12 +5882,12 @@ class NotScrlMobileApp {
         const status = document.getElementById('export-status-label');
         try {
           await this.exporter.downloadAllAsZip(message => { status.textContent = message; });
-          this.studio.toast('Tu historia está lista. Descarga iniciada.');
+          this.studio?.toast('Tu historia está lista. Descarga iniciada.');
         } catch (error) {
           status.textContent = 'No se pudo crear el ZIP. Inténtalo otra vez o descarga cada PNG.';
         } finally {
           this.btnZip.disabled = false;
-          this.btnZip.textContent = `Descargar ${this.engine.slideCount} páginas · ZIP`;
+          this.btnZip.textContent = `Descargar ${pageCountLabel(this.engine.slideCount)} · ZIP`;
         }
       });
     }
@@ -5135,7 +5907,7 @@ class NotScrlMobileApp {
     const slides = Array.from({ length: this.engine.slideCount }, (_, i) => ({
       index: i + 1, canvas: this.exporter.renderThumbnail(i, 180)
     }));
-    document.querySelector('.export-subtitle').textContent = `${this.engine.slideCount} páginas · ${this.engine.slideWidth} × ${this.engine.slideHeight} px · PNG`;
+    document.querySelector('.export-subtitle').textContent = `${pageCountLabel(this.engine.slideCount)} · ${this.engine.slideWidth} × ${this.engine.slideHeight} px · PNG`;
     document.getElementById('export-status-label').textContent = 'Las imágenes se generan en tu dispositivo.';
 
     this.stripContainer.innerHTML = '';
@@ -5146,6 +5918,7 @@ class NotScrlMobileApp {
       const thumb = document.createElement('canvas');
       thumb.width = 180;
       thumb.height = slide.canvas.height;
+      thumb.setAttribute('aria-hidden', 'true');
       const ctx = thumb.getContext('2d');
       ctx.drawImage(slide.canvas, 0, 0);
 
@@ -5167,7 +5940,7 @@ class NotScrlMobileApp {
     });
 
     if (this.btnZip) {
-      this.btnZip.textContent = `Descargar ${this.engine.slideCount} páginas · ZIP`;
+      this.btnZip.textContent = `Descargar ${pageCountLabel(this.engine.slideCount)} · ZIP`;
     }
   }
 }
@@ -5176,6 +5949,7 @@ class NotScrlMobileApp {
 window.addEventListener('DOMContentLoaded', () => {
   window.__notScrlApp = new NotScrlMobileApp();
 });
+
 
 // ---- END js/app.js ----
 

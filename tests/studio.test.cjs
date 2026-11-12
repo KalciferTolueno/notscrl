@@ -47,6 +47,61 @@ test('Deleting the first, middle or last page shifts later content and can be un
   }
 });
 
+test('Pages can be inserted, duplicated and reordered without losing content', async () => {
+  class Text {
+    constructor(text) { this.type = 'text'; this.text = text; this.shadow = {}; }
+  }
+  const { CanvasEngine: Engine } = load('js/canvas.js', ['CanvasEngine'], {
+    window: { __notScrlObjects: { TextItem: Text } }
+  });
+  const makeEngine = (count, xPositions) => Object.assign(Object.create(Engine.prototype), {
+    slideCount: count, slideWidth: 1080, slideHeight: 1350,
+    items: xPositions.map((x, i) => ({ type: 'text', text: String(i), x, y: 40, width: 100, height: 80, shadow: {} })),
+    history: [], historyIndex: -1, selectedItem: null,
+    selectItem(item) { this.selectedItem = item; },
+    focusSlide(page) { this.page = page; },
+    fitToScreen() {}, triggerChange() {}
+  });
+
+  const inserted = makeEngine(3, [50, 1150, 2230]);
+  inserted.saveHistory('Antes');
+  assert.equal(inserted.insertSlide(1), true);
+  assert.equal(inserted.slideCount, 4);
+  assert.deepEqual(inserted.items.map(item => item.x), [50, 2230, 3310]);
+  assert.equal(inserted.page, 1);
+  await inserted.restoreHistory(inserted.history[0]);
+  assert.equal(inserted.slideCount, 3);
+  assert.deepEqual(Array.from(inserted.items, item => item.x), [50, 1150, 2230]);
+
+  const duplicated = makeEngine(3, [50, 1150, 2230]);
+  duplicated.saveHistory('Antes');
+  assert.equal(duplicated.duplicateSlide(0), true);
+  assert.equal(duplicated.slideCount, 4);
+  assert.deepEqual(duplicated.items.map(item => item.x), [50, 2230, 3310, 1130]);
+  assert.equal(duplicated.items.length, 4);
+  assert.equal(duplicated.items[3].text, '0');
+  assert.notEqual(duplicated.items[3].shadow, duplicated.items[0].shadow);
+  assert.equal(duplicated.page, 1);
+  for (let i = 0; i < 6; i++) duplicated.duplicateSlide(0);
+  assert.equal(duplicated.slideCount, 10);
+  assert.equal(duplicated.duplicateSlide(0), false);
+  assert.equal(duplicated.insertSlide(0), false);
+  await duplicated.restoreHistory(duplicated.history.at(-1));
+  assert.equal(duplicated.slideCount, 10);
+
+  const moved = makeEngine(3, [50, 1150, 2230]);
+  moved.saveHistory('Antes');
+  assert.equal(moved.moveSlide(0, 2), true);
+  const order = [...moved.items].sort((a, b) => a.x - b.x).map(item => item.text);
+  assert.deepEqual(order, ['1', '2', '0']);
+  assert.deepEqual(moved.items.map(item => item.x), [2210, 70, 1150]);
+  assert.equal(moved.page, 2);
+  await moved.restoreHistory(moved.history[0]);
+  assert.deepEqual(Array.from(moved.items, item => item.x), [50, 1150, 2230]);
+  assert.equal(moved.moveSlide(0, 0), false);
+  assert.equal(moved.moveSlide(0, 3), false);
+});
+
 test('Cropping hides pixels without moving, resizing or changing zoom, including repeated crops', () => {
   const { ImageItem } = load('js/objects.js', ['ImageItem']);
   const { ImageCropper } = load('js/cropper.js', ['ImageCropper']);

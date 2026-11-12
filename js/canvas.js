@@ -28,6 +28,8 @@ export class CanvasEngine {
     this.zoom = 0.28;
     this.panX = 20;
     this.panY = 40;
+    this.viewMode = 'panorama';
+    this.userViewMode = null;
     this.isPanning = false;
     this.startPanPoint = { x: 0, y: 0 };
     this.isSpacePressed = false;
@@ -70,7 +72,7 @@ export class CanvasEngine {
   init() {
     this.resizeCanvas();
     window.addEventListener('resize', () => {
-      if (this.enabled) this.fitToScreen(this.viewMode === 'slide');
+      if (this.enabled) this.fitForViewport();
     });
 
     this.bindEvents();
@@ -136,6 +138,64 @@ export class CanvasEngine {
     return true;
   }
 
+  insertSlide(index = this.getActiveSlideIndex() + 1) {
+    if (this.slideCount >= 10) return false;
+    const at = Number.isFinite(index)
+      ? Math.max(0, Math.min(this.slideCount, Math.trunc(index)))
+      : this.slideCount;
+    this.selectItem(null);
+    this.items.forEach(item => {
+      if (this.getItemSlideIndex(item) >= at) item.x += this.slideWidth;
+    });
+    this.slideCount++;
+    this.focusSlide(at);
+    this.triggerChange();
+    this.saveHistory(`Añadir página ${at + 1}`);
+    return true;
+  }
+
+  duplicateSlide(index = this.getActiveSlideIndex()) {
+    if (this.slideCount >= 10 || !Number.isInteger(index) || index < 0 || index >= this.slideCount) return false;
+    const width = this.slideWidth;
+    const source = this.items.filter(item => this.getItemSlideIndex(item) === index);
+    const copies = source.map((item, i) => {
+      const copy = Object.assign(Object.create(Object.getPrototypeOf(item)), item);
+      Object.assign(copy, this.serializeItem(item));
+      delete copy.imageSrc;
+      copy.id = `item_${Date.now()}_${i}`;
+      copy.x += width;
+      return copy;
+    });
+    this.selectItem(null);
+    this.items.forEach(item => {
+      if (this.getItemSlideIndex(item) > index) item.x += width;
+    });
+    this.slideCount++;
+    this.items.push(...copies);
+    this.items.forEach((item, i) => { item.zIndex = i; });
+    this.focusSlide(index + 1);
+    this.triggerChange();
+    this.saveHistory(`Duplicar página ${index + 1}`);
+    return true;
+  }
+
+  moveSlide(from, to) {
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from === to) return false;
+    if (from < 0 || to < 0 || from >= this.slideCount || to >= this.slideCount) return false;
+    const width = this.slideWidth;
+    this.selectItem(null);
+    this.items.forEach(item => {
+      const page = this.getItemSlideIndex(item);
+      if (page === from) item.x += (to - from) * width;
+      else if (from < to && page > from && page <= to) item.x -= width;
+      else if (from > to && page >= to && page < from) item.x += width;
+    });
+    this.focusSlide(to);
+    this.triggerChange();
+    this.saveHistory(`Mover página ${from + 1} a ${to + 1}`);
+    return true;
+  }
+
   // Clear everything to a clean white canvas
   clearToBlankCanvas() {
     this.items = [];
@@ -162,7 +222,7 @@ export class CanvasEngine {
     const paddingX = Math.max(12, Math.min(32, this.viewportWidth * 0.05));
     const paddingY = Math.max(16, Math.min(48, this.viewportHeight * 0.06));
     // The canvas toolbar floats over the workspace, so the artwork starts below it.
-    const topInset = isMobile ? 46 : 0;
+    const topInset = isMobile ? 64 : this.viewportHeight < 500 ? 0 : 88;
     const availW = Math.max(40, this.viewportWidth - paddingX * 2);
     const availH = Math.max(40, this.viewportHeight - paddingY * 2 - topInset);
 
@@ -187,6 +247,64 @@ export class CanvasEngine {
       this.viewMode = 'panorama';
     }
 
+    this.render();
+  }
+
+  toggleViewMode() {
+    this.userViewMode = this.viewMode === 'slide' ? 'panorama' : 'slide';
+    this.fitToScreen(this.userViewMode === 'slide');
+  }
+
+  fitForViewport() {
+    const forced =
+      this.userViewMode === 'panorama'
+        ? false
+        : this.userViewMode === 'slide'
+          ? true
+          : null;
+    const slideIndex = this.selectedItem
+      ? this.getItemSlideIndex(this.selectedItem)
+      : null;
+    this.fitToScreen(forced, slideIndex);
+  }
+
+  // Keep the active page (and the selected object) inside the canvas area
+  // that remains visible above an open bottom sheet.
+  frameAboveSheet(sheetTop) {
+    if (!this.enabled || !this.viewportWidth) return;
+    const rect = this.container.getBoundingClientRect();
+    const visibleHeight = Math.max(120, Math.min(rect.height, sheetTop - rect.top));
+    this.resizeCanvas();
+    const isMobile = this.viewportWidth <= 640 || this.viewportWidth < this.viewportHeight;
+    const paddingX = Math.max(12, Math.min(32, this.viewportWidth * 0.05));
+    // The sheet already gives the lower edge its breathing room.
+    const paddingY = 12;
+    const topInset = isMobile ? 56 : 80;
+    const availW = Math.max(40, this.viewportWidth - paddingX * 2);
+    const availH = Math.max(60, visibleHeight - topInset - paddingY * 2);
+
+    const slide = this.selectedItem
+      ? this.getItemSlideIndex(this.selectedItem)
+      : this.getActiveSlideIndex();
+    let minX = slide * this.slideWidth;
+    let maxX = minX + this.slideWidth;
+    let minY = 0;
+    let maxY = this.slideHeight;
+    if (this.selectedItem) {
+      const item = this.selectedItem;
+      minX = Math.min(minX, item.x);
+      maxX = Math.max(maxX, item.x + item.width);
+      minY = Math.min(minY, item.y);
+      maxY = Math.max(maxY, item.y + item.height);
+    }
+
+    const frameW = Math.max(1, maxX - minX);
+    const frameH = Math.max(1, maxY - minY);
+    this.zoom = Math.min(availW / frameW, availH / frameH);
+    this.panX = this.viewportWidth / 2 - ((minX + maxX) / 2) * this.zoom;
+    this.panY =
+      topInset + paddingY + (availH - frameH * this.zoom) / 2 - minY * this.zoom;
+    this.viewMode = 'slide';
     this.render();
   }
 
@@ -411,6 +529,7 @@ export class CanvasEngine {
 
   async restoreHistory(snapshot, resetHistory = false) {
     const revision = this.restoreRevision = (this.restoreRevision || 0) + 1;
+    const selectedIndex = this.selectedItem ? this.items.indexOf(this.selectedItem) : -1;
     this.isRestoringHistory = true;
     this.slideCount = snapshot.slideCount;
     this.slideWidth = snapshot.slideWidth;
@@ -450,6 +569,10 @@ export class CanvasEngine {
     }
     this.fitToScreen();
     this.triggerChange();
+    // Keep the object selected across undo/redo so the inspector stays useful.
+    if (selectedIndex > -1 && this.items[selectedIndex]) {
+      this.selectItem(this.items[selectedIndex]);
+    }
   }
 
   async restoreVideoItem(data) {
@@ -532,7 +655,8 @@ export class CanvasEngine {
     }, { passive: false });
 
     window.addEventListener('keydown', (e) => {
-      if (!this.enabled || e.target.closest('input,textarea,select,dialog,[role=dialog]') || document.querySelector('.mobile-modal-overlay:not(.hidden)')) return;
+      const typing = e.target instanceof Element && e.target.closest('input,textarea,select,dialog,[role=dialog]');
+      if (!this.enabled || typing || document.querySelector('.mobile-modal-overlay:not(.hidden)')) return;
 
       if (e.code === 'Space' && !this.isSpacePressed) {
         e.preventDefault();
@@ -596,6 +720,7 @@ export class CanvasEngine {
           return;
         }
         const nextMode = this.viewMode === 'slide' ? false : true;
+        this.userViewMode = nextMode ? 'slide' : 'panorama';
         this.fitToScreen(nextMode);
         this.lastTapTime = 0;
         return;

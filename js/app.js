@@ -6,7 +6,7 @@
 
 import { CanvasEngine } from './canvas.js';
 import { ImageItem, TextItem, StickerItem } from './objects.js';
-import { CanvasExporter } from './exporter.js';
+import { CanvasExporter, pageCountLabel } from './exporter.js';
 import { PreviewSimulator } from './preview.js';
 import { ImageCropper } from './cropper.js';
 import { FrameAdjuster } from './frame-adjuster.js';
@@ -51,6 +51,8 @@ class NotScrlMobileApp {
     this.bindExportSheet();
     this.bindFileUpload();
     this.bindGiphy();
+    this.bindStickerSegments();
+    this.bindDesktopInspector();
 
     // Populate drawer content
     this.populateStickers();
@@ -78,7 +80,7 @@ class NotScrlMobileApp {
     this.engine.selectItem(null);
     this.loadingProject = false;
     this.studio = new Studio(this);
-    this.studio.renderPages();
+    this.studio?.renderPages();
     this.bindTextStyles();
     this.bindDialogAccessibility();
     if (savedProject) await this.storage.flush();
@@ -99,24 +101,28 @@ class NotScrlMobileApp {
     }
 
     // Slide Count Stepper
-    const btnMinus = document.getElementById('btn-minus-slide');
     const btnPlus = document.getElementById('btn-plus-slide');
 
-    for (const button of [btnMinus, document.getElementById('btn-delete-page')]) {
-      button?.addEventListener('click', () => {
-        const index = this.engine.getActiveSlideIndex();
-        if (this.engine.removeSlide(index)) {
-          this.updateHeaderUI();
-          this.studio.toast(`Página ${index + 1} eliminada. Puedes deshacer.`);
-        }
-      });
-    }
+    document.getElementById('btn-delete-page')?.addEventListener('click', () => this.deleteActivePage());
+
+    document.getElementById('btn-duplicate-page')?.addEventListener('click', () => {
+      const index = this.engine.getActiveSlideIndex();
+      if (this.engine.duplicateSlide(index)) {
+        this.updateHeaderUI();
+        this.studio?.renderPages();
+        this.studio?.toast(`Página ${index + 1} duplicada.`);
+      } else if (this.engine.slideCount >= 10) {
+        this.studio?.toast('Máximo 10 páginas. Elimina una antes de duplicar.');
+      }
+    });
 
     if (btnPlus) {
       btnPlus.addEventListener('click', () => {
-        if (this.engine.slideCount < 10) {
-          this.engine.setSlideCount(this.engine.slideCount + 1);
+        if (this.engine.insertSlide(this.engine.getActiveSlideIndex() + 1)) {
           this.updateHeaderUI();
+          this.studio?.renderPages();
+        } else {
+          this.studio?.toast('Máximo 10 páginas por carrusel. Elimina o reordena las que ya tienes.');
         }
       });
     }
@@ -137,16 +143,43 @@ class NotScrlMobileApp {
     }
   }
 
+  deleteActivePage() {
+    const index = this.engine.getActiveSlideIndex();
+    if (!this.engine.removeSlide(index)) return;
+    this.updateHeaderUI();
+    this.studio?.renderPages();
+    const historyIndex = this.engine.historyIndex;
+    this.studio?.toast(`Página ${index + 1} eliminada.`, {
+      label: 'Deshacer',
+      run: () => {
+        if (this.engine.historyIndex !== historyIndex) {
+          this.studio?.toast('Ya hay otros cambios. Usa Deshacer del lienzo.');
+          return;
+        }
+        this.engine.undo();
+      }
+    });
+  }
+
   updateHeaderUI() {
     document.getElementById('aspect-ratio-select').value = this.engine.aspectRatioName;
-    document.getElementById('btn-minus-slide').disabled = this.engine.slideCount <= 1;
     document.getElementById('btn-delete-page').disabled = this.engine.slideCount <= 1;
-    document.getElementById('btn-plus-slide').disabled = this.engine.slideCount >= 10;
+    const plus = document.getElementById('btn-plus-slide');
+    if (plus) {
+      const atMax = this.engine.slideCount >= 10;
+      plus.title = atMax
+        ? 'Máximo 10 páginas por carrusel'
+        : 'Añadir página después de la actual · máximo 10';
+    }
     document.getElementById('btn-undo').disabled = this.engine.historyIndex <= 0 || this.engine.isRestoringHistory;
     document.getElementById('btn-redo').disabled = this.engine.historyIndex >= this.engine.history.length - 1 || this.engine.isRestoringHistory;
     const slideCountEl = document.getElementById('slide-count-display');
     if (slideCountEl) {
       slideCountEl.textContent = this.engine.slideCount;
+    }
+    const slideCountUnit = document.getElementById('slide-count-unit');
+    if (slideCountUnit) {
+      slideCountUnit.textContent = this.engine.slideCount === 1 ? 'página' : 'páginas';
     }
   }
 
@@ -163,6 +196,7 @@ class NotScrlMobileApp {
       btnGuides.addEventListener('click', () => {
         this.engine.showGuides = !this.engine.showGuides;
         btnGuides.classList.toggle('active', this.engine.showGuides);
+        btnGuides.setAttribute('aria-pressed', String(this.engine.showGuides));
         this.engine.render();
       });
     }
@@ -170,10 +204,7 @@ class NotScrlMobileApp {
     // Fit / View Toggle
     const btnFit = document.getElementById('btn-zoom-fit');
     if (btnFit) {
-      btnFit.addEventListener('click', () => {
-        const nextMode = this.engine.viewMode === 'slide' ? false : true;
-        this.engine.fitToScreen(nextMode);
-      });
+      btnFit.addEventListener('click', () => this.engine.toggleViewMode());
     }
 
     // Double-click canvas to crop or toggle view
@@ -181,8 +212,7 @@ class NotScrlMobileApp {
       if (this.engine.selectedItem && this.engine.selectedItem.type === 'image') {
         this.cropper.open(this.engine.selectedItem);
       } else {
-        const nextMode = this.engine.viewMode === 'slide' ? false : true;
-        this.engine.fitToScreen(nextMode);
+        this.engine.toggleViewMode();
       }
     });
 
@@ -197,14 +227,25 @@ class NotScrlMobileApp {
   // 3. CONTEXT ACTION BAR (FLOATING AT TOP UNDER HEADER)
   bindContextActionBar() {
     this.contextBar = document.getElementById('context-action-bar');
-    for (const id of ['btn-ctx-fill-slide', 'btn-align-fill-slide']) {
-      document.getElementById(id)?.addEventListener('click', () => {
-        const item = this.engine.selectedItem;
-        if (!item || item.type !== 'image') return;
-        this.engine.fillImageToSlide(item);
-        this.studio.toast('Foto a página completa. Puedes deshacer.');
-      });
-    }
+    this.moreBtn = document.getElementById('btn-ctx-more');
+    this.moreSheet = document.getElementById('context-more-sheet');
+    this.moreBtn?.addEventListener('click', () => {
+      this.setMoreOpen(this.moreBtn.getAttribute('aria-expanded') !== 'true');
+    });
+    this.moreSheet?.addEventListener('click', (event) => {
+      if (event.target.closest('.context-btn')) this.setMoreOpen(false);
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || this.moreBtn?.getAttribute('aria-expanded') !== 'true') return;
+      event.preventDefault();
+      this.setMoreOpen(false);
+    });
+    document.getElementById('btn-ctx-fill-slide')?.addEventListener('click', () => {
+      const item = this.engine.selectedItem;
+      if (!item || item.type !== 'image') return;
+      this.engine.fillImageToSlide(item);
+      this.studio?.toast('Foto a página completa. Puedes deshacer.');
+    });
 
     // 1. Center inside current slide
     document.getElementById('btn-ctx-center-slide')?.addEventListener('click', () => {
@@ -243,7 +284,7 @@ class NotScrlMobileApp {
 
     // 6. Open shape selection drawer
     document.getElementById('btn-ctx-shapes')?.addEventListener('click', () => {
-      this.openDrawer('adjust', 'Formas y Ajustes');
+      this.openDrawer('adjust', 'Formas y ajustes');
     });
     document.getElementById('btn-ctx-adjust').addEventListener('click', () => {
       this.openDrawer('adjust', this.engine.selectedItem?.type === 'text' ? 'Editar texto' : 'Editar elemento');
@@ -286,6 +327,166 @@ class NotScrlMobileApp {
 
     // Bind Fine-Tuning Drawer Controls
     this.bindFineTuningControls();
+  }
+
+  setMoreOpen(open, restoreFocus = true) {
+    if (!this.moreBtn || !this.moreSheet) return;
+    this.moreSheet.classList.toggle('hidden', !open);
+    this.moreBtn.setAttribute('aria-expanded', String(open));
+    if (open) {
+      this.moreSheet.querySelector('.context-btn:not(.hidden)')?.focus();
+    } else if (restoreFocus && this.moreSheet.contains(document.activeElement)) {
+      this.moreBtn.focus();
+    } else if (this.moreSheet.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
+  }
+
+  usesDesktopInspector() {
+    return !!this.inspectorMedia?.matches;
+  }
+
+  bindDesktopInspector() {
+    this.inspector = document.getElementById('desktop-inspector');
+    if (!this.inspector) return;
+    this.inspectorBody = this.inspector.querySelector('.inspector-body');
+    this.inspectorSelection = document.getElementById('inspector-selection');
+    this.inspectorTransform = document.getElementById('inspector-transform');
+    this.inspectorEmpty = document.getElementById('inspector-empty');
+    this.inspectorFields = {
+      x: document.getElementById('insp-x'),
+      y: document.getElementById('insp-y'),
+      rotation: document.getElementById('insp-rotation'),
+      width: document.getElementById('insp-width'),
+      height: document.getElementById('insp-height')
+    };
+    this.inspectorAdjustmentsHost = document.getElementById('inspector-adjustments');
+    this.inspectorLayersHost = document.getElementById('inspector-layers-host');
+
+    const commit = (property, minimum) => {
+      const item = this.engine.selectedItem;
+      const input = this.inspectorFields[property];
+      if (!item || !input) return;
+      const value = Number(String(input.value).replace(',', '.'));
+      if (!Number.isFinite(value)) {
+        this.syncInspectorFields(true);
+        return;
+      }
+      let next = Math.round(value);
+      if (minimum !== undefined) next = Math.max(minimum, next);
+      if (property === 'rotation') next = ((next % 360) + 360) % 360;
+      if (item[property] === next) {
+        if (input.value !== String(next)) input.value = next;
+        return;
+      }
+      item[property] = next;
+      input.value = next;
+      this.engine.triggerChange();
+      // One history entry per committed value, never per keystroke.
+      this.engine.saveHistory('Ajustar propiedades');
+    };
+
+    for (const [property, minimum] of [['x'], ['y'], ['rotation'], ['width', 1], ['height', 1]]) {
+      const input = this.inspectorFields[property];
+      input.addEventListener('change', () => commit(property, minimum));
+      input.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        commit(property, minimum);
+        input.select();
+      });
+    }
+
+    this.inspectorMedia = window.matchMedia('(min-width: 1024px)');
+    this.placeInspectorContent();
+    const onChange = () => this.placeInspectorContent();
+    if (this.inspectorMedia.addEventListener) this.inspectorMedia.addEventListener('change', onChange);
+    else this.inspectorMedia.addListener?.(onChange);
+  }
+
+  // Move the object controls to the inspector on desktop and back into the
+  // sheet on smaller screens. One node, one surface; listeners survive moves.
+  placeInspectorContent() {
+    const layers = document.getElementById('layers-list');
+    const adjustments = document.getElementById('object-adjustments');
+    const drawerTab = document.getElementById('drawer-tab-adjust');
+    if (!layers || !adjustments || !drawerTab) return;
+    if (this.usesDesktopInspector()) {
+      if (!this.drawer.classList.contains('hidden') && document.getElementById('drawer-tab-adjust')?.classList.contains('active')) {
+        this.closeDrawer();
+      }
+      this.inspectorLayersHost.appendChild(layers);
+      this.inspectorAdjustmentsHost.appendChild(adjustments);
+      layers.classList.remove('hidden');
+      adjustments.classList.remove('hidden');
+    } else if (layers.parentElement !== drawerTab) {
+      drawerTab.prepend(layers);
+      adjustments.classList.remove('hidden');
+      drawerTab.insertBefore(adjustments, layers.nextSibling);
+      layers.classList.add('hidden');
+    }
+    this.syncInspector(true);
+  }
+
+  focusInspector() {
+    if (!this.usesDesktopInspector()) return false;
+    const target = this.engine.selectedItem ? this.inspectorFields.x : this.inspector;
+    this.inspectorBody.scrollTop = 0;
+    target?.focus({ preventScroll: true });
+    return true;
+  }
+
+  syncInspector(full = false) {
+    if (!this.inspector || !this.usesDesktopInspector()) return;
+    const item = this.engine.selectedItem;
+    this.inspectorTransform.classList.toggle('hidden', !item);
+    this.inspectorEmpty.classList.toggle('hidden', !!item);
+    document.getElementById('object-adjustments')?.classList.toggle('hidden', !item);
+    if (!item) {
+      this.inspectorSelection.textContent = 'Sin selección';
+      this.syncInspectorFields(true);
+      if (full) this.studio?.renderLayers();
+      return;
+    }
+    this.inspectorSelection.textContent = this.describeItem(item);
+    this.syncInspectorFields();
+    if (full) {
+      this.syncAdjustmentPanel();
+      this.studio?.renderLayers();
+    }
+  }
+
+  syncInspectorFields(force = false) {
+    const item = this.engine.selectedItem;
+    if (!item) {
+      for (const input of Object.values(this.inspectorFields)) input.value = '';
+      return;
+    }
+    const values = {
+      x: item.x,
+      y: item.y,
+      rotation: item.rotation || 0,
+      width: item.width,
+      height: item.height
+    };
+    for (const [key, value] of Object.entries(values)) {
+      const input = this.inspectorFields[key];
+      if (!input || (!force && document.activeElement === input)) continue;
+      input.value = Math.round(value);
+    }
+  }
+
+  describeItem(item) {
+    if (item.type === 'text') {
+      const text = (item.text || '').trim().replace(/\s+/g, ' ');
+      return text ? `Texto · ${text.slice(0, 24)}${text.length > 24 ? '…' : ''}` : 'Texto';
+    }
+    if (item.type === 'image') {
+      if (item.mediaType === 'video') return 'Vídeo';
+      if (item.mediaType === 'gif') return 'GIF';
+      return 'Fotografía';
+    }
+    return item.title ? `Sticker · ${item.title}` : 'Sticker';
   }
 
   bindFineTuningControls() {
@@ -421,16 +622,17 @@ class NotScrlMobileApp {
   // 4. BOTTOM NAVIGATION & BOTTOM SHEET DRAWER
   bindBottomNavAndDrawer() {
     this.drawer = document.getElementById('bottom-sheet-drawer');
+    this.navBar = document.getElementById('mobile-bottom-bar');
     this.drawerTitle = document.getElementById('drawer-title-text');
     this.navBtns = document.querySelectorAll('.nav-tab-btn');
     this.drawerTabs = document.querySelectorAll('.drawer-tab-content');
 
     const tabTitles = {
-      photos: 'Añadir Fotos',
-      text: 'Añadir Tipografía',
-      stickers: 'Stickers & Vintage',
+      photos: 'Añadir fotos',
+      text: 'Añadir tipografía',
+      stickers: 'Stickers & vintage',
       templates: 'Plantillas SCRL',
-      background: 'Color de Fondo'
+      background: 'Color de fondo'
     };
 
     this.navBtns.forEach(btn => {
@@ -485,24 +687,76 @@ class NotScrlMobileApp {
         await this.studio.newProject(tName === 'blank' ? null : tName);
       });
     });
+
+    // The sheet grows with its content; keep the artwork framed as it does.
+    new ResizeObserver(() => {
+      if (this.drawer.classList.contains('hidden')) return;
+      this.syncSheetOffset();
+      this.frameForDrawer();
+    }).observe(this.drawer);
+    window.addEventListener('resize', () => {
+      if (this.drawer.classList.contains('hidden')) return;
+      this.syncSheetOffset();
+      this.frameForDrawer();
+    });
+  }
+
+  usesBottomSheet() {
+    return !window.matchMedia('(min-width: 1024px)').matches;
+  }
+
+  // Sit the sheet on top of the floating tool rail instead of covering it.
+  syncSheetOffset() {
+    if (!this.usesBottomSheet()) {
+      this.drawer.style.removeProperty('--sheet-rail-offset');
+      return;
+    }
+    const offset = Math.max(
+      0,
+      Math.round(window.innerHeight - this.navBar.getBoundingClientRect().top)
+    );
+    this.drawer.style.setProperty('--sheet-rail-offset', `${offset}px`);
+  }
+
+  frameForDrawer() {
+    if (this.drawer.classList.contains('hidden')) return;
+    if (this.studio?.view !== 'editor' || !this.usesBottomSheet()) return;
+    this.engine.frameAboveSheet(this.drawer.getBoundingClientRect().top);
   }
 
   openDrawer(tabName, title) {
+    // On desktop the selected object's controls live in the persistent
+    // inspector; keep a single surface for that job.
+    if (tabName === 'adjust' && this.usesDesktopInspector()) {
+      this.syncInspector(true);
+      this.focusInspector();
+      return;
+    }
     this.drawerReturnFocus = this.drawer.classList.contains('hidden') ? document.activeElement : this.drawerReturnFocus;
     document.getElementById('drawer-backdrop').classList.remove('hidden');
-    document.getElementById('object-adjustments').classList.remove('hidden');
-    document.getElementById('layers-list').classList.add('hidden');
+    if (this.usesBottomSheet()) {
+      document.getElementById('object-adjustments').classList.remove('hidden');
+      document.getElementById('layers-list').classList.add('hidden');
+    }
     this.drawerTabs.forEach(t => t.classList.remove('active'));
     const targetTab = document.getElementById(`drawer-tab-${tabName}`);
     if (targetTab) targetTab.classList.add('active');
 
     if (tabName === 'stickers' && this.giphyLoaded === false) {
-      this.giphyLoaded = true;
-      this.loadGiphy('');
+      if (this.getGiphyKey()) {
+        this.giphyLoaded = true;
+        this.loadGiphy('');
+      } else {
+        this.showGiphySetup();
+      }
+    }
+    if (tabName === 'stickers') {
+      this.selectStickerSegment?.(this.stickerSegment || 'stickers');
     }
 
     if (this.drawerTitle) this.drawerTitle.textContent = title;
     this.drawer.classList.remove('hidden');
+    document.getElementById('editor-view').classList.add('inspector-open');
     this.drawer.focus({ preventScroll: true });
     this.navBtns.forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tab === tabName);
@@ -511,51 +765,63 @@ class NotScrlMobileApp {
 
     // Update adjust drawer values if opened for item
     if (tabName === 'adjust' && this.engine.selectedItem) {
-      const it = this.engine.selectedItem;
-      const isImg = it.type === 'image';
-      const isTxt = it.type === 'text';
-      document.getElementById('shape-section-label').classList.toggle('hidden', !isImg);
-      if (isTxt) {
-        const fields = document.getElementById('object-adjustments');
-        fields.prepend(document.getElementById('text-style-controls'));
-        fields.prepend(document.getElementById('mobile-field-text'));
-      }
-      document.getElementById('text-style-controls').classList.toggle('hidden', !isTxt);
-      document.getElementById('radius-field').classList.toggle('hidden', !isImg);
-      document.getElementById('btn-open-frame-adjust').classList.toggle('hidden', !isImg);
-
-      document.getElementById('shape-selector-grid').style.display = isImg ? 'grid' : 'none';
-      document.getElementById('mobile-field-polaroid').classList.toggle('hidden', !isImg || it.frameStyle !== 'polaroid');
-      document.getElementById('mobile-field-text').classList.toggle('hidden', !isTxt);
-
-      if (isImg) {
-        const currentShape = it.frameStyle === 'polaroid' ? 'polaroid' : (it.frameStyle === 'film' ? 'film' : (it.clipShape || 'rect'));
-        document.querySelectorAll('#shape-selector-grid .shape-choice-btn').forEach(b => {
-          b.classList.toggle('active', b.dataset.shape === currentShape);
-        });
-
-        document.getElementById('mobile-input-polaroid').value = it.caption || '';
-        document.getElementById('mobile-slider-radius').value = it.borderRadius || 0;
-      }
-
-      if (isTxt) {
-        document.getElementById('mobile-input-text').value = it.text || '';
-        document.getElementById('text-font').value = it.fontFamily;
-        document.getElementById('text-size').value = it.fontSize;
-        document.getElementById('text-color').value = it.color;
-        document.getElementById('text-align').value = it.textAlign;
-      }
-
-      document.getElementById('mobile-slider-opacity').value = it.opacity;
-      document.getElementById('mobile-toggle-shadow').checked = it.shadow?.enabled || false;
+      this.syncAdjustmentPanel();
     }
+
+    this.syncSheetOffset();
+    this.frameForDrawer();
+  }
+
+  syncAdjustmentPanel() {
+    if (!this.engine.selectedItem) return;
+    const it = this.engine.selectedItem;
+    const isImg = it.type === 'image';
+    const isTxt = it.type === 'text';
+    document.getElementById('shape-section-label').classList.toggle('hidden', !isImg);
+    if (isTxt) {
+      const fields = document.getElementById('object-adjustments');
+      fields.prepend(document.getElementById('text-style-controls'));
+      fields.prepend(document.getElementById('mobile-field-text'));
+    }
+    document.getElementById('text-style-controls').classList.toggle('hidden', !isTxt);
+    document.getElementById('radius-field').classList.toggle('hidden', !isImg);
+    document.getElementById('btn-open-frame-adjust').classList.toggle('hidden', !isImg);
+
+    document.getElementById('shape-selector-grid').style.display = isImg ? 'grid' : 'none';
+    document.getElementById('mobile-field-polaroid').classList.toggle('hidden', !isImg || it.frameStyle !== 'polaroid');
+    document.getElementById('mobile-field-text').classList.toggle('hidden', !isTxt);
+
+    if (isImg) {
+      const currentShape = it.frameStyle === 'polaroid' ? 'polaroid' : (it.frameStyle === 'film' ? 'film' : (it.clipShape || 'rect'));
+      document.querySelectorAll('#shape-selector-grid .shape-choice-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.shape === currentShape);
+      });
+
+      document.getElementById('mobile-input-polaroid').value = it.caption || '';
+      document.getElementById('mobile-slider-radius').value = it.borderRadius || 0;
+    }
+
+    if (isTxt) {
+      document.getElementById('mobile-input-text').value = it.text || '';
+      document.getElementById('text-font').value = it.fontFamily;
+      document.getElementById('text-size').value = it.fontSize;
+      document.getElementById('text-color').value = it.color;
+      document.getElementById('text-align').value = it.textAlign;
+    }
+
+    document.getElementById('mobile-slider-opacity').value = it.opacity;
+    document.getElementById('mobile-toggle-shadow').checked = it.shadow?.enabled || false;
   }
 
   closeDrawer() {
     const wasOpen = !this.drawer.classList.contains('hidden');
     this.drawer.classList.add('hidden');
     document.getElementById('drawer-backdrop').classList.add('hidden');
+    document.getElementById('editor-view').classList.remove('inspector-open');
     this.navBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-expanded', 'false'); });
+    if (wasOpen && this.studio?.view === 'editor' && this.usesBottomSheet()) {
+      this.engine.fitForViewport();
+    }
     if (wasOpen && this.drawerReturnFocus?.isConnected) this.drawerReturnFocus.focus({ preventScroll: true });
   }
 
@@ -590,7 +856,7 @@ class NotScrlMobileApp {
           try {
             await this.addVideoFile(file, i);
           } catch (error) {
-            this.studio.toast(error.message || 'Este vídeo no se pudo abrir. Prueba con MP4 o WebM.');
+            this.studio?.toast(error.message || 'Este vídeo no se pudo abrir. Prueba con MP4 o WebM.');
           }
           continue;
         }
@@ -599,7 +865,7 @@ class NotScrlMobileApp {
           try {
             await this.addGifFile(file, i);
           } catch (error) {
-            this.studio.toast(error.message || 'Este GIF no se pudo abrir.');
+            this.studio?.toast(error.message || 'Este GIF no se pudo abrir.');
           }
           continue;
         }
@@ -638,7 +904,7 @@ class NotScrlMobileApp {
           this.engine.addItem(item);
           await new Promise(resolve => setTimeout(resolve, 0));
         } catch (error) {
-          this.studio.toast(error.message || 'Esta foto no se pudo abrir. Prueba con JPG, PNG o WebP.');
+          this.studio?.toast(error.message || 'Esta foto no se pudo abrir. Prueba con JPG, PNG o WebP.');
         }
       }
     });
@@ -697,46 +963,141 @@ class NotScrlMobileApp {
   bindGiphy() {
     this.giphyGrid = document.getElementById('giphy-grid');
     if (!this.giphyGrid) return;
+    this.giphySetup = document.getElementById('giphy-setup');
+    this.giphyPanel = document.getElementById('giphy-panel');
+    this.giphyHelp = document.getElementById('giphy-help');
     this.giphyStatus = document.getElementById('giphy-status');
     this.giphyKeyRow = document.getElementById('giphy-key-row');
     this.giphyKeyInput = document.getElementById('giphy-key-input');
     this.giphyLoaded = false;
+    this.giphyKey = '';
 
-    const savedKey = localStorage.getItem('notscrl_giphy_key');
-    if (savedKey && this.giphyKeyInput) this.giphyKeyInput.value = savedKey;
-    if (!savedKey) this.giphyKeyRow?.classList.remove('hidden');
+    const savedKey = this.getGiphyKey();
+    if (savedKey) {
+      if (this.giphyKeyInput) this.giphyKeyInput.value = savedKey;
+      this.showGiphyPanel();
+    } else {
+      this.showGiphySetup();
+    }
+
+    document.getElementById('giphy-activate')?.addEventListener('click', () => {
+      this.showGiphyPanel();
+      this.giphyKeyRow?.classList.remove('hidden');
+      this.giphyHelp?.classList.remove('hidden');
+      this.giphyKeyInput?.focus();
+    });
 
     document.getElementById('giphy-key-save')?.addEventListener('click', () => {
       const key = (this.giphyKeyInput?.value || '').trim();
-      if (key) localStorage.setItem('notscrl_giphy_key', key);
-      else localStorage.removeItem('notscrl_giphy_key');
+      if (!key) {
+        this.giphyKeyRow?.classList.remove('hidden');
+        this.setGiphyStatus('Pega tu clave de GIPHY para activar los GIFs.');
+        return;
+      }
+      this.giphyKey = key;
+      const persisted = this.persistGiphyKey(key);
       this.giphyKeyRow?.classList.add('hidden');
+      this.giphyHelp?.classList.add('hidden');
       this.giphyLoaded = true;
+      if (!persisted) this.studio?.toast('Clave activa solo en esta sesión: el navegador no permite guardarla.');
       this.loadGiphy(document.getElementById('giphy-search-input')?.value || '');
     });
 
     document.getElementById('giphy-search-form')?.addEventListener('submit', (event) => {
       event.preventDefault();
+      if (!this.getGiphyKey()) {
+        this.showGiphySetup();
+        return;
+      }
       this.loadGiphy(document.getElementById('giphy-search-input')?.value || '');
     });
   }
 
+  bindStickerSegments() {
+    this.stickerSegment = 'stickers';
+    const buttons = [...document.querySelectorAll('[data-sticker-segment]')];
+    if (!buttons.length) return;
+    const select = (name) => {
+      if (name !== 'stickers' && name !== 'gifs') return;
+      this.stickerSegment = name;
+      buttons.forEach(btn => {
+        const active = btn.dataset.stickerSegment === name;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', String(active));
+      });
+      document.getElementById('segment-stickers')?.classList.toggle('hidden', name !== 'stickers');
+      document.getElementById('segment-gifs')?.classList.toggle('hidden', name !== 'gifs');
+      if (name === 'gifs') {
+        if (!this.getGiphyKey()) this.showGiphySetup();
+        else if (!this.giphyLoaded) {
+          this.giphyLoaded = true;
+          this.loadGiphy('');
+        }
+      }
+      this.frameForDrawer();
+    };
+    buttons.forEach(btn => btn.addEventListener('click', () => select(btn.dataset.stickerSegment)));
+    this.selectStickerSegment = select;
+  }
+
+  getGiphyKey() {
+    if (this.giphyKey) return this.giphyKey;
+    try {
+      return localStorage.getItem('notscrl_giphy_key') || '';
+    } catch {
+      return '';
+    }
+  }
+
+  persistGiphyKey(key) {
+    try {
+      if (key) localStorage.setItem('notscrl_giphy_key', key);
+      else localStorage.removeItem('notscrl_giphy_key');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  showGiphySetup() {
+    this.giphySetup?.classList.remove('hidden');
+    this.giphyPanel?.classList.add('hidden');
+    this.setGiphyStatus('');
+  }
+
+  showGiphyPanel() {
+    this.giphySetup?.classList.add('hidden');
+    this.giphyPanel?.classList.remove('hidden');
+  }
+
   async loadGiphy(query) {
     if (!this.giphyGrid) return;
-    const key = localStorage.getItem('notscrl_giphy_key') || '';
+    const key = this.getGiphyKey();
+    if (!key) {
+      this.showGiphySetup();
+      return;
+    }
+    this.showGiphyPanel();
     this.giphyGrid.innerHTML = '';
     this.setGiphyStatus('Cargando GIFs…');
     try {
       const res = await fetch(`api/giphy/search?q=${encodeURIComponent(query)}`, {
-        headers: key ? { 'x-giphy-key': key } : {}
+        headers: { 'x-giphy-key': key }
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (data.error === 'missing_key') {
           this.giphyKeyRow?.classList.remove('hidden');
-          this.setGiphyStatus('Añade tu API key de GIPHY (developers.giphy.com) para usar GIFs.');
+          this.giphyHelp?.classList.remove('hidden');
+          this.setGiphyStatus('Activa los GIFs con tu clave de GIPHY para buscarlos.');
+        } else if (res.status === 401 || res.status === 403) {
+          this.giphyKeyRow?.classList.remove('hidden');
+          this.giphyHelp?.classList.remove('hidden');
+          this.setGiphyStatus('GIPHY rechazó esta clave. Revísala o pega otra.');
+        } else if (res.status === 429) {
+          this.setGiphyStatus('GIPHY limitó las búsquedas por ahora. Inténtalo en unos minutos.');
         } else {
-          this.setGiphyStatus('No se pudieron cargar los GIFs.');
+          this.setGiphyStatus('No se pudieron cargar los GIFs. Inténtalo de nuevo.');
         }
         return;
       }
@@ -746,11 +1107,15 @@ class NotScrlMobileApp {
         const cell = document.createElement('button');
         cell.type = 'button';
         cell.className = 'mobile-sticker-card giphy-cell';
-        cell.innerHTML = `<img src="api/giphy/media?id=${encodeURIComponent(gif.id)}" alt="${gif.title}" loading="lazy"/>`;
+        const image = document.createElement('img');
+        image.src = `api/giphy/media?id=${encodeURIComponent(gif.id)}`;
+        image.alt = gif.title || 'GIF';
+        image.loading = 'lazy';
+        cell.appendChild(image);
         cell.addEventListener('click', () => this.addGiphyItem(gif));
         this.giphyGrid.appendChild(cell);
       });
-      if (!items.length) this.setGiphyStatus('Sin resultados.');
+      if (!items.length) this.setGiphyStatus('Sin resultados. Prueba otra búsqueda.');
     } catch {
       this.setGiphyStatus('No se pudieron cargar los GIFs. Revisa tu conexión.');
     }
@@ -768,7 +1133,7 @@ class NotScrlMobileApp {
       this.engine.addItem(item);
       this.closeDrawer();
     };
-    img.onerror = () => this.studio.toast('No se pudo cargar el GIF.');
+    img.onerror = () => this.studio?.toast('No se pudo cargar el GIF.');
     img.src = `api/giphy/media?id=${encodeURIComponent(gif.id)}`;
   }
 
@@ -824,9 +1189,9 @@ class NotScrlMobileApp {
 
   // 7. SELECTION CHANGE CALLBACK
   onSelectionChanged(item) {
+    this.setMoreOpen(false, !!item);
     document.getElementById('selection-toolbar').classList.toggle('has-selection', !!item);
     document.getElementById('btn-ctx-fill-slide')?.classList.toggle('hidden', item?.type !== 'image');
-    document.getElementById('btn-align-fill-slide')?.classList.toggle('hidden', item?.type !== 'image');
     if (item) {
       document.getElementById('selection-hint').classList.add('hidden');
       this.contextBar.classList.remove('hidden');
@@ -841,10 +1206,12 @@ class NotScrlMobileApp {
         this.closeDrawer();
       }
     }
+    this.syncInspector(true);
   }
 
   onCanvasChanged() {
     this.updateHeaderUI();
+    this.syncInspector(false);
     if (this.loadingProject) return;
     this.studio?.update();
     // Auto-save project into persistent cache (IndexedDB + localStorage)
@@ -920,7 +1287,9 @@ class NotScrlMobileApp {
     const observer = new MutationObserver(() => {
       const modal = activeModal();
       const changed = modal !== previousModal;
-      document.getElementById('editor-view').inert = !!modal;
+      // Keep the tool rail reachable while the sheet is open; switching tools
+      // should not require closing the sheet first.
+      document.getElementById('editor-view').inert = !!modal && modal !== this.drawer;
       document.getElementById('home-view').inert = !!modal;
       this.drawer.inert = !!modal && modal !== this.drawer;
       overlays.forEach(el => { el.inert = !!modal && el !== modal; });
@@ -971,12 +1340,12 @@ class NotScrlMobileApp {
         const status = document.getElementById('export-status-label');
         try {
           await this.exporter.downloadAllAsZip(message => { status.textContent = message; });
-          this.studio.toast('Tu historia está lista. Descarga iniciada.');
+          this.studio?.toast('Tu historia está lista. Descarga iniciada.');
         } catch (error) {
           status.textContent = 'No se pudo crear el ZIP. Inténtalo otra vez o descarga cada PNG.';
         } finally {
           this.btnZip.disabled = false;
-          this.btnZip.textContent = `Descargar ${this.engine.slideCount} páginas · ZIP`;
+          this.btnZip.textContent = `Descargar ${pageCountLabel(this.engine.slideCount)} · ZIP`;
         }
       });
     }
@@ -996,7 +1365,7 @@ class NotScrlMobileApp {
     const slides = Array.from({ length: this.engine.slideCount }, (_, i) => ({
       index: i + 1, canvas: this.exporter.renderThumbnail(i, 180)
     }));
-    document.querySelector('.export-subtitle').textContent = `${this.engine.slideCount} páginas · ${this.engine.slideWidth} × ${this.engine.slideHeight} px · PNG`;
+    document.querySelector('.export-subtitle').textContent = `${pageCountLabel(this.engine.slideCount)} · ${this.engine.slideWidth} × ${this.engine.slideHeight} px · PNG`;
     document.getElementById('export-status-label').textContent = 'Las imágenes se generan en tu dispositivo.';
 
     this.stripContainer.innerHTML = '';
@@ -1007,6 +1376,7 @@ class NotScrlMobileApp {
       const thumb = document.createElement('canvas');
       thumb.width = 180;
       thumb.height = slide.canvas.height;
+      thumb.setAttribute('aria-hidden', 'true');
       const ctx = thumb.getContext('2d');
       ctx.drawImage(slide.canvas, 0, 0);
 
@@ -1028,7 +1398,7 @@ class NotScrlMobileApp {
     });
 
     if (this.btnZip) {
-      this.btnZip.textContent = `Descargar ${this.engine.slideCount} páginas · ZIP`;
+      this.btnZip.textContent = `Descargar ${pageCountLabel(this.engine.slideCount)} · ZIP`;
     }
   }
 }
@@ -1037,3 +1407,4 @@ class NotScrlMobileApp {
 window.addEventListener('DOMContentLoaded', () => {
   window.__notScrlApp = new NotScrlMobileApp();
 });
+

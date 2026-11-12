@@ -40,21 +40,32 @@
               ><span class="brand-symbol" aria-hidden="true">n.</span
               >NotSCRL<span class="wordmark-label">ESTUDIO CREATIVO</span></a
             >
-            <button
-              class="home-icon-btn"
-              id="btn-help"
-              aria-label="Cómo funciona"
-            >
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4m0 3h.01" />
-              </svg>
-            </button>
+            <div class="home-header-actions">
+              <button
+                class="home-header-cta create-project-btn"
+                data-new-project
+                aria-label="Nuevo carrusel"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" /></svg
+                ><span>Nuevo carrusel</span>
+              </button>
+              <button
+                class="home-icon-btn"
+                id="btn-help"
+                aria-label="Cómo funciona"
+              >
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4m0 3h.01" />
+                </svg>
+              </button>
+            </div>
           </header>
           <div class="home-scroll">
             <div class="home-content">
               <section id="home-intro">
-                <p class="eyebrow">TU ESPACIO CREATIVO</p>
+                <p class="eyebrow">CARRUSELES PANORÁMICOS</p>
                 <h1>¿Qué creamos hoy?</h1>
                 <p class="intro-copy">
                   Empieza algo nuevo o sigue donde lo dejaste.
@@ -64,16 +75,15 @@
                 <div id="drafts-info" class="drafts-info hidden">
                   <span class="saved-symbol" aria-hidden="true">✓</span>
                   <div>
-                    <strong>Tu trabajo tiene su lugar.</strong>
+                    <strong>Guardado automático</strong>
                     <p id="drafts-storage-status" role="status">
-                      Los cambios se guardan automáticamente en este
-                      dispositivo.
+                      Se guardan en este dispositivo mientras editas.
                     </p>
                   </div>
                 </div>
                 <div class="section-heading">
                   <div>
-                    <span class="eyebrow">A TU RITMO</span>
+                    <span class="eyebrow">A tu ritmo</span>
                     <h2 id="projects-heading">Borradores recientes</h2>
                   </div>
                   <button class="text-link" data-home-tab="projects">
@@ -87,7 +97,7 @@
               <section id="templates-section" class="home-section">
                 <div class="section-heading">
                   <div>
-                    <span class="eyebrow">EL PRIMER PASO, RESUELTO</span>
+                    <span class="eyebrow">Para empezar</span>
                     <h2 id="templates-heading">Encuentra tu estilo</h2>
                   </div>
                   <button class="text-link" data-home-tab="templates">
@@ -102,13 +112,18 @@
                   <path d="M8 10V7a4 4 0 0 1 8 0v3" />
                 </svg>
                 <div>
-                  <strong>Tu creatividad se queda contigo.</strong><br />Fotos y
-                  proyectos guardados en este navegador.
+                  <strong>Guardado en este navegador.</strong><br />Las fotos y
+                  los proyectos no se sincronizan entre dispositivos.
                 </div>
               </div>
             </div>
           </div>
-          <button id="home-create" class="create-project-btn" data-new-project>
+          <button
+            id="home-create"
+            class="create-project-btn"
+            data-new-project
+            aria-label="Nuevo carrusel"
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 5v14M5 12h14" /></svg
             ><span>Nuevo carrusel</span>
@@ -197,39 +212,24 @@
                 <option value="9:16">9:16 · Historia</option>
               </select>
               <div class="stepper-pill">
-                <button
-                  id="btn-minus-slide"
-                  class="stepper-btn"
-                  aria-label="Eliminar página activa"
-                  title="Eliminar la página activa y sus elementos (se puede deshacer)"
-                >
-                  −</button
-                ><span><b id="slide-count-display">3</b> pág.</span
+                <span><b id="slide-count-display">3</b> <span id="slide-count-unit">páginas</span></span
                 ><button
                   id="btn-plus-slide"
                   class="stepper-btn"
-                  aria-label="Añadir página"
+                  aria-label="Añadir página (máximo 10 páginas)"
+                  title="Añadir página después de la actual · máximo 10"
                 >
                   +
                 </button>
               </div>
-              <button
-                id="btn-layers"
-                class="icon-btn-circle"
-                aria-label="Ver capas"
-              >
-                <svg viewBox="0 0 24 24">
-                  <path d="m3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4" />
-                </svg>
-              </button>
             </div>
-            <button id="btn-canvas-controls" class="glass-chip-btn" aria-expanded="false" aria-controls="editor-settings btn-toggle-guides" title="Mostrar controles del lienzo">
+            <button id="btn-canvas-controls" class="glass-chip-btn" aria-expanded="false" aria-controls="editor-settings" aria-label="Controles del lienzo" title="Mostrar controles del lienzo">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 17h16M8 3v8m8 2v8" /></svg>
               <span>Lienzo</span>
             </button>
             <div class="chip-group">
               <!-- Undo / Redo -->
-              <button id="btn-undo" class="icon-btn-circle" title="Deshacer">
+              <button id="btn-undo" class="icon-btn-circle" aria-label="Deshacer" title="Deshacer">
                 <svg
                   width="16"
                   height="16"
@@ -242,7 +242,7 @@
                   <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
                 </svg>
               </button>
-              <button id="btn-redo" class="icon-btn-circle" title="Rehacer">
+              <button id="btn-redo" class="icon-btn-circle" aria-label="Rehacer" title="Rehacer">
                 <svg
                   width="16"
                   height="16"
@@ -259,8 +259,8 @@
               <button
                 id="btn-preview-ig"
                 class="icon-btn-circle"
-                style="background: rgba(59, 130, 246, 0.2); color: #60a5fa"
-                title="Vista Previa Instagram"
+                aria-label="Vista previa de Instagram"
+                title="Vista previa de Instagram"
               >
                 <svg
                   width="16"
@@ -279,7 +279,9 @@
               <button
                 id="btn-toggle-guides"
                 class="glass-chip-btn active"
-                title="Activar/Desactivar Guías de Corte"
+                aria-pressed="true"
+                aria-label="Guías de corte"
+                title="Mostrar u ocultar guías de corte"
               >
                 <svg
                   width="14"
@@ -296,8 +298,9 @@
               <button
                 id="btn-zoom-fit"
                 class="glass-chip-btn"
-                aria-label="Alternar vista de página y panorama"
-                title="Centrar lienzo"
+                aria-pressed="true"
+                aria-label="Vista panorama"
+                title="Ver panorama completo"
               >
                 <svg
                   width="14"
@@ -312,33 +315,78 @@
                   <path d="M21 3l-7 7" />
                   <path d="M3 21l7-7" />
                 </svg>
-                <span>Centrar</span>
+                <span>Panorama</span>
               </button>
             </div>
+            <button
+              id="btn-layers"
+              class="icon-btn-circle"
+              aria-label="Ver capas"
+              title="Ver capas"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4" />
+              </svg>
+            </button>
 
           </div>
 
           </main>
+
+          <!-- ================= DESKTOP PROPERTIES INSPECTOR (≥1024) ================= -->
+          <aside
+            id="desktop-inspector"
+            tabindex="-1"
+            aria-label="Propiedades del elemento seleccionado"
+          >
+            <header class="inspector-head">
+              <span class="inspector-eyebrow">PROPIEDADES</span>
+              <span id="inspector-selection" class="inspector-selection">Sin selección</span>
+            </header>
+            <div class="inspector-body">
+              <section id="inspector-transform" class="inspector-section">
+                <span class="inspector-label">Posición y tamaño</span>
+                <div class="inspector-fields">
+                  <label for="insp-x">X<input id="insp-x" type="number" step="1" inputmode="numeric" /></label>
+                  <label for="insp-y">Y<input id="insp-y" type="number" step="1" inputmode="numeric" /></label>
+                  <label for="insp-rotation">Rot.<input id="insp-rotation" type="number" step="1" inputmode="numeric" /></label>
+                  <label for="insp-width">Ancho<input id="insp-width" type="number" min="1" step="1" inputmode="numeric" /></label>
+                  <label for="insp-height">Alto<input id="insp-height" type="number" min="1" step="1" inputmode="numeric" /></label>
+                </div>
+              </section>
+              <div id="inspector-adjustments"></div>
+              <p id="inspector-empty" class="inspector-empty">
+                Selecciona un elemento del lienzo para ajustar su posición, forma
+                y orden de capas.
+              </p>
+              <section id="inspector-layers" class="inspector-section">
+                <span class="inspector-label">Capas</span>
+                <div id="inspector-layers-host"></div>
+              </section>
+            </div>
+          </aside>
 
           <div id="selection-toolbar">
             <span id="selection-hint"
               >Toca para editar · Pellizca para acercar</span
             >
             <!-- ================= 3. CONTEXT ACTION BAR (FLOATS AT TOP UNDER HEADER) ================= -->
-            <div id="context-action-bar" class="hidden">
+            <div
+              id="context-action-bar"
+              class="hidden"
+              role="toolbar"
+              aria-label="Acciones del elemento"
+            >
               <button id="btn-ctx-adjust" class="context-btn accent">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
+                  aria-hidden="true"
                 >
                   <path d="M4 7h16M4 17h16M8 3v8m8 2v8" /></svg
                 ><span>Editar</span>
-              </button>
-              <button id="btn-ctx-fill-slide" class="context-btn accent" title="Ocupar toda la página activa" aria-label="Foto a página completa">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 7h8v10H8z"/></svg>
-                <span>Página completa</span>
               </button>
               <button
                 id="btn-ctx-crop"
@@ -350,31 +398,12 @@
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
+                  aria-hidden="true"
                 >
                   <path d="M6 2v14a2 2 0 0 0 2 2h14" />
                   <path d="M18 22V8a2 2 0 0 0-2-2H2" />
                 </svg>
                 <span>Recortar</span>
-              </button>
-              <button
-                id="btn-ctx-edit-frame"
-                class="context-btn accent"
-                title="Ajustar encuadre y posición dentro de la forma"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <circle cx="12" cy="12" r="9" />
-                  <circle cx="12" cy="12" r="3" />
-                  <line x1="12" y1="3" x2="12" y2="7" />
-                  <line x1="12" y1="17" x2="12" y2="21" />
-                  <line x1="3" y1="12" x2="7" y2="12" />
-                  <line x1="17" y1="12" x2="21" y2="12" />
-                </svg>
-                <span>Encuadre</span>
               </button>
               <button
                 id="btn-ctx-shapes"
@@ -386,6 +415,7 @@
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
+                  aria-hidden="true"
                 >
                   <circle cx="12" cy="12" r="9" />
                   <polygon
@@ -393,24 +423,6 @@
                   />
                 </svg>
                 <span>Forma</span>
-              </button>
-              <button
-                id="btn-ctx-duplicate"
-                class="context-btn"
-                title="Duplicar"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <rect x="9" y="9" width="13" height="13" rx="2" />
-                  <path
-                    d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-                  />
-                </svg>
-                <span>Duplicar</span>
               </button>
               <button
                 id="btn-ctx-delete"
@@ -422,6 +434,7 @@
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
+                  aria-hidden="true"
                 >
                   <polyline points="3 6 5 6 21 6" />
                   <path
@@ -431,109 +444,208 @@
                 <span>Borrar</span>
               </button>
               <button
-                id="btn-ctx-center-slide"
+                id="btn-ctx-more"
                 class="context-btn"
-                title="Centrar en esta diapositiva"
+                aria-expanded="false"
+                aria-controls="context-more-sheet"
+                title="Más acciones del elemento"
               >
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
+                  aria-hidden="true"
                 >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 8v8M8 12h8" />
+                  <circle cx="5" cy="12" r="1" />
+                  <circle cx="12" cy="12" r="1" />
+                  <circle cx="19" cy="12" r="1" />
                 </svg>
-                <span>Centrar</span>
+                <span>Más</span>
               </button>
-              <button
-                id="btn-ctx-fit-slide"
-                class="context-btn"
-                title="Ajustar al tamaño de la diapositiva"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
-                  />
-                </svg>
-                <span>Ajustar</span>
-              </button>
-              <button
-                id="btn-ctx-snap-seam"
-                class="context-btn accent"
-                title="Centrar entre 2 diapositivas"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <line x1="12" y1="2" x2="12" y2="22" stroke-dasharray="2 2" />
-                  <rect x="5" y="7" width="14" height="10" rx="2" />
-                </svg>
-                <span>Cruzar</span>
-              </button>
-              <button
-                id="btn-ctx-rotate"
-                class="context-btn"
-                title="Girar 90 grados"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M21.5 2v6h-6" />
-                  <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                </svg>
-                <span>Girar</span>
-              </button>
-              <button
-                id="btn-ctx-layer-up"
-                class="context-btn"
-                title="Subir 1 capa hacia adelante"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <polyline points="18 15 12 9 6 15" />
-                </svg>
-                <span>Subir</span>
-              </button>
-              <button
-                id="btn-ctx-layer-down"
-                class="context-btn"
-                title="Bajar 1 capa hacia atrás"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-                <span>Bajar</span>
-              </button>
+            </div>
+            <div
+              id="context-more-sheet"
+              class="context-more-sheet hidden"
+              role="group"
+              aria-label="Más acciones del elemento"
+            >
+              <div class="context-more-group">
+                <span class="context-more-label">Colocar</span>
+                <div class="context-more-grid">
+                  <button id="btn-ctx-fill-slide" class="context-btn accent" title="Ocupar toda la página activa" aria-label="Foto a página completa">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 7h8v10H8z"/></svg>
+                    <span>Página completa</span>
+                  </button>
+                  <button
+                    id="btn-ctx-center-slide"
+                    class="context-btn"
+                    title="Centrar en esta diapositiva"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 8v8M8 12h8" />
+                    </svg>
+                    <span>Centrar</span>
+                  </button>
+                  <button
+                    id="btn-ctx-fit-slide"
+                    class="context-btn"
+                    title="Ajustar al tamaño de la diapositiva"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+                      />
+                    </svg>
+                    <span>Ajustar</span>
+                  </button>
+                  <button
+                    id="btn-ctx-snap-seam"
+                    class="context-btn accent"
+                    title="Centrar el elemento en la costura entre dos páginas"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <line x1="12" y1="2" x2="12" y2="22" stroke-dasharray="2 2" />
+                      <rect x="5" y="7" width="14" height="10" rx="2" />
+                    </svg>
+                    <span>Costura</span>
+                  </button>
+                </div>
+              </div>
+              <div class="context-more-group">
+                <span class="context-more-label">Estilo</span>
+                <div class="context-more-grid">
+                  <button
+                    id="btn-ctx-edit-frame"
+                    class="context-btn accent"
+                    title="Ajustar encuadre y posición dentro de la forma"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="9" />
+                      <circle cx="12" cy="12" r="3" />
+                      <line x1="12" y1="3" x2="12" y2="7" />
+                      <line x1="12" y1="17" x2="12" y2="21" />
+                      <line x1="3" y1="12" x2="7" y2="12" />
+                      <line x1="17" y1="12" x2="21" y2="12" />
+                    </svg>
+                    <span>Encuadrar</span>
+                  </button>
+                  <button
+                    id="btn-ctx-rotate"
+                    class="context-btn"
+                    title="Girar 90 grados"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <path d="M21.5 2v6h-6" />
+                      <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                    </svg>
+                    <span>Girar</span>
+                  </button>
+                  <button
+                    id="btn-ctx-duplicate"
+                    class="context-btn"
+                    title="Duplicar"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <rect x="9" y="9" width="13" height="13" rx="2" />
+                      <path
+                        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                      />
+                    </svg>
+                    <span>Duplicar</span>
+                  </button>
+                </div>
+              </div>
+              <div class="context-more-group">
+                <span class="context-more-label">Capa</span>
+                <div class="context-more-grid">
+                  <button
+                    id="btn-ctx-layer-up"
+                    class="context-btn"
+                    title="Subir 1 capa hacia adelante"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                    <span>Subir</span>
+                  </button>
+                  <button
+                    id="btn-ctx-layer-down"
+                    class="context-btn"
+                    title="Bajar 1 capa hacia atrás"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                    <span>Bajar</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           <div class="pages-bar">
             <div class="pages-label">
-              <span id="active-page-label">PÁGINA 01</span
+              <span id="active-page-label">Página 01</span
               ><span id="canvas-zoom-label">100%</span>
             </div>
             <div class="page-navigation">
-              <div id="page-strip" aria-label="Páginas del carrusel"></div>
+              <span id="page-status-pill" class="page-status-pill" aria-hidden="true">01/03 · 100%</span>
+              <div class="page-strip-wrap">
+                <div id="page-strip" aria-label="Páginas del carrusel"></div>
+                <span id="page-strip-cue" class="page-strip-cue hidden" aria-hidden="true">›</span>
+              </div>
+              <button id="btn-duplicate-page" class="icon-btn-circle" aria-label="Duplicar página activa" title="Duplicar la página activa y sus elementos">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              </button>
               <button id="btn-delete-page" class="icon-btn-circle" aria-label="Eliminar página activa" title="Eliminar la página activa y sus elementos (se puede deshacer)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" /></svg>
               </button>
@@ -629,7 +741,7 @@
           <div class="drawer-pill-handle"></div>
 
           <div class="drawer-header">
-            <div class="drawer-title" id="drawer-title-text">Añadir Fotos</div>
+            <div class="drawer-title" id="drawer-title-text">Añadir fotos</div>
             <button class="drawer-close-btn" id="btn-close-drawer">✕</button>
           </div>
 
@@ -657,7 +769,7 @@
                   </svg>
                 </div>
                 <div class="upload-text-wrap">
-                  <h4>Añadir fotos, GIFs o vídeos</h4>
+                  <h3>Añadir fotos, GIFs o vídeos</h3>
                   <p>Desde tu galería, directo a tu historia</p>
                 </div></button
               ><input
@@ -672,7 +784,7 @@
 
             <!-- 2. Text Tab -->
             <div id="drawer-tab-text" class="drawer-tab-content">
-              <div class="drawer-section-label">Estilos Tipográficos</div>
+              <div class="drawer-section-label">Estilos tipográficos</div>
               <button
                 id="btn-add-mobile-heading"
                 class="mobile-text-preset-btn"
@@ -688,7 +800,7 @@
                 </div>
                 <div
                   style="
-                    font-size: 11px;
+                    font-size: 12px;
                     color: var(--text-tertiary);
                     margin-top: 2px;
                   "
@@ -712,7 +824,7 @@
                 </div>
                 <div
                   style="
-                    font-size: 11px;
+                    font-size: 12px;
                     color: var(--text-tertiary);
                     margin-top: 2px;
                   "
@@ -726,7 +838,7 @@
                 </div>
                 <div
                   style="
-                    font-size: 11px;
+                    font-size: 12px;
                     color: var(--text-tertiary);
                     margin-top: 2px;
                   "
@@ -738,58 +850,95 @@
 
             <!-- 3. Stickers Tab -->
             <div id="drawer-tab-stickers" class="drawer-tab-content">
-              <div class="drawer-section-label">
-                Cintas Washi, Sellos y Vintage
-              </div>
-              <div class="drawer-grid-2col" id="mobile-stickers-grid"></div>
-
-              <div class="drawer-section-label">GIFs · GIPHY</div>
-              <form class="giphy-search" id="giphy-search-form">
-                <input
-                  id="giphy-search-input"
-                  type="search"
-                  placeholder="Buscar GIFs…"
-                  aria-label="Buscar GIFs en GIPHY"
-                />
-                <button type="submit">Buscar</button>
-              </form>
-              <div class="giphy-key hidden" id="giphy-key-row">
-                <input
-                  id="giphy-key-input"
-                  type="text"
-                  autocomplete="off"
-                  placeholder="Pega tu API key de GIPHY"
-                  aria-label="API key de GIPHY"
-                />
-                <button type="button" id="giphy-key-save">Guardar</button>
-              </div>
-              <div class="giphy-status hidden" id="giphy-status"></div>
               <div
-                class="drawer-grid-2col"
-                id="giphy-grid"
-                aria-label="Resultados de GIFs"
-              ></div>
+                class="segment-control"
+                role="group"
+                aria-label="Elegir entre stickers y GIFs"
+              >
+                <button
+                  type="button"
+                  class="segment-btn active"
+                  data-sticker-segment="stickers"
+                  aria-pressed="true"
+                >
+                  Stickers
+                </button>
+                <button
+                  type="button"
+                  class="segment-btn"
+                  data-sticker-segment="gifs"
+                  aria-pressed="false"
+                >
+                  GIFs
+                </button>
+              </div>
+
+              <div id="segment-stickers">
+                <div class="drawer-section-label">
+                  Cintas washi, sellos y vintage
+                </div>
+                <div class="drawer-grid-2col" id="mobile-stickers-grid"></div>
+              </div>
+
+              <div id="segment-gifs" class="hidden">
+                <div class="drawer-section-label">GIFs · Giphy · opcional</div>
+                <div class="giphy-setup" id="giphy-setup">
+                  <p>
+                    Los stickers ya están listos. Los GIFs son opcionales:
+                    actívalos con tu propia clave de GIPHY. Se guarda solo en
+                    este dispositivo.
+                  </p>
+                  <button type="button" class="giphy-activate" id="giphy-activate">
+                    Activar GIFs
+                  </button>
+                </div>
+                <div id="giphy-panel" class="hidden">
+                  <form class="giphy-search" id="giphy-search-form">
+                    <input
+                      id="giphy-search-input"
+                      type="search"
+                      placeholder="Buscar GIFs…"
+                      aria-label="Buscar GIFs en GIPHY"
+                    />
+                    <button type="submit">Buscar</button>
+                  </form>
+                  <div class="giphy-key hidden" id="giphy-key-row">
+                    <input
+                      id="giphy-key-input"
+                      type="text"
+                      autocomplete="off"
+                      placeholder="Pega tu clave de GIPHY"
+                      aria-label="Clave de GIPHY"
+                    />
+                    <button type="button" id="giphy-key-save">Guardar</button>
+                  </div>
+                  <p class="giphy-help hidden" id="giphy-help">
+                    <a
+                      href="https://developers.giphy.com/dashboard/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >Consigue tu clave gratis en developers.giphy.com ↗</a
+                    >
+                  </p>
+                  <div class="giphy-status hidden" id="giphy-status"></div>
+                  <div
+                    class="drawer-grid-2col"
+                    id="giphy-grid"
+                    aria-label="Resultados de GIFs"
+                  ></div>
+                </div>
+              </div>
             </div>
 
             <!-- 4. Templates Tab -->
             <div id="drawer-tab-templates" class="drawer-tab-content">
-              <div class="drawer-section-label">Plantillas y Lienzo</div>
+              <div class="drawer-section-label">Plantillas y lienzo</div>
               <!-- Clean Blank White Canvas at top -->
-              <div
-                class="mobile-template-card"
-                data-template="blank"
-                style="
-                  border: 2px dashed rgba(59, 130, 246, 0.45);
-                  background: rgba(59, 130, 246, 0.08);
-                "
-              >
-                <div class="template-badge" style="color: #60a5fa">
-                  ✨ Empezar de Cero
-                </div>
-                <div class="template-name">Lienzo Blanco Vacío</div>
+              <div class="mobile-template-card" data-template="blank">
+                <div class="template-badge">Empezar de cero</div>
+                <div class="template-name">Lienzo blanco vacío</div>
                 <div class="template-desc">
-                  Limpia todos los elementos y deja un fondo blanco puro listo
-                  para tu diseño.
+                  Borra el lienzo y empieza con un fondo blanco.
                 </div>
               </div>
 
@@ -797,8 +946,8 @@
                 <div class="template-badge">Firma SCRL</div>
                 <div class="template-name">Wanderlust Panorama</div>
                 <div class="template-desc">
-                  Foto apaisada continua atravesando 3 diapositivas con
-                  tipografía y polaroid.
+                  Una foto apaisada cruza las 3 páginas; lleva tipografía y una
+                  polaroid.
                 </div>
               </div>
               <div class="mobile-template-card" data-template="editorial">
@@ -830,7 +979,7 @@
             <!-- 5. Background Tab -->
             <div id="drawer-tab-background" class="drawer-tab-content">
               <div class="drawer-section-label">
-                Paletas Editoriales y Degradados
+                Paletas editoriales y degradados
               </div>
               <div class="drawer-grid-4col" id="mobile-palette-grid"></div>
             </div>
@@ -841,7 +990,7 @@
               <div id="object-adjustments">
                 <!-- Shape and Frame clipping -->
                 <div class="drawer-section-label" id="shape-section-label">
-                  Forma de Recorte y Marco
+                  Forma de recorte y marco
                 </div>
                 <div class="shape-selector-grid" id="shape-selector-grid">
                   <button class="shape-choice-btn active" data-shape="rect">
@@ -946,13 +1095,9 @@
 
                 <!-- Alignment & Measurement Tools -->
                 <div class="drawer-section-label">
-                  Alineación y Ajuste de Medidas
+                  Alineación y ajuste de medidas
                 </div>
                 <div class="align-tool-row">
-                  <button id="btn-align-fill-slide" class="btn-align-pill">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 7h8v10H8z"/></svg>
-                    <span>Foto a página completa</span>
-                  </button>
                   <button id="btn-align-center-slide" class="btn-align-pill">
                     <svg
                       width="15"
@@ -1000,7 +1145,7 @@
                       />
                       <rect x="5" y="7" width="14" height="10" rx="2" />
                     </svg>
-                    <span>Cruzar Costura</span>
+                    <span>En la costura</span>
                   </button>
                   <button id="btn-align-span-2" class="btn-align-pill">
                     <svg
@@ -1014,7 +1159,7 @@
                       <polyline points="15 3 21 3 21 9" />
                       <polyline points="9 21 3 21 3 15" />
                     </svg>
-                    <span>Abarcar 2 páginas</span>
+                    <span>Ocupar 2 páginas</span>
                   </button>
                 </div>
 
@@ -1091,7 +1236,7 @@
                   </div>
                 </div>
                 <div class="adjust-row" id="radius-field">
-                  <label for="mobile-slider-radius">Borde Redondeado:</label>
+                  <label for="mobile-slider-radius">Borde redondeado:</label>
                   <input
                     type="range"
                     id="mobile-slider-radius"
@@ -1114,7 +1259,7 @@
                 </div>
 
                 <div class="adjust-row">
-                  <label for="mobile-toggle-shadow">Sombra Suave:</label>
+                  <label for="mobile-toggle-shadow">Sombra suave:</label>
                   <input
                     type="checkbox"
                     id="mobile-toggle-shadow"
@@ -1148,12 +1293,12 @@
                       <line x1="3" y1="12" x2="7" y2="12" />
                       <line x1="17" y1="12" x2="21" y2="12" />
                     </svg>
-                    <span>Ajustar Encuadre de la Foto</span>
+                    <span>Ajustar encuadre de la foto</span>
                   </button>
                 </div>
 
                 <div class="drawer-section-label" style="margin-top: 14px">
-                  Capas de Profundidad
+                  Capas de profundidad
                 </div>
                 <div
                   style="
@@ -1167,28 +1312,28 @@
                     class="btn-secondary-mobile"
                     style="padding: 10px"
                   >
-                    ▲ Subir 1 Capa
+                    Subir 1 capa
                   </button>
                   <button
                     id="btn-mobile-step-down"
                     class="btn-secondary-mobile"
                     style="padding: 10px"
                   >
-                    ▼ Bajar 1 Capa
+                    Bajar 1 capa
                   </button>
                   <button
                     id="btn-mobile-layer-up"
                     class="btn-secondary-mobile"
                     style="padding: 10px"
                   >
-                    ⏫ Al Frente
+                    Al frente
                   </button>
                   <button
                     id="btn-mobile-layer-down"
                     class="btn-secondary-mobile"
                     style="padding: 10px"
                   >
-                    ⏬ Al Fondo
+                    Al fondo
                   </button>
                 </div>
               </div>
@@ -1212,7 +1357,7 @@
                 ></div>
                 <div>
                   <div style="font-size: 12px; font-weight: 700">tu_perfil</div>
-                  <div style="font-size: 9px; color: #a1a1aa">
+                  <div style="font-size: 12px; color: #a1a1aa">
                     Vista previa de carrusel
                   </div>
                 </div>
@@ -1278,7 +1423,7 @@
                   <path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                 </svg>
               </div>
-              <div style="font-size: 11px; color: #a1a1aa; line-height: 1.4">
+              <div style="font-size: 14px; color: #a1a1aa; line-height: 1.45">
                 <strong style="color: #fff">tu_perfil</strong> Desliza
                 horizontalmente con el dedo para experimentar la transición
                 continua sin cortes.
@@ -1304,7 +1449,7 @@
                   <path d="M6 2v14a2 2 0 0 0 2 2h14" />
                   <path d="M18 22V8a2 2 0 0 0-2-2H2" />
                 </svg>
-                <span>Recortar Imagen</span>
+                <span>Recortar imagen</span>
               </div>
               <button
                 class="ig-close-btn"
@@ -1321,8 +1466,8 @@
                 <img
                   id="crop-source-img"
                   class="crop-source-img"
-                  src=""
-                  alt="Crop Source"
+                  src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                  alt="Imagen a recortar"
                 />
                 <!-- Draggable & Resizable Crop Box -->
                 <div id="crop-box" class="crop-box">
@@ -1410,7 +1555,7 @@
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                <span>Aplicar Recorte</span>
+                <span>Aplicar recorte</span>
               </button>
             </div>
           </div>
@@ -1437,7 +1582,7 @@
                   <line x1="3" y1="12" x2="7" y2="12" />
                   <line x1="17" y1="12" x2="21" y2="12" />
                 </svg>
-                <span>Ajustar Encuadre de la Forma</span>
+                <span>Ajustar encuadre de la forma</span>
               </div>
               <button
                 class="ig-close-btn"
@@ -1474,7 +1619,7 @@
                 >
               </div>
               <div style="display: flex; align-items: center; gap: 10px">
-                <span style="font-size: 11px">1x</span>
+                <span style="font-size: 12px">1x</span>
                 <input
                   type="range"
                   id="frame-zoom-slider"
@@ -1484,7 +1629,7 @@
                   value="1.0"
                   style="flex: 1"
                 />
-                <span style="font-size: 11px">3.5x</span>
+                <span style="font-size: 12px">3.5x</span>
               </div>
             </div>
 
@@ -1523,14 +1668,20 @@
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                <span>Aplicar Encuadre</span>
+                <span>Aplicar encuadre</span>
               </button>
             </div>
           </div>
         </div>
 
         <!-- ================= 9. EXPORT MODAL (PEAK-END CELEBRATION) ================= -->
-        <div id="export-modal" class="mobile-modal-overlay hidden">
+        <div
+          id="export-modal"
+          class="mobile-modal-overlay hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="export-title"
+        >
           <div class="export-sheet-card">
             <div
               style="
@@ -1541,7 +1692,14 @@
             >
               <div>
                 <div class="export-hero-badge">TU HISTORIA, LISTA</div>
-                <div class="export-title">Que siga la historia.</div>
+                <div
+                  class="export-title"
+                  id="export-title"
+                  role="heading"
+                  aria-level="2"
+                >
+                  Que siga la historia.
+                </div>
                 <div class="export-subtitle">
                   Cortado automáticamente en alta resolución (1080p).
                 </div>
@@ -1556,7 +1714,7 @@
 
             <!-- Primary Thumb Action: Download ZIP -->
             <button id="btn-download-zip" class="btn-primary-mobile">
-              <span>📦 Descargar ZIP Completo (3 slides)</span>
+              <span>Descargar 3 páginas · ZIP</span>
             </button>
 
             <!-- Secondary Action: Full Panorama -->
@@ -1569,7 +1727,8 @@
               id="export-status-label"
               style="
                 text-align: center;
-                font-size: 11px;
+                font-size: 14px;
+                line-height: 1.45;
                 color: var(--text-tertiary);
                 margin-top: 10px;
               "
@@ -1588,7 +1747,7 @@
               </button>
             </div>
             <h2>Hazlo tuyo.</h2>
-            <p>Un lienzo continuo. Todas tus ideas.</p>
+            <p>Tus páginas forman una sola imagen continua.</p>
             <label for="new-project-name">Nombre del proyecto</label
             ><input
               id="new-project-name"
@@ -1620,7 +1779,7 @@
         </dialog>
         <dialog id="help-dialog" class="studio-dialog">
           <div class="dialog-top">
-            <span class="eyebrow">TU ESTUDIO DE BOLSILLO</span
+            <span class="eyebrow">CÓMO FUNCIONA</span
             ><button data-close-dialog aria-label="Cerrar ayuda">✕</button>
           </div>
           <h2>De la idea al carrusel.</h2>
@@ -1628,27 +1787,40 @@
             <li>
               <b>01</b>
               <div>
-                <strong>Empieza con lo que te inspira</strong>
-                <p>Elige una plantilla o crea un lienzo en blanco.</p>
+                <strong>Empieza con una plantilla</strong>
+                <p>
+                  Ya trae la composición colocada; solo añades tus fotos. O abre
+                  un lienzo vacío y coloca todo tú.
+                </p>
               </div>
             </li>
             <li>
               <b>02</b>
               <div>
-                <strong>Haz que todo conecte</strong>
+                <strong>Añade fotos y texto</strong>
                 <p>
-                  Añade fotos y texto. Arrastra los elementos entre páginas;
-                  pellizca para acercarte.
+                  Arrastra los elementos entre páginas; pellizca para acercarte.
                 </p>
               </div>
             </li>
             <li>
               <b>03</b>
               <div>
-                <strong>Mira, descarga y comparte</strong>
+                <strong>Ordena tus páginas</strong>
                 <p>
-                  Prueba el carrusel en Vista previa. Exporta las páginas PNG
-                  juntas en un ZIP.
+                  Mantén presionada una miniatura para moverla. Duplica o elimina
+                  desde la barra de páginas; el borrado se puede deshacer en el
+                  aviso. Máximo 10 páginas por carrusel.
+                </p>
+              </div>
+            </li>
+            <li>
+              <b>04</b>
+              <div>
+                <strong>Revisa y descarga</strong>
+                <p>
+                  Comprueba el carrusel en Vista previa y descarga las páginas en
+                  PNG o en un ZIP.
                 </p>
               </div>
             </li>
