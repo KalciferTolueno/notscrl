@@ -7321,3 +7321,20 @@ p,
     border-radius: 20px;
   }
 }
+
+/* The bar itself is invisible: only the controls float over the canvas. */
+#mobile-header {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  margin: 8px 10px 0;
+}
+
+@media (min-width: 1024px) {
+  #mobile-header {
+    margin: 10px 16px 0;
+  }
+}
