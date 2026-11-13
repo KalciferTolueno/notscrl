@@ -7501,3 +7501,11 @@ p,
     backdrop-filter: none;
   }
 }
+
+/* Center the tool panel vertically, even when its content is short. */
+@media (min-width: 1024px) {
+  #bottom-sheet-drawer {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+}
