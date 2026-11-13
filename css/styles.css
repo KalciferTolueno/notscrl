@@ -7285,3 +7285,11 @@ p,
   text-align: left;
   cursor: pointer;
 }
+
+/* Full-bleed editor: no width cap on wide monitors. */
+#editor-view,
+#editor-view.inspector-open {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}

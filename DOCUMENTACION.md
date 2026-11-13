@@ -297,6 +297,7 @@ En escritorio el panel queda fijado al pie del inspector, siempre visible, con s
 - El corazón de las máscaras se redibujó con dos lóbulos y muesca central, y usa el lado corto del marco para no deformarse en fotos anchas.
 - «Ocupar 2 páginas» limita el alto a la página menos márgenes, recalcula el ancho según la proporción y centra el elemento en la costura y en la vertical, sin salirse por abajo.
 - Las imágenes nuevas se crean con borde redondeado 0. Las plantillas conservan sus radios de diseño.
+- El editor ocupa el ancho completo de la ventana. Se eliminó el límite de 1600 px que dejaba franjas laterales en monitores anchos.
 - El acordeón y el inspector son accesibles con teclado: las categorías responden a Enter y Espacio y exponen aria-expanded.
 
 ### Validación
