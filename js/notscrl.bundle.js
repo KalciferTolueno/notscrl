@@ -658,6 +658,7 @@ class ImageItem extends CanvasItem {
   drawImageCover(ctx, dx, dy, dw, dh) {
     if (!this.isReady()) return;
 
+    const media = this.currentGifFrame() || this.image;
     const natW = this.mediaWidth() || this.naturalWidth || dw;
     const natH = this.mediaHeight() || this.naturalHeight || dh;
     const crop = this.cropReference || this.crop || { x: 0, y: 0, width: 1, height: 1 };
@@ -709,12 +710,25 @@ class ImageItem extends CanvasItem {
       const right = Math.min(sx + swUsed, (trim.x + trim.width) * natW);
       const bottom = Math.min(sy + shUsed, (trim.y + trim.height) * natH);
       if (right <= left || bottom <= top) return;
-      ctx.drawImage(this.image, left, top, right - left, bottom - top,
+      ctx.drawImage(media, left, top, right - left, bottom - top,
         dx + (left - sx) * dw / swUsed, dy + (top - sy) * dh / shUsed,
         (right - left) * dw / swUsed, (bottom - top) * dh / shUsed);
     } else {
-      ctx.drawImage(this.image, sx, sy, swUsed, shUsed, dx, dy, dw, dh);
+      ctx.drawImage(media, sx, sy, swUsed, shUsed, dx, dy, dw, dh);
     }
+  }
+
+  // Current frame of a decoded animated GIF, or null for static media.
+  currentGifFrame() {
+    const frames = this.gifFrames;
+    if (!frames || !frames.length) return null;
+    const total = frames.reduce((sum, frame) => sum + frame.duration, 0);
+    let elapsed = (performance.now() - (this.gifStartedAt || 0)) % total;
+    for (const frame of frames) {
+      if (elapsed < frame.duration) return frame.canvas;
+      elapsed -= frame.duration;
+    }
+    return frames[frames.length - 1].canvas;
   }
 
   mediaWidth() {
@@ -1504,6 +1518,7 @@ class CanvasEngine {
     copy.x += offset;
     copy.y += offset;
     this.addItem(copy);
+    if (copy.mediaType === 'gif' && copy.image?.src) this.attachGifFrames(copy, copy.image.src);
   }
 
   saveHistory(label = '') {
@@ -1543,6 +1558,8 @@ class CanvasEngine {
   serializeItem(item) {
     const data = { ...item };
     delete data.image;
+    delete data.gifFrames;
+    delete data.gifStartedAt;
     const snapshot = structuredClone(data);
     snapshot.imageSrc =
       item.mediaType === 'video' || !item.image ? '' : item.image.src;
@@ -1568,6 +1585,7 @@ class CanvasEngine {
         } else {
           const image = new Image();
           image.src = data.imageSrc;
+          if (data.mediaType === 'gif') document.getElementById('gif-stage')?.appendChild(image);
           try { await image.decode(); } catch { /* Keep the layer available if its source is missing. */ }
           item = data.type === 'sticker'
             ? new StickerItem(image, data.x, data.y, data.width, data.height, data.title)
@@ -1578,6 +1596,7 @@ class CanvasEngine {
       }
       const { image, imageSrc, id, ...properties } = data;
       Object.assign(item, properties);
+      if (data.mediaType === 'gif' && item.image?.src) this.attachGifFrames(item, item.image.src);
       item.shadow = { ...data.shadow };
       return item;
     }));
@@ -1649,6 +1668,40 @@ class CanvasEngine {
       if (!this.hasAnimatedMedia()) return;
       this.render();
     });
+  }
+
+  // Decode an animated GIF into frame canvases (Chromium ImageDecoder).
+  async decodeGifFrames(url) {
+    if (!url || typeof ImageDecoder === 'undefined') return null;
+    try {
+      const data = await (await fetch(url)).arrayBuffer();
+      const decoder = new ImageDecoder({ data, type: 'image/gif' });
+      await decoder.tracks.ready;
+      const track = decoder.tracks.selectedTrack;
+      const frames = [];
+      for (let i = 0; i < track.frameCount; i++) {
+        const { image } = await decoder.decode({ frameIndex: i });
+        const canvas = document.createElement('canvas');
+        canvas.width = image.displayWidth;
+        canvas.height = image.displayHeight;
+        canvas.getContext('2d').drawImage(image, 0, 0);
+        frames.push({ canvas, duration: Math.max(20, (image.duration || 70000) / 1000) });
+        image.close();
+      }
+      decoder.close?.();
+      return frames.length > 1 ? frames : null;
+    } catch {
+      return null;
+    }
+  }
+
+  attachGifFrames(item, url) {
+    this.decodeGifFrames(url).then((frames) => {
+      if (!frames || !this.items.includes(item)) return;
+      item.gifFrames = frames;
+      item.gifStartedAt = performance.now();
+      this.render();
+    }).catch(() => {});
   }
 
   bindEvents() {
@@ -6994,6 +7047,7 @@ class NotScrlMobileApp {
     });
     const img = new Image();
     img.src = dataUrl;
+    document.getElementById('gif-stage')?.appendChild(img);
     await img.decode();
     await this.addMediaItem(img, 'gif', index, {});
   }
@@ -7015,6 +7069,7 @@ class NotScrlMobileApp {
     item.borderRadius = 0;
     Object.assign(item, extra);
     this.engine.addItem(item);
+    if (mediaType === 'gif' && media.src) this.engine.attachGifFrames(item, media.src);
     await new Promise(resolve => setTimeout(resolve, 0));
   }
 
@@ -7172,6 +7227,7 @@ class NotScrlMobileApp {
 
   addGiphyItem(gif) {
     const img = new Image();
+    document.getElementById('gif-stage')?.appendChild(img);
     img.onload = () => {
       const ratio = gif.width && gif.height ? gif.width / gif.height : 1;
       const w = this.engine.slideWidth * 0.7;
@@ -7184,6 +7240,7 @@ class NotScrlMobileApp {
       item.gifWidth = gif.width;
       item.gifHeight = gif.height;
       this.engine.addItem(item);
+      this.engine.attachGifFrames(item, img.src);
       this.closeDrawer();
     };
     img.onerror = () => this.studio?.toast('No se pudo cargar el GIF.');

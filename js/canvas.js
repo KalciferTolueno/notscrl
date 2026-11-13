@@ -492,6 +492,7 @@ export class CanvasEngine {
     copy.x += offset;
     copy.y += offset;
     this.addItem(copy);
+    if (copy.mediaType === 'gif' && copy.image?.src) this.attachGifFrames(copy, copy.image.src);
   }
 
   saveHistory(label = '') {
@@ -531,6 +532,8 @@ export class CanvasEngine {
   serializeItem(item) {
     const data = { ...item };
     delete data.image;
+    delete data.gifFrames;
+    delete data.gifStartedAt;
     const snapshot = structuredClone(data);
     snapshot.imageSrc =
       item.mediaType === 'video' || !item.image ? '' : item.image.src;
@@ -556,6 +559,7 @@ export class CanvasEngine {
         } else {
           const image = new Image();
           image.src = data.imageSrc;
+          if (data.mediaType === 'gif') document.getElementById('gif-stage')?.appendChild(image);
           try { await image.decode(); } catch { /* Keep the layer available if its source is missing. */ }
           item = data.type === 'sticker'
             ? new StickerItem(image, data.x, data.y, data.width, data.height, data.title)
@@ -566,6 +570,7 @@ export class CanvasEngine {
       }
       const { image, imageSrc, id, ...properties } = data;
       Object.assign(item, properties);
+      if (data.mediaType === 'gif' && item.image?.src) this.attachGifFrames(item, item.image.src);
       item.shadow = { ...data.shadow };
       return item;
     }));
@@ -637,6 +642,40 @@ export class CanvasEngine {
       if (!this.hasAnimatedMedia()) return;
       this.render();
     });
+  }
+
+  // Decode an animated GIF into frame canvases (Chromium ImageDecoder).
+  async decodeGifFrames(url) {
+    if (!url || typeof ImageDecoder === 'undefined') return null;
+    try {
+      const data = await (await fetch(url)).arrayBuffer();
+      const decoder = new ImageDecoder({ data, type: 'image/gif' });
+      await decoder.tracks.ready;
+      const track = decoder.tracks.selectedTrack;
+      const frames = [];
+      for (let i = 0; i < track.frameCount; i++) {
+        const { image } = await decoder.decode({ frameIndex: i });
+        const canvas = document.createElement('canvas');
+        canvas.width = image.displayWidth;
+        canvas.height = image.displayHeight;
+        canvas.getContext('2d').drawImage(image, 0, 0);
+        frames.push({ canvas, duration: Math.max(20, (image.duration || 70000) / 1000) });
+        image.close();
+      }
+      decoder.close?.();
+      return frames.length > 1 ? frames : null;
+    } catch {
+      return null;
+    }
+  }
+
+  attachGifFrames(item, url) {
+    this.decodeGifFrames(url).then((frames) => {
+      if (!frames || !this.items.includes(item)) return;
+      item.gifFrames = frames;
+      item.gifStartedAt = performance.now();
+      this.render();
+    }).catch(() => {});
   }
 
   bindEvents() {

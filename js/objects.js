@@ -151,6 +151,7 @@ export class ImageItem extends CanvasItem {
   drawImageCover(ctx, dx, dy, dw, dh) {
     if (!this.isReady()) return;
 
+    const media = this.currentGifFrame() || this.image;
     const natW = this.mediaWidth() || this.naturalWidth || dw;
     const natH = this.mediaHeight() || this.naturalHeight || dh;
     const crop = this.cropReference || this.crop || { x: 0, y: 0, width: 1, height: 1 };
@@ -202,12 +203,25 @@ export class ImageItem extends CanvasItem {
       const right = Math.min(sx + swUsed, (trim.x + trim.width) * natW);
       const bottom = Math.min(sy + shUsed, (trim.y + trim.height) * natH);
       if (right <= left || bottom <= top) return;
-      ctx.drawImage(this.image, left, top, right - left, bottom - top,
+      ctx.drawImage(media, left, top, right - left, bottom - top,
         dx + (left - sx) * dw / swUsed, dy + (top - sy) * dh / shUsed,
         (right - left) * dw / swUsed, (bottom - top) * dh / shUsed);
     } else {
-      ctx.drawImage(this.image, sx, sy, swUsed, shUsed, dx, dy, dw, dh);
+      ctx.drawImage(media, sx, sy, swUsed, shUsed, dx, dy, dw, dh);
     }
+  }
+
+  // Current frame of a decoded animated GIF, or null for static media.
+  currentGifFrame() {
+    const frames = this.gifFrames;
+    if (!frames || !frames.length) return null;
+    const total = frames.reduce((sum, frame) => sum + frame.duration, 0);
+    let elapsed = (performance.now() - (this.gifStartedAt || 0)) % total;
+    for (const frame of frames) {
+      if (elapsed < frame.duration) return frame.canvas;
+      elapsed -= frame.duration;
+    }
+    return frames[frames.length - 1].canvas;
   }
 
   mediaWidth() {

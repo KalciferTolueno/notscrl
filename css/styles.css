@@ -7663,3 +7663,16 @@ select option {
 #drawer-tab-stickers .segment-control {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+
+/* Off-screen stage that keeps GIF images animating for canvas frames. */
+#gif-stage {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0.01;
+  z-index: -1;
+  pointer-events: none;
+}

@@ -1031,6 +1031,7 @@ class NotScrlMobileApp {
     });
     const img = new Image();
     img.src = dataUrl;
+    document.getElementById('gif-stage')?.appendChild(img);
     await img.decode();
     await this.addMediaItem(img, 'gif', index, {});
   }
@@ -1052,6 +1053,7 @@ class NotScrlMobileApp {
     item.borderRadius = 0;
     Object.assign(item, extra);
     this.engine.addItem(item);
+    if (mediaType === 'gif' && media.src) this.engine.attachGifFrames(item, media.src);
     await new Promise(resolve => setTimeout(resolve, 0));
   }
 
@@ -1209,6 +1211,7 @@ class NotScrlMobileApp {
 
   addGiphyItem(gif) {
     const img = new Image();
+    document.getElementById('gif-stage')?.appendChild(img);
     img.onload = () => {
       const ratio = gif.width && gif.height ? gif.width / gif.height : 1;
       const w = this.engine.slideWidth * 0.7;
@@ -1221,6 +1224,7 @@ class NotScrlMobileApp {
       item.gifWidth = gif.width;
       item.gifHeight = gif.height;
       this.engine.addItem(item);
+      this.engine.attachGifFrames(item, img.src);
       this.closeDrawer();
     };
     img.onerror = () => this.studio?.toast('No se pudo cargar el GIF.');
