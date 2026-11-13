@@ -304,6 +304,7 @@ En escritorio el panel queda fijado al pie del inspector, siempre visible, con s
 - El visor del lienzo tiene esquinas redondeadas (16 px en móvil, 22 px en escritorio) y recorta el contenido que llega a las esquinas al hacer zoom.
 - El visor deja 10 px a cada lado en móvil y 12 px en escritorio para no chocar con el riel ni con las tarjetas laterales.
 - La toolbar incluye una herramienta de mano (botón o tecla H) que alterna entre mover el lienzo y editar. Con la mano activa, arrastrar desplaza la vista sin seleccionar ni mover objetos, y el doble toque no cambia de vista.
+- En escritorio, los paneles de Fotos, Texto, Stickers, Plantillas y Fondo abren como tarjeta flotante junto al riel izquierdo, sin oscurecer el editor.
 - El acordeón y el inspector son accesibles con teclado: las categorías responden a Enter y Espacio y exponen aria-expanded.
 
 ### Validación
