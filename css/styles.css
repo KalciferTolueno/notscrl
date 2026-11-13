@@ -7460,3 +7460,10 @@ p,
     margin: 0 12px;
   }
 }
+
+/* Hand tool active state */
+#btn-hand-tool.active {
+  background: #ed79522b;
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px #ed795266;
+}

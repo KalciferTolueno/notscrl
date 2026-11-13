@@ -224,6 +224,18 @@ class NotScrlMobileApp {
     document.getElementById('btn-undo')?.addEventListener('click', () => this.engine.undo());
     document.getElementById('btn-redo')?.addEventListener('click', () => this.engine.redo());
 
+    // Hand tool: pan the canvas without selecting or dragging items.
+    const handButton = document.getElementById('btn-hand-tool');
+    if (handButton) {
+      const syncHand = (on) => {
+        handButton.classList.toggle('active', on);
+        handButton.setAttribute('aria-pressed', String(on));
+      };
+      this.engine.onHandModeChange = syncHand;
+      handButton.addEventListener('click', () => this.engine.setHandMode(!this.engine.handMode));
+      syncHand(this.engine.handMode);
+    }
+
     // Preview
     document.getElementById('btn-preview-ig')?.addEventListener('click', () => this.preview.open());
   }

@@ -33,6 +33,7 @@ export class CanvasEngine {
     this.isPanning = false;
     this.startPanPoint = { x: 0, y: 0 };
     this.isSpacePressed = false;
+    this.handMode = false;
 
     // Transform interaction state
     this.activeHandle = null;
@@ -673,6 +674,11 @@ export class CanvasEngine {
         this.canvas.style.cursor = 'grab';
       }
 
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        this.setHandMode(!this.handMode);
+      }
+
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         if (e.shiftKey) this.redo();
@@ -704,7 +710,7 @@ export class CanvasEngine {
     window.addEventListener('keyup', (e) => {
       if (e.code === 'Space') {
         this.isSpacePressed = false;
-        this.canvas.style.cursor = 'default';
+        this.canvas.style.cursor = this.handMode ? 'grab' : 'default';
       }
     });
 
@@ -722,7 +728,7 @@ export class CanvasEngine {
       e.preventDefault();
       if (!this.enabled || this.isRestoringHistory) return;
       const now = Date.now();
-      if (e.touches.length === 1 && (now - this.lastTapTime < 300)) {
+      if (!this.handMode && e.touches.length === 1 && (now - this.lastTapTime < 300)) {
         if (this.selectedItem && this.selectedItem.type === 'image' && this.onDoubleTapItem) {
           this.onDoubleTapItem(this.selectedItem);
           this.lastTapTime = 0;
@@ -750,6 +756,13 @@ export class CanvasEngine {
         const touch = e.touches[0];
         const rect = canvas.getBoundingClientRect();
         const canvasPoint = this.screenToCanvas(touch.clientX - rect.left, touch.clientY - rect.top);
+
+        if (this.handMode) {
+          isTouchPanning = true;
+          touchPanStart = { x: touch.clientX - this.panX, y: touch.clientY - this.panY };
+          this.activeHandle = null;
+          return;
+        }
 
         let handleHit = null;
         if (this.selectedItem) {
@@ -852,7 +865,7 @@ export class CanvasEngine {
     const screenY = e.clientY - rect.top;
     const canvasPoint = this.screenToCanvas(screenX, screenY);
 
-    if (this.isSpacePressed || e.button === 1) {
+    if (this.handMode || this.isSpacePressed || e.button === 1) {
       this.isPanning = true;
       this.startPanPoint = { x: e.clientX - this.panX, y: e.clientY - this.panY };
       this.canvas.style.cursor = 'grabbing';
@@ -1130,7 +1143,7 @@ export class CanvasEngine {
   onMouseUp() {
     if (this.isPanning) {
       this.isPanning = false;
-      this.canvas.style.cursor = this.isSpacePressed ? 'grab' : 'default';
+      this.canvas.style.cursor = this.isSpacePressed || this.handMode ? 'grab' : 'default';
     }
 
     if (this.activeHandle) {
@@ -1154,7 +1167,17 @@ export class CanvasEngine {
     return null;
   }
 
+  setHandMode(on) {
+    this.handMode = !!on;
+    this.canvas.style.cursor = this.handMode ? 'grab' : 'default';
+    this.onHandModeChange?.(this.handMode);
+  }
+
   updateCursor(canvasPoint) {
+    if (this.handMode) {
+      this.canvas.style.cursor = 'grab';
+      return;
+    }
     if (this.isSpacePressed) {
       this.canvas.style.cursor = 'grab';
       return;

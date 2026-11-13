@@ -303,6 +303,7 @@ En escritorio el panel queda fijado al pie del inspector, siempre visible, con s
 - En escritorio, el nombre del panorama y el porcentaje de zoom comparten fila con las miniaturas, a los lados, sin una línea extra encima.
 - El visor del lienzo tiene esquinas redondeadas (16 px en móvil, 22 px en escritorio) y recorta el contenido que llega a las esquinas al hacer zoom.
 - El visor deja 10 px a cada lado en móvil y 12 px en escritorio para no chocar con el riel ni con las tarjetas laterales.
+- La toolbar incluye una herramienta de mano (botón o tecla H) que alterna entre mover el lienzo y editar. Con la mano activa, arrastrar desplaza la vista sin seleccionar ni mover objetos, y el doble toque no cambia de vista.
 - El acordeón y el inspector son accesibles con teclado: las categorías responden a Enter y Espacio y exponen aria-expanded.
 
 ### Validación
