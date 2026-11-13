@@ -306,6 +306,7 @@ En escritorio el panel queda fijado al pie del inspector, siempre visible, con s
 - La toolbar incluye una herramienta de mano (botón o tecla H) que alterna entre mover el lienzo y editar. Con la mano activa, arrastrar desplaza la vista sin seleccionar ni mover objetos, y el doble toque no cambia de vista.
 - En escritorio, los paneles de Fotos, Texto, Stickers, Plantillas y Fondo abren como tarjeta flotante junto al riel izquierdo, centrada verticalmente y sin oscurecer el editor.
 - El panel Texto permite escribir el contenido, elegir fuente, tamaño, color y alineación, activar negrita o cursiva e insertar emojis. Edita en vivo el texto seleccionado o crea uno nuevo con ese estilo.
+- GIPHY queda configurado con la clave del proyecto en `GIPHY_API_KEY` (start.bat local y entorno de Easypanel); el cliente ya no exige pegar una clave. El nuevo segmento **Usados** lista, sin duplicados, los GIFs presentes en el proyecto y permite reinsertarlos; cada GIF guarda id, título y dimensiones para reconstruir la lista.
 - Se añadieron tipografías divertidas locales: Pixel (Press Start 2P), Bungee, Espacial (Russo One), Cómic y Manuscrita divertida. Los desplegables nativos usan esquema oscuro para que las opciones no aparezcan en blanco.
 - La barra de acciones contextuales centra sus botones (`safe center`) y sigue siendo desplazable cuando no caben.
 - El contenedor de esa barra ya no pinta su propio velo, así que las esquinas superiores redondeadas (20 px) y su borde se ven sobre el lienzo.

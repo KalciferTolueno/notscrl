@@ -6770,12 +6770,8 @@ class NotScrlMobileApp {
     if (tabName === 'text') this.syncTextDrawer?.(this.engine.selectedItem);
 
     if (tabName === 'stickers' && this.giphyLoaded === false) {
-      if (this.getGiphyKey()) {
-        this.giphyLoaded = true;
-        this.loadGiphy('');
-      } else {
-        this.showGiphySetup();
-      }
+      this.giphyLoaded = true;
+      this.loadGiphy('');
     }
     if (tabName === 'stickers') {
       this.selectStickerSegment?.(this.stickerSegment || 'stickers');
@@ -7035,12 +7031,8 @@ class NotScrlMobileApp {
     this.giphyKey = '';
 
     const savedKey = this.getGiphyKey();
-    if (savedKey) {
-      if (this.giphyKeyInput) this.giphyKeyInput.value = savedKey;
-      this.showGiphyPanel();
-    } else {
-      this.showGiphySetup();
-    }
+    if (savedKey && this.giphyKeyInput) this.giphyKeyInput.value = savedKey;
+    this.showGiphyPanel();
 
     document.getElementById('giphy-activate')?.addEventListener('click', () => {
       this.showGiphyPanel();
@@ -7080,7 +7072,7 @@ class NotScrlMobileApp {
     const buttons = [...document.querySelectorAll('[data-sticker-segment]')];
     if (!buttons.length) return;
     const select = (name) => {
-      if (name !== 'stickers' && name !== 'gifs') return;
+      if (name !== 'stickers' && name !== 'gifs' && name !== 'used') return;
       this.stickerSegment = name;
       buttons.forEach(btn => {
         const active = btn.dataset.stickerSegment === name;
@@ -7089,13 +7081,12 @@ class NotScrlMobileApp {
       });
       document.getElementById('segment-stickers')?.classList.toggle('hidden', name !== 'stickers');
       document.getElementById('segment-gifs')?.classList.toggle('hidden', name !== 'gifs');
-      if (name === 'gifs') {
-        if (!this.getGiphyKey()) this.showGiphySetup();
-        else if (!this.giphyLoaded) {
-          this.giphyLoaded = true;
-          this.loadGiphy('');
-        }
+      document.getElementById('segment-used')?.classList.toggle('hidden', name !== 'used');
+      if (name === 'gifs' && !this.giphyLoaded) {
+        this.giphyLoaded = true;
+        this.loadGiphy('');
       }
+      if (name === 'used') this.renderUsedGifs();
       this.frameForDrawer();
     };
     buttons.forEach(btn => btn.addEventListener('click', () => select(btn.dataset.stickerSegment)));
@@ -7135,16 +7126,12 @@ class NotScrlMobileApp {
   async loadGiphy(query) {
     if (!this.giphyGrid) return;
     const key = this.getGiphyKey();
-    if (!key) {
-      this.showGiphySetup();
-      return;
-    }
     this.showGiphyPanel();
     this.giphyGrid.innerHTML = '';
     this.setGiphyStatus('Cargando GIFs…');
     try {
       const res = await fetch(`api/giphy/search?q=${encodeURIComponent(query)}`, {
-        headers: { 'x-giphy-key': key }
+        headers: key ? { 'x-giphy-key': key } : {}
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -7192,11 +7179,61 @@ class NotScrlMobileApp {
       const item = new ImageItem(img, this.getSpawnX(w), 280, Math.round(w), Math.round(h));
       item.mediaType = 'gif';
       item.borderRadius = 0;
+      item.gifId = gif.id;
+      item.title = gif.title || 'GIF';
+      item.gifWidth = gif.width;
+      item.gifHeight = gif.height;
       this.engine.addItem(item);
       this.closeDrawer();
     };
     img.onerror = () => this.studio?.toast('No se pudo cargar el GIF.');
     img.src = `api/giphy/media?id=${encodeURIComponent(gif.id)}`;
+  }
+
+  renderUsedGifs() {
+    const grid = document.getElementById('used-gifs-grid');
+    const status = document.getElementById('used-gifs-status');
+    if (!grid) return;
+    const used = new Map();
+    for (const item of this.engine.items) {
+      if (item.mediaType !== 'gif') continue;
+      let id = item.gifId || '';
+      if (!id) {
+        const match = String(item.image?.src || '').match(/[?&]id=([A-Za-z0-9]+)/);
+        if (match) id = match[1];
+      }
+      if (!id || used.has(id)) continue;
+      used.set(id, {
+        id,
+        title: item.title || 'GIF',
+        width: item.gifWidth || 200,
+        height: item.gifHeight || 200
+      });
+    }
+    grid.replaceChildren();
+    if (!used.size) {
+      grid.classList.add('hidden');
+      if (status) {
+        status.textContent = 'Todavía no has usado GIFs en este proyecto.';
+        status.classList.remove('hidden');
+      }
+      return;
+    }
+    grid.classList.remove('hidden');
+    status?.classList.add('hidden');
+    for (const gif of used.values()) {
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'mobile-sticker-card giphy-cell';
+      cell.setAttribute('aria-label', `Añadir ${gif.title}`);
+      const image = document.createElement('img');
+      image.src = `api/giphy/media?id=${encodeURIComponent(gif.id)}`;
+      image.alt = gif.title;
+      image.loading = 'lazy';
+      cell.appendChild(image);
+      cell.addEventListener('click', () => this.addGiphyItem(gif));
+      grid.appendChild(cell);
+    }
   }
 
   setGiphyStatus(text) {

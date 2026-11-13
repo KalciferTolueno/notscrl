@@ -7658,3 +7658,8 @@ select option {
 #btn-download-video {
   margin-bottom: 0;
 }
+
+/* Three sticker segments: Stickers, GIFs and Usados */
+#drawer-tab-stickers .segment-control {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}

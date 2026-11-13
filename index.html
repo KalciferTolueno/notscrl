@@ -838,6 +838,14 @@
                 >
                   GIFs
                 </button>
+                <button
+                  type="button"
+                  class="segment-btn"
+                  data-sticker-segment="used"
+                  aria-pressed="false"
+                >
+                  Usados
+                </button>
               </div>
 
               <div id="segment-stickers">
@@ -906,6 +914,16 @@
                     aria-label="Resultados de GIFs"
                   ></div>
                 </div>
+              </div>
+
+              <div id="segment-used" class="hidden">
+                <div class="drawer-section-label">GIFs usados en este proyecto</div>
+                <div
+                  class="drawer-grid-2col"
+                  id="used-gifs-grid"
+                  aria-label="GIFs usados en este proyecto"
+                ></div>
+                <p class="giphy-status hidden" id="used-gifs-status"></p>
               </div>
             </div>
 
