@@ -7449,3 +7449,14 @@ p,
     border-radius: 22px;
   }
 }
+
+/* Keep the canvas off the rail and the inspector. */
+#canvas-workspace {
+  margin: 0 10px;
+}
+
+@media (min-width: 1024px) {
+  #canvas-workspace {
+    margin: 0 12px;
+  }
+}
