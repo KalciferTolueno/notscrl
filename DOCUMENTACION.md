@@ -307,6 +307,7 @@ En escritorio el panel queda fijado al pie del inspector, siempre visible, con s
 - En escritorio, los paneles de Fotos, Texto, Stickers, Plantillas y Fondo abren como tarjeta flotante junto al riel izquierdo, centrada verticalmente y sin oscurecer el editor.
 - El panel Texto permite escribir el contenido, elegir fuente, tamaño, color y alineación, activar negrita o cursiva e insertar emojis. Edita en vivo el texto seleccionado o crea uno nuevo con ese estilo.
 - Se añadieron tipografías divertidas locales: Pixel (Press Start 2P), Bungee, Espacial (Russo One), Cómic y Manuscrita divertida. Los desplegables nativos usan esquema oscuro para que las opciones no aparezcan en blanco.
+- La barra de acciones contextuales centra sus botones (`safe center`) y sigue siendo desplazable cuando no caben.
 - El acordeón y el inspector son accesibles con teclado: las categorías responden a Enter y Espacio y exponen aria-expanded.
 
 ### Validación

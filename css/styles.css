@@ -7593,3 +7593,8 @@ select option {
   background-color: #1c1b19;
   color: #f6f3ea;
 }
+
+/* Center the contextual actions; keep them reachable when they overflow. */
+#context-action-bar {
+  justify-content: safe center;
+}
