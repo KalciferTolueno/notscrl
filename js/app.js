@@ -412,7 +412,7 @@ class NotScrlMobileApp {
     this.inspectorAdjustmentsHost = document.getElementById('inspector-adjustments');
     this.inspectorLayersHost = document.getElementById('inspector-layers-host');
 
-    const commit = (property, minimum) => {
+    const commit = (property) => {
       const item = this.engine.selectedItem;
       const input = this.inspectorFields[property];
       if (!item || !input) return;
@@ -422,7 +422,9 @@ class NotScrlMobileApp {
         return;
       }
       let next = Math.round(value);
-      if (minimum !== undefined) next = Math.max(minimum, next);
+      if (property === 'width' || property === 'height') {
+        next = Math.max(this.engine.minItemSide(item) || 1, next);
+      }
       if (property === 'rotation') next = ((next % 360) + 360) % 360;
       if (item[property] === next) {
         if (input.value !== String(next)) input.value = next;
@@ -435,13 +437,13 @@ class NotScrlMobileApp {
       this.engine.saveHistory('Ajustar propiedades');
     };
 
-    for (const [property, minimum] of [['x'], ['y'], ['rotation'], ['width', 1], ['height', 1]]) {
+    for (const property of ['x', 'y', 'rotation', 'width', 'height']) {
       const input = this.inspectorFields[property];
-      input.addEventListener('change', () => commit(property, minimum));
+      input.addEventListener('change', () => commit(property));
       input.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter') return;
         event.preventDefault();
-        commit(property, minimum);
+        commit(property);
         input.select();
       });
     }

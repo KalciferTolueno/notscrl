@@ -26,6 +26,8 @@ export class CanvasEngine {
 
     // Viewport transform (Pan & Zoom)
     this.zoom = 0.28;
+    // Manual zoom-out floor: the ribbon stays readable. Fit-to-screen may go lower to show every page.
+    this.minZoom = 0.15;
     this.panX = 20;
     this.panY = 40;
     this.viewMode = 'panorama';
@@ -321,6 +323,12 @@ export class CanvasEngine {
       x: canvasX * this.zoom + this.panX,
       y: canvasY * this.zoom + this.panY
     };
+  }
+
+  clampManualZoom(target, current = this.zoom) {
+    // A view already fitted below the floor must not jump up when the user zooms out.
+    const floor = Math.min(this.minZoom, current);
+    return Math.min(Math.max(floor, target), 2.5);
   }
 
   // Panning stops at the artwork's edges: a canvas that fits stays inside the
@@ -712,7 +720,7 @@ export class CanvasEngine {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
         const zoomDelta = -e.deltaY * 0.002;
-        const newZoom = Math.min(Math.max(0.02, this.zoom + zoomDelta), 2.5);
+        const newZoom = this.clampManualZoom(this.zoom + zoomDelta);
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -889,7 +897,7 @@ export class CanvasEngine {
         const t2 = e.touches[1];
         const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
         if (initialTouchDist > 0) {
-          this.zoom = Math.min(Math.max(0.02, initialZoom * (dist / initialTouchDist)), 2.5);
+          this.zoom = this.clampManualZoom(initialZoom * (dist / initialTouchDist), initialZoom);
           const rect = canvas.getBoundingClientRect();
           this.panX = (t1.clientX + t2.clientX) / 2 - rect.left - this.pinchAnchor.x * this.zoom;
           this.panY = (t1.clientY + t2.clientY) / 2 - rect.top - this.pinchAnchor.y * this.zoom;
@@ -1166,12 +1174,14 @@ export class CanvasEngine {
 
     const keepAspect = item.type === 'image' || item.type === 'sticker';
     const ar = init.aspectRatio || (init.width / init.height);
+    const minSide = this.minItemSide(item);
 
     let newW, newH;
     if (keepAspect) {
       // Smooth responsive diagonal tracking cursor along aspect ratio
       const rawDiag = (wRaw + hRaw * ar) / 2;
-      newW = Math.max(40, rawDiag);
+      // Both sides keep the floor, so panoramic or tall photos cannot become a sliver.
+      newW = Math.max(minSide, rawDiag, minSide * ar);
       newH = newW / ar;
     } else {
       newW = Math.max(40, wRaw);
@@ -1218,6 +1228,12 @@ export class CanvasEngine {
       this.saveHistory('Transform item');
       this.render();
     }
+  }
+
+  // Smallest usable side for photos and stickers: 15% of the slide width.
+  // Text is exempt because its box is sized by the font, not by dragging.
+  minItemSide(item = this.selectedItem) {
+    return item?.type === 'text' ? 0 : Math.round(this.slideWidth * 0.15);
   }
 
   hitTestHandles(item, canvasPoint, isTouch = false) {

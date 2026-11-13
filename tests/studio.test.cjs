@@ -495,3 +495,83 @@ test('Text wraps by words and breaks words that are wider than the item', () => 
   paragraphs.padding = 0;
   assert.deepEqual(Array.from(paragraphs.wrapLines(measure, 200)), ['linea uno', 'linea dos']);
 });
+
+test('Torn paper edge is deterministic and stays inside the frame', () => {
+  const { ImageItem } = load('js/objects.js', ['ImageItem']);
+  const item = new ImageItem({ naturalWidth: 400, naturalHeight: 300 }, 0, 0, 400, 300);
+  item.clipShape = 'torn';
+
+  const trace = () => {
+    const points = [];
+    item.createShapePath({
+      beginPath() {}, closePath() {},
+      moveTo: (x, y) => points.push([x, y]),
+      lineTo: (x, y) => points.push([x, y])
+    }, 400, 300);
+    return points;
+  };
+
+  const first = trace();
+  assert.ok(first.length > 20, 'the tear needs enough points to look jagged');
+  assert.deepEqual(trace(), first, 'the same item must keep the same tear');
+  for (const [x, y] of first) {
+    assert.ok(x >= 0 && x <= 400 && y >= 0 && y <= 300, `torn point ${x},${y} escaped the frame`);
+  }
+
+  const other = new ImageItem({ naturalWidth: 400, naturalHeight: 300 }, 0, 0, 400, 300);
+  other.clipShape = 'torn';
+  const otherPoints = [];
+  other.createShapePath({
+    beginPath() {}, closePath() {},
+    moveTo: (x, y) => otherPoints.push([x, y]),
+    lineTo: (x, y) => otherPoints.push([x, y])
+  }, 400, 300);
+  assert.notDeepEqual(otherPoints, first, 'different items should not share the same tear');
+});
+
+test('Photos and stickers cannot be shrunk below the minimum side', () => {
+  const { ImageItem } = load('js/objects.js', ['ImageItem']);
+  const { CanvasEngine: Engine } = load('js/canvas.js', ['CanvasEngine']);
+  const engine = Object.assign(Object.create(Engine.prototype), {
+    slideWidth: 1080, slideHeight: 1350, slideCount: 1,
+    activeSnapLines: [], snapThreshold: 8,
+    triggerChange() {}, saveHistory() {}
+  });
+
+  for (const [naturalWidth, naturalHeight] of [[1600, 900], [900, 1600]]) {
+    const item = new ImageItem({ naturalWidth, naturalHeight }, 0, 0, 600, 600 * naturalHeight / naturalWidth);
+    engine.selectedItem = item;
+    engine.activeHandle = 'se';
+    engine.dragStart = { x: 0, y: 0 };
+    engine.itemInitialState = {
+      x: item.x, y: item.y, width: item.width, height: item.height,
+      rotation: 0, aspectRatio: item.width / item.height,
+      corners: {
+        nw: { x: 0, y: 0 },
+        ne: { x: item.width, y: 0 },
+        se: { x: item.width, y: item.height },
+        sw: { x: 0, y: item.height }
+      }
+    };
+
+    engine.handleDragMove({ x: -50, y: -50 });
+
+    assert.equal(engine.minItemSide(item), 162);
+    assert.ok(item.width >= 162, `width ${item.width} is too small`);
+    assert.ok(item.height >= 162, `height ${item.height} is too small`);
+    assert.ok(Math.abs(item.width / item.height - naturalWidth / naturalHeight) < 0.01, 'aspect ratio must be kept');
+  }
+});
+
+test('Manual canvas zoom never drops below the readable floor', () => {
+  const { CanvasEngine: Engine } = load('js/canvas.js', ['CanvasEngine']);
+  const engine = Object.assign(Object.create(Engine.prototype), { minZoom: 0.15, zoom: 1 });
+
+  assert.equal(engine.clampManualZoom(0.02), 0.15);
+  assert.equal(engine.clampManualZoom(4), 2.5);
+
+  // A fitted panorama below the floor must stay put instead of jumping up.
+  engine.zoom = 0.05;
+  assert.equal(engine.clampManualZoom(0.01), 0.05);
+  assert.equal(engine.clampManualZoom(0.2), 0.2);
+});

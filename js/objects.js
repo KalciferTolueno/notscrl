@@ -130,7 +130,7 @@ export class ImageItem extends CanvasItem {
     this.aspectRatio = this.naturalWidth / this.naturalHeight;
 
     // Styling, Clipping & Frames
-    this.clipShape = 'rect'; // 'rect', 'circle', 'star', 'heart', 'arch', 'flower'
+    this.clipShape = 'rect'; // 'rect', 'circle', 'star', 'heart', 'arch', 'flower', 'torn'
     this.frameStyle = 'none'; // 'none', 'polaroid', 'film'
     this.borderRadius = 0;
     this.borderWidth = 0;
@@ -326,7 +326,19 @@ export class ImageItem extends CanvasItem {
       return;
     }
 
-    // 3. Shape Mask Clipping (Circle, Star, Heart, Arch, Flower, or Rounded Rect)
+    // 3. Shape Mask Clipping (Circle, Star, Heart, Arch, Flower, Torn or Rounded Rect)
+    // Torn photo: the white paper fibre shows through the jagged cut (inner half is covered by the photo).
+    if (this.clipShape === 'torn') {
+      ctx.save();
+      this.createShapePath(ctx, w, h);
+      const rim = Math.min(14, Math.max(4, Math.min(w, h) * 0.01));
+      ctx.strokeStyle = '#f6f2e8';
+      ctx.lineWidth = rim * 2;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      ctx.restore();
+    }
+
     ctx.save();
     this.createShapePath(ctx, w, h);
     ctx.clip();
@@ -370,6 +382,8 @@ export class ImageItem extends CanvasItem {
       ctx.closePath();
     } else if (this.clipShape === 'flower') {
       this.drawFlowerPath(ctx, w, h);
+    } else if (this.clipShape === 'torn') {
+      this.drawTornPath(ctx, w, h);
     } else {
       // Standard Rectangle with optional border radius
       if (this.borderRadius > 0) {
@@ -382,6 +396,37 @@ export class ImageItem extends CanvasItem {
         ctx.rect(0, 0, w, h);
       }
     }
+  }
+
+  // Hand-torn paper edge. The jitter is seeded per item so the tear stays put between repaints,
+  // history restores and exports instead of shimmering every frame.
+  drawTornPath(ctx, w, h) {
+    this.tornSeed ??= Math.random() * 100000;
+    let state = (Math.floor(this.tornSeed) % 2147483647) + 1;
+    const rand = () => (state = (state * 16807) % 2147483647) / 2147483647;
+    const depth = Math.max(3, Math.min(w, h) * 0.018);
+    const step = Math.max(12, Math.min(w, h) * 0.03);
+
+    // Walk the perimeter clockwise. The normal points inward, so every bite stays inside the frame.
+    let started = false;
+    const edge = (x0, y0, x1, y1, nx, ny) => {
+      const steps = Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / step));
+      for (let i = 0; i <= steps; i++) {
+        const roll = rand();
+        const deep = roll > 0.88 ? 2.6 : roll > 0.62 ? 1.6 : 1;
+        const bite = depth * deep * (0.3 + rand() * 0.7);
+        const px = x0 + ((x1 - x0) * i) / steps + nx * bite;
+        const py = y0 + ((y1 - y0) * i) / steps + ny * bite;
+        if (started) ctx.lineTo(px, py);
+        else { ctx.moveTo(px, py); started = true; }
+      }
+    };
+
+    edge(0, 0, w, 0, 0, 1);
+    edge(w, 0, w, h, -1, 0);
+    edge(w, h, 0, h, 0, -1);
+    edge(0, h, 0, 0, 1, 0);
+    ctx.closePath();
   }
 
   drawStarPath(ctx, cx, cy, spikes, outerRadius, innerRadius) {

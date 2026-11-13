@@ -637,7 +637,7 @@ class ImageItem extends CanvasItem {
     this.aspectRatio = this.naturalWidth / this.naturalHeight;
 
     // Styling, Clipping & Frames
-    this.clipShape = 'rect'; // 'rect', 'circle', 'star', 'heart', 'arch', 'flower'
+    this.clipShape = 'rect'; // 'rect', 'circle', 'star', 'heart', 'arch', 'flower', 'torn'
     this.frameStyle = 'none'; // 'none', 'polaroid', 'film'
     this.borderRadius = 0;
     this.borderWidth = 0;
@@ -833,7 +833,19 @@ class ImageItem extends CanvasItem {
       return;
     }
 
-    // 3. Shape Mask Clipping (Circle, Star, Heart, Arch, Flower, or Rounded Rect)
+    // 3. Shape Mask Clipping (Circle, Star, Heart, Arch, Flower, Torn or Rounded Rect)
+    // Torn photo: the white paper fibre shows through the jagged cut (inner half is covered by the photo).
+    if (this.clipShape === 'torn') {
+      ctx.save();
+      this.createShapePath(ctx, w, h);
+      const rim = Math.min(14, Math.max(4, Math.min(w, h) * 0.01));
+      ctx.strokeStyle = '#f6f2e8';
+      ctx.lineWidth = rim * 2;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      ctx.restore();
+    }
+
     ctx.save();
     this.createShapePath(ctx, w, h);
     ctx.clip();
@@ -877,6 +889,8 @@ class ImageItem extends CanvasItem {
       ctx.closePath();
     } else if (this.clipShape === 'flower') {
       this.drawFlowerPath(ctx, w, h);
+    } else if (this.clipShape === 'torn') {
+      this.drawTornPath(ctx, w, h);
     } else {
       // Standard Rectangle with optional border radius
       if (this.borderRadius > 0) {
@@ -889,6 +903,37 @@ class ImageItem extends CanvasItem {
         ctx.rect(0, 0, w, h);
       }
     }
+  }
+
+  // Hand-torn paper edge. The jitter is seeded per item so the tear stays put between repaints,
+  // history restores and exports instead of shimmering every frame.
+  drawTornPath(ctx, w, h) {
+    this.tornSeed ??= Math.random() * 100000;
+    let state = (Math.floor(this.tornSeed) % 2147483647) + 1;
+    const rand = () => (state = (state * 16807) % 2147483647) / 2147483647;
+    const depth = Math.max(3, Math.min(w, h) * 0.018);
+    const step = Math.max(12, Math.min(w, h) * 0.03);
+
+    // Walk the perimeter clockwise. The normal points inward, so every bite stays inside the frame.
+    let started = false;
+    const edge = (x0, y0, x1, y1, nx, ny) => {
+      const steps = Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / step));
+      for (let i = 0; i <= steps; i++) {
+        const roll = rand();
+        const deep = roll > 0.88 ? 2.6 : roll > 0.62 ? 1.6 : 1;
+        const bite = depth * deep * (0.3 + rand() * 0.7);
+        const px = x0 + ((x1 - x0) * i) / steps + nx * bite;
+        const py = y0 + ((y1 - y0) * i) / steps + ny * bite;
+        if (started) ctx.lineTo(px, py);
+        else { ctx.moveTo(px, py); started = true; }
+      }
+    };
+
+    edge(0, 0, w, 0, 0, 1);
+    edge(w, 0, w, h, -1, 0);
+    edge(w, h, 0, h, 0, -1);
+    edge(0, h, 0, 0, 1, 0);
+    ctx.closePath();
   }
 
   drawStarPath(ctx, cx, cy, spikes, outerRadius, innerRadius) {
@@ -1086,6 +1131,8 @@ class CanvasEngine {
 
     // Viewport transform (Pan & Zoom)
     this.zoom = 0.28;
+    // Manual zoom-out floor: the ribbon stays readable. Fit-to-screen may go lower to show every page.
+    this.minZoom = 0.15;
     this.panX = 20;
     this.panY = 40;
     this.viewMode = 'panorama';
@@ -1381,6 +1428,12 @@ class CanvasEngine {
       x: canvasX * this.zoom + this.panX,
       y: canvasY * this.zoom + this.panY
     };
+  }
+
+  clampManualZoom(target, current = this.zoom) {
+    // A view already fitted below the floor must not jump up when the user zooms out.
+    const floor = Math.min(this.minZoom, current);
+    return Math.min(Math.max(floor, target), 2.5);
   }
 
   // Panning stops at the artwork's edges: a canvas that fits stays inside the
@@ -1772,7 +1825,7 @@ class CanvasEngine {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
         const zoomDelta = -e.deltaY * 0.002;
-        const newZoom = Math.min(Math.max(0.02, this.zoom + zoomDelta), 2.5);
+        const newZoom = this.clampManualZoom(this.zoom + zoomDelta);
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -1949,7 +2002,7 @@ class CanvasEngine {
         const t2 = e.touches[1];
         const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
         if (initialTouchDist > 0) {
-          this.zoom = Math.min(Math.max(0.02, initialZoom * (dist / initialTouchDist)), 2.5);
+          this.zoom = this.clampManualZoom(initialZoom * (dist / initialTouchDist), initialZoom);
           const rect = canvas.getBoundingClientRect();
           this.panX = (t1.clientX + t2.clientX) / 2 - rect.left - this.pinchAnchor.x * this.zoom;
           this.panY = (t1.clientY + t2.clientY) / 2 - rect.top - this.pinchAnchor.y * this.zoom;
@@ -2226,12 +2279,14 @@ class CanvasEngine {
 
     const keepAspect = item.type === 'image' || item.type === 'sticker';
     const ar = init.aspectRatio || (init.width / init.height);
+    const minSide = this.minItemSide(item);
 
     let newW, newH;
     if (keepAspect) {
       // Smooth responsive diagonal tracking cursor along aspect ratio
       const rawDiag = (wRaw + hRaw * ar) / 2;
-      newW = Math.max(40, rawDiag);
+      // Both sides keep the floor, so panoramic or tall photos cannot become a sliver.
+      newW = Math.max(minSide, rawDiag, minSide * ar);
       newH = newW / ar;
     } else {
       newW = Math.max(40, wRaw);
@@ -2278,6 +2333,12 @@ class CanvasEngine {
       this.saveHistory('Transform item');
       this.render();
     }
+  }
+
+  // Smallest usable side for photos and stickers: 15% of the slide width.
+  // Text is exempt because its box is sized by the font, not by dragging.
+  minItemSide(item = this.selectedItem) {
+    return item?.type === 'text' ? 0 : Math.round(this.slideWidth * 0.15);
   }
 
   hitTestHandles(item, canvasPoint, isTouch = false) {
@@ -5566,7 +5627,7 @@ class Studio {
     localStorage.setItem("notscrl_view", "home");
     document.getElementById("home-view").dataset.section = section;
     this.engine.enabled = false;
-    document.querySelector('meta[name="theme-color"]').content = "#f5f3ee";
+    document.querySelector('meta[name="theme-color"]').content = "#181917";
     document.getElementById("editor-view").classList.add("hidden");
     document.getElementById("home-view").classList.remove("hidden");
     document
@@ -5607,7 +5668,7 @@ class Studio {
     this.engine.userViewMode = null;
     const savedView = this.app.readEditorView?.();
     if (savedView && Number.isFinite(savedView.zoom)) {
-      this.engine.zoom = savedView.zoom;
+      this.engine.zoom = Math.max(this.engine.minZoom, savedView.zoom);
       this.engine.panX = savedView.panX;
       this.engine.panY = savedView.panY;
       this.engine.viewMode = savedView.mode || this.engine.viewMode;
@@ -6657,7 +6718,7 @@ class NotScrlMobileApp {
     this.inspectorAdjustmentsHost = document.getElementById('inspector-adjustments');
     this.inspectorLayersHost = document.getElementById('inspector-layers-host');
 
-    const commit = (property, minimum) => {
+    const commit = (property) => {
       const item = this.engine.selectedItem;
       const input = this.inspectorFields[property];
       if (!item || !input) return;
@@ -6667,7 +6728,9 @@ class NotScrlMobileApp {
         return;
       }
       let next = Math.round(value);
-      if (minimum !== undefined) next = Math.max(minimum, next);
+      if (property === 'width' || property === 'height') {
+        next = Math.max(this.engine.minItemSide(item) || 1, next);
+      }
       if (property === 'rotation') next = ((next % 360) + 360) % 360;
       if (item[property] === next) {
         if (input.value !== String(next)) input.value = next;
@@ -6680,13 +6743,13 @@ class NotScrlMobileApp {
       this.engine.saveHistory('Ajustar propiedades');
     };
 
-    for (const [property, minimum] of [['x'], ['y'], ['rotation'], ['width', 1], ['height', 1]]) {
+    for (const property of ['x', 'y', 'rotation', 'width', 'height']) {
       const input = this.inspectorFields[property];
-      input.addEventListener('change', () => commit(property, minimum));
+      input.addEventListener('change', () => commit(property));
       input.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter') return;
         event.preventDefault();
-        commit(property, minimum);
+        commit(property);
         input.select();
       });
     }

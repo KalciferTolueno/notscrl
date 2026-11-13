@@ -417,7 +417,7 @@ export class Studio {
     localStorage.setItem("notscrl_view", "home");
     document.getElementById("home-view").dataset.section = section;
     this.engine.enabled = false;
-    document.querySelector('meta[name="theme-color"]').content = "#f5f3ee";
+    document.querySelector('meta[name="theme-color"]').content = "#181917";
     document.getElementById("editor-view").classList.add("hidden");
     document.getElementById("home-view").classList.remove("hidden");
     document
@@ -458,7 +458,7 @@ export class Studio {
     this.engine.userViewMode = null;
     const savedView = this.app.readEditorView?.();
     if (savedView && Number.isFinite(savedView.zoom)) {
-      this.engine.zoom = savedView.zoom;
+      this.engine.zoom = Math.max(this.engine.minZoom, savedView.zoom);
       this.engine.panX = savedView.panX;
       this.engine.panY = savedView.panY;
       this.engine.viewMode = savedView.mode || this.engine.viewMode;
