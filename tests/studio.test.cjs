@@ -154,6 +154,33 @@ test('Mobile slide fitting respects both screen dimensions and retains the activ
   }
 });
 
+test('Panning cannot push the artwork out of the viewport', () => {
+  const engine = Object.assign(Object.create(CanvasEngine.prototype), {
+    viewportWidth: 390, viewportHeight: 844,
+    slideWidth: 1080, slideHeight: 1350, slideCount: 3,
+    zoom: .2, panX: 0, panY: 0
+  });
+  // Larger than the viewport: it can be panned until it covers the viewport.
+  engine.panX = 9999;
+  engine.panY = 9999;
+  engine.clampPan();
+  assert.equal(engine.panX, 0);
+  assert.equal(engine.panY, 844 - 1350 * .2);
+  engine.panX = -9999;
+  engine.panY = -9999;
+  engine.clampPan();
+  assert.equal(engine.panX, 390 - 1080 * 3 * .2);
+  assert.equal(engine.panY, 0);
+  // Smaller than the viewport: it stays fully inside.
+  engine.zoom = .1;
+  engine.panX = 9999;
+  engine.clampPan();
+  assert.equal(engine.panX, 390 - 1080 * 3 * .1);
+  engine.panX = -9999;
+  engine.clampPan();
+  assert.equal(engine.panX, 0);
+});
+
 test('Full-page photos use the active page, remove inset styling and keep matching sources uncropped', () => {
   const { ImageItem } = load('js/objects.js', ['ImageItem']);
   for (const height of [1350, 1080, 1920]) {

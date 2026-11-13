@@ -1383,6 +1383,21 @@ class CanvasEngine {
     };
   }
 
+  // Panning stops at the artwork's edges: a canvas that fits stays inside the
+  // viewport and a zoomed one always covers it, so it cannot be lost.
+  clampPan() {
+    const w = this.totalWidth * this.zoom;
+    const h = this.totalHeight * this.zoom;
+    if (!(w > 0) || !(h > 0) || !this.viewportWidth || !this.viewportHeight) return;
+    const clampAxis = (value, size, viewport) => {
+      const min = Math.min(0, viewport - size);
+      const max = Math.max(0, viewport - size);
+      return Math.min(max, Math.max(min, value));
+    };
+    this.panX = clampAxis(this.panX, w, this.viewportWidth);
+    this.panY = clampAxis(this.panY, h, this.viewportHeight);
+  }
+
   addItem(item) {
     item.zIndex = this.items.length;
     this.items.push(item);
@@ -2317,6 +2332,7 @@ class CanvasEngine {
   }
 
   render() {
+    this.clampPan();
     const ctx = this.ctx;
     ctx.save();
 
