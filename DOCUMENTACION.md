@@ -309,6 +309,7 @@ En escritorio el panel queda fijado al pie del inspector, siempre visible, con s
 - Se añadieron tipografías divertidas locales: Pixel (Press Start 2P), Bungee, Espacial (Russo One), Cómic y Manuscrita divertida. Los desplegables nativos usan esquema oscuro para que las opciones no aparezcan en blanco.
 - La barra de acciones contextuales centra sus botones (`safe center`) y sigue siendo desplazable cuando no caben.
 - El contenedor de esa barra ya no pinta su propio velo, así que las esquinas superiores redondeadas (20 px) y su borde se ven sobre el lienzo.
+- Si el lienzo contiene vídeo o GIF, el diálogo de exportación añade un bloque de vídeo: duración (1–30 s), FPS (24/30/60), calidad (8, 20 o 50 Mbps sin compresión) y códec WebM VP9/VP8. Graba el panorama completo mientras los medios se reproducen; sin medios animados el bloque no aparece y se mantiene la exportación PNG.
 - El acordeón y el inspector son accesibles con teclado: las categorías responden a Enter y Espacio y exponen aria-expanded.
 
 ### Validación

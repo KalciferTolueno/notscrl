@@ -1659,6 +1659,30 @@ class NotScrlMobileApp {
         finally { this.btnPanorama.disabled = false; }
       });
     }
+
+    const videoButton = document.getElementById('btn-download-video');
+    if (videoButton) {
+      videoButton.addEventListener('click', async () => {
+        const status = document.getElementById('export-status-label');
+        const duration = Number(document.getElementById('export-video-duration')?.value) || 6;
+        const fps = Number(document.getElementById('export-video-fps')?.value) || 30;
+        const bitrate = Number(document.getElementById('export-video-quality')?.value) || 50000000;
+        const codec = document.getElementById('export-video-format')?.value || 'vp9';
+        videoButton.disabled = true;
+        status.textContent = 'Grabando vídeo…';
+        try {
+          await this.exporter.downloadVideo({ duration, fps, bitrate, codec }, (message) => {
+            status.textContent = message;
+          });
+          status.textContent = `Vídeo WebM descargado (${duration} s, ${fps} fps).`;
+          this.studio?.toast('Vídeo exportado.');
+        } catch (error) {
+          status.textContent = error.message || 'No se pudo exportar el vídeo.';
+        } finally {
+          videoButton.disabled = false;
+        }
+      });
+    }
   }
 
   openExportSheet() {
@@ -1666,6 +1690,7 @@ class NotScrlMobileApp {
       index: i + 1, canvas: this.exporter.renderThumbnail(i, 180)
     }));
     document.querySelector('.export-subtitle').textContent = `${pageCountLabel(this.engine.slideCount)}, ${this.engine.slideWidth} × ${this.engine.slideHeight} px`;
+    document.getElementById('export-video-options')?.classList.toggle('hidden', !this.engine.hasAnimatedMedia());
 
     this.stripContainer.innerHTML = '';
     slides.forEach(slide => {

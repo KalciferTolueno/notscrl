@@ -1779,6 +1779,36 @@
             <div class="export-strip-scroll" id="export-strip-container"></div>
             <p class="export-hint">Toca una página para descargarla en PNG.</p>
 
+            <!-- Video export, only when the canvas has moving media -->
+            <div id="export-video-options" class="export-video hidden">
+              <div class="export-video-head">
+                <span class="drawer-section-label">Vídeo del panorama</span>
+                <small>El carrusel incluye vídeo o GIF</small>
+              </div>
+              <div class="export-video-grid">
+                <label>Duración (s)<input id="export-video-duration" type="number" min="1" max="30" step="1" value="6" /></label>
+                <label>FPS<select id="export-video-fps">
+                  <option value="24">24</option>
+                  <option value="30" selected>30</option>
+                  <option value="60">60</option>
+                </select></label>
+              </div>
+              <div class="export-video-grid">
+                <label>Calidad<select id="export-video-quality">
+                  <option value="8000000">Alta · 8 Mbps</option>
+                  <option value="20000000">Máxima · 20 Mbps</option>
+                  <option value="50000000" selected>Sin compresión · 50 Mbps</option>
+                </select></label>
+                <label>Formato<select id="export-video-format">
+                  <option value="vp9" selected>WebM · VP9</option>
+                  <option value="vp8">WebM · VP8</option>
+                </select></label>
+              </div>
+              <button id="btn-download-video" class="btn-secondary-mobile">
+                Descargar vídeo (WebM)
+              </button>
+            </div>
+
             <!-- Primary Thumb Action: Download ZIP -->
             <button id="btn-download-zip" class="btn-primary-mobile">
               <span>Descargar las 3 páginas (ZIP)</span>

@@ -14,7 +14,7 @@ Editor de carruseles panorámicos para móvil y escritorio. Crea una historia co
 - **Recorte sin desplazamientos:** oculta los píxeles descartados conservando la posición, el tamaño y el encuadre de la foto. El recorte se conserva al guardar y exportar.
 - **Eliminar páginas:** selecciona una miniatura y pulsa la papelera. Elimina los elementos cuyo centro pertenece a esa página y desplaza los de las páginas posteriores; se puede deshacer. Siempre queda al menos una página.
 - **Texto editable:** contenido, tipografía, tamaño, color, alineación, sombra y opacidad.
-- **Exportación:** PNG individual, ZIP de todas las páginas o panorama completo. Formatos 4:5 (1080 × 1350), 1:1 (1080 × 1080) y 9:16 (1080 × 1920), de 1 a 10 páginas.
+- **Exportación:** PNG individual, ZIP de todas las páginas o panorama completo. Formatos 4:5 (1080 × 1350), 1:1 (1080 × 1080) y 9:16 (1080 × 1920), de 1 a 10 páginas. Si el lienzo incluye vídeo o GIF, aparece además la exportación en **WebM del panorama** con duración, FPS, códec (VP9/VP8) y calidad, incluida una opción sin compresión de 50 Mbps.
 - **Accesibilidad:** controles con etiquetas, foco de teclado, cierre con Escape, aislamiento del fondo en los diálogos y respeto a movimiento reducido.
 
 ## Ejecutar

@@ -136,6 +136,72 @@ export class CanvasExporter {
   }
 
   /**
+   * Records the full panorama while videos and GIFs play.
+   */
+  async downloadVideo({ duration = 6, fps = 30, bitrate = 50000000, codec = 'vp9' } = {}, onProgress = null) {
+    const engine = this.engine;
+    if (typeof MediaRecorder === 'undefined') {
+      throw new Error('Este navegador no permite grabar vídeo.');
+    }
+    const seconds = Math.min(30, Math.max(1, Number(duration) || 6));
+    const rate = Math.min(60, Math.max(1, Number(fps) || 30));
+    const canvas = document.createElement('canvas');
+    canvas.width = engine.totalWidth;
+    canvas.height = engine.totalHeight;
+    if (typeof canvas.captureStream !== 'function') {
+      throw new Error('Este navegador no permite capturar el lienzo.');
+    }
+    const ctx = canvas.getContext('2d');
+    this.renderContent(ctx, canvas.width, canvas.height);
+
+    // Restart video items so the recording begins at their first frame.
+    for (const item of engine.items) {
+      const media = item.image;
+      if (item.mediaType === 'video' && media) {
+        try { media.currentTime = 0; } catch { /* not seekable */ }
+        media.play?.().catch(() => {});
+      }
+    }
+
+    const stream = canvas.captureStream(rate);
+    const mimeType = codec === 'vp8'
+      ? 'video/webm;codecs=vp8'
+      : (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : 'video/webm;codecs=vp8');
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
+    const chunks = [];
+    recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+    const stopped = new Promise((resolve, reject) => {
+      recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+      recorder.onerror = () => reject(new Error('No se pudo grabar el vídeo.'));
+    });
+
+    let frame = 0;
+    let lastDraw = 0;
+    const interval = 1000 / rate;
+    const loop = (now) => {
+      if (now - lastDraw >= interval) {
+        this.renderContent(ctx, canvas.width, canvas.height);
+        lastDraw = now;
+      }
+      frame = requestAnimationFrame(loop);
+    };
+
+    onProgress?.(`Grabando ${seconds} s a ${rate} fps…`);
+    recorder.start(250);
+    frame = requestAnimationFrame(loop);
+    await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+    cancelAnimationFrame(frame);
+    recorder.stop();
+    const blob = await stopped;
+    stream.getTracks().forEach((track) => track.stop());
+    canvas.width = canvas.height = 0;
+    this.triggerDownload(blob, `notscrl-video-${engine.slideCount}-slides.webm`);
+    return blob;
+  }
+
+  /**
    * Slices all slides and packs them into a single ZIP file for 1-click download
    */
   async downloadAllAsZip(onProgress = null) {

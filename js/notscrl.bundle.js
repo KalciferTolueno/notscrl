@@ -2755,6 +2755,72 @@ class CanvasExporter {
   }
 
   /**
+   * Records the full panorama while videos and GIFs play.
+   */
+  async downloadVideo({ duration = 6, fps = 30, bitrate = 50000000, codec = 'vp9' } = {}, onProgress = null) {
+    const engine = this.engine;
+    if (typeof MediaRecorder === 'undefined') {
+      throw new Error('Este navegador no permite grabar vídeo.');
+    }
+    const seconds = Math.min(30, Math.max(1, Number(duration) || 6));
+    const rate = Math.min(60, Math.max(1, Number(fps) || 30));
+    const canvas = document.createElement('canvas');
+    canvas.width = engine.totalWidth;
+    canvas.height = engine.totalHeight;
+    if (typeof canvas.captureStream !== 'function') {
+      throw new Error('Este navegador no permite capturar el lienzo.');
+    }
+    const ctx = canvas.getContext('2d');
+    this.renderContent(ctx, canvas.width, canvas.height);
+
+    // Restart video items so the recording begins at their first frame.
+    for (const item of engine.items) {
+      const media = item.image;
+      if (item.mediaType === 'video' && media) {
+        try { media.currentTime = 0; } catch { /* not seekable */ }
+        media.play?.().catch(() => {});
+      }
+    }
+
+    const stream = canvas.captureStream(rate);
+    const mimeType = codec === 'vp8'
+      ? 'video/webm;codecs=vp8'
+      : (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : 'video/webm;codecs=vp8');
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
+    const chunks = [];
+    recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+    const stopped = new Promise((resolve, reject) => {
+      recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+      recorder.onerror = () => reject(new Error('No se pudo grabar el vídeo.'));
+    });
+
+    let frame = 0;
+    let lastDraw = 0;
+    const interval = 1000 / rate;
+    const loop = (now) => {
+      if (now - lastDraw >= interval) {
+        this.renderContent(ctx, canvas.width, canvas.height);
+        lastDraw = now;
+      }
+      frame = requestAnimationFrame(loop);
+    };
+
+    onProgress?.(`Grabando ${seconds} s a ${rate} fps…`);
+    recorder.start(250);
+    frame = requestAnimationFrame(loop);
+    await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+    cancelAnimationFrame(frame);
+    recorder.stop();
+    const blob = await stopped;
+    stream.getTracks().forEach((track) => track.stop());
+    canvas.width = canvas.height = 0;
+    this.triggerDownload(blob, `notscrl-video-${engine.slideCount}-slides.webm`);
+    return blob;
+  }
+
+  /**
    * Slices all slides and packs them into a single ZIP file for 1-click download
    */
   async downloadAllAsZip(onProgress = null) {
@@ -7556,6 +7622,30 @@ class NotScrlMobileApp {
         finally { this.btnPanorama.disabled = false; }
       });
     }
+
+    const videoButton = document.getElementById('btn-download-video');
+    if (videoButton) {
+      videoButton.addEventListener('click', async () => {
+        const status = document.getElementById('export-status-label');
+        const duration = Number(document.getElementById('export-video-duration')?.value) || 6;
+        const fps = Number(document.getElementById('export-video-fps')?.value) || 30;
+        const bitrate = Number(document.getElementById('export-video-quality')?.value) || 50000000;
+        const codec = document.getElementById('export-video-format')?.value || 'vp9';
+        videoButton.disabled = true;
+        status.textContent = 'Grabando vídeo…';
+        try {
+          await this.exporter.downloadVideo({ duration, fps, bitrate, codec }, (message) => {
+            status.textContent = message;
+          });
+          status.textContent = `Vídeo WebM descargado (${duration} s, ${fps} fps).`;
+          this.studio?.toast('Vídeo exportado.');
+        } catch (error) {
+          status.textContent = error.message || 'No se pudo exportar el vídeo.';
+        } finally {
+          videoButton.disabled = false;
+        }
+      });
+    }
   }
 
   openExportSheet() {
@@ -7563,6 +7653,7 @@ class NotScrlMobileApp {
       index: i + 1, canvas: this.exporter.renderThumbnail(i, 180)
     }));
     document.querySelector('.export-subtitle').textContent = `${pageCountLabel(this.engine.slideCount)}, ${this.engine.slideWidth} × ${this.engine.slideHeight} px`;
+    document.getElementById('export-video-options')?.classList.toggle('hidden', !this.engine.hasAnimatedMedia());
 
     this.stripContainer.innerHTML = '';
     slides.forEach(slide => {

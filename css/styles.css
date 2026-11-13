@@ -7613,3 +7613,48 @@ select option {
   border-bottom: 0;
   border-radius: 20px 20px 0 0;
 }
+
+/* Video export block */
+.export-video {
+  margin: 10px 0 14px;
+  padding: 12px;
+  border: 1px solid var(--glass-dark-border);
+  border-radius: 16px;
+  background: #ffffff0a;
+}
+.export-video-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.export-video-head small {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: right;
+}
+.export-video-head .drawer-section-label {
+  margin: 0;
+  padding: 0;
+}
+.export-video-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.export-video-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.export-video-grid input,
+.export-video-grid select {
+  min-height: 40px;
+}
+#btn-download-video {
+  margin-bottom: 0;
+}
