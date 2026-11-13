@@ -450,3 +450,21 @@ test('Opening the app without a draft does not create a phantom project on exit'
   assert.equal(writes, 0);
   assert.equal(storage.projectId, null);
 });
+
+test('Text wraps by words and breaks words that are wider than the item', () => {
+  const { TextItem } = load('js/objects.js', ['TextItem']);
+  const measure = { measureText: (text) => ({ width: text.length * 5 }) };
+  const item = new TextItem('uno dos tres cuatro cinco', 0, 0, 100, 80);
+  item.padding = 0;
+  assert.deepEqual(Array.from(item.wrapLines(measure, 50)), ['uno dos', 'tres', 'cuatro', 'cinco']);
+
+  const long = new TextItem('supercalifragilistico', 0, 0, 100, 80);
+  long.padding = 0;
+  const chunks = Array.from(long.wrapLines(measure, 30));
+  assert.ok(chunks.length > 1);
+  for (const chunk of chunks) assert.ok(measure.measureText(chunk).width <= 30);
+
+  const paragraphs = new TextItem('linea uno\nlinea dos', 0, 0, 200, 80);
+  paragraphs.padding = 0;
+  assert.deepEqual(Array.from(paragraphs.wrapLines(measure, 200)), ['linea uno', 'linea dos']);
+});

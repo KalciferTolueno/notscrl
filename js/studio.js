@@ -461,6 +461,7 @@ export class Studio {
     else this.engine.fitToScreen(false);
     this.renderPages();
     this.update();
+    this.engine.ensureAnimationLoop();
     this.app.syncInspector?.(true);
   }
 

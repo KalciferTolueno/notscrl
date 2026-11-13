@@ -677,6 +677,7 @@ class NotScrlMobileApp {
       textInput.addEventListener('input', (e) => {
         if (this.engine.selectedItem && this.engine.selectedItem.type === 'text') {
           this.engine.selectedItem.text = e.target.value;
+          this.fitTextItem(this.engine.selectedItem);
           this.engine.triggerChange();
         }
       });
@@ -1455,6 +1456,7 @@ class NotScrlMobileApp {
         const item = this.engine.selectedItem;
         if (!item || item.type !== 'text') return;
         item[property] = convert(e.target.value);
+        this.fitTextItem(item);
         this.engine.triggerChange();
       });
     }
@@ -1488,6 +1490,7 @@ class NotScrlMobileApp {
       const item = selectedText();
       if (!item) return;
       fn(item);
+      this.fitTextItem(item);
       this.engine.triggerChange();
     };
     const commit = () => {
@@ -1495,8 +1498,7 @@ class NotScrlMobileApp {
     };
     const clampSize = () => Math.max(10, Math.min(240, Number(size.value) || 48));
 
-    input.addEventListener('input', () => apply(item => { item.text = input.value; }));
-    input.addEventListener('change', commit);
+    input.addEventListener('input', () => apply(item => { item.text = input.value; }));    input.addEventListener('change', commit);
     font.addEventListener('change', () => {
       apply(item => { item.fontFamily = font.value; });
       commit();
@@ -1554,9 +1556,24 @@ class NotScrlMobileApp {
       item.textAlign = align.value;
       item.fontWeight = bold.getAttribute('aria-pressed') === 'true' ? '700' : '400';
       item.fontStyle = italic.getAttribute('aria-pressed') === 'true' ? 'italic' : 'normal';
+      this.fitTextItem(item);
       this.engine.addItem(item);
       this.studio?.toast?.('Texto añadido.');
     });
+  }
+
+  // Grow a text box so wrapped lines stay inside it.
+  fitTextItem(item) {
+    if (!item || item.type !== 'text') return;
+    this.measureCtx ||= document.createElement('canvas').getContext('2d');
+    const ctx = this.measureCtx;
+    ctx.font = `${item.fontStyle} ${item.fontWeight} ${item.fontSize}px ${item.fontFamily}`;
+    if (item.letterSpacing > 0 && ctx.letterSpacing !== undefined) {
+      ctx.letterSpacing = `${item.letterSpacing}px`;
+    }
+    const lines = item.wrapLines(ctx, Math.max(10, item.width - item.padding * 2));
+    const needed = Math.ceil(lines.length * item.fontSize * item.lineHeight + item.padding * 2);
+    if (needed > item.height) item.height = needed;
   }
 
   syncTextDrawer(item) {
@@ -1724,6 +1741,130 @@ class NotScrlMobileApp {
         }
       });
     }
+
+    const backupButton = document.getElementById('btn-export-project');
+    if (backupButton) {
+      backupButton.addEventListener('click', async () => {
+        const status = document.getElementById('export-status-label');
+        backupButton.disabled = true;
+        status.textContent = 'Preparando la copia de seguridad…';
+        try {
+          const size = await this.exportProjectBackup();
+          status.textContent = `Copia descargada (${Math.max(1, Math.round(size / 1024))} KB).`;
+        } catch (error) {
+          status.textContent = error.message || 'No se pudo crear la copia.';
+        } finally {
+          backupButton.disabled = false;
+        }
+      });
+    }
+
+    const importButton = document.getElementById('btn-import-project');
+    const importInput = document.getElementById('import-project-file');
+    if (importButton && importInput) {
+      importButton.addEventListener('click', () => importInput.click());
+      importInput.addEventListener('change', async () => {
+        const file = importInput.files?.[0];
+        if (!file) return;
+        const status = document.getElementById('export-status-label');
+        importButton.disabled = true;
+        status.textContent = 'Restaurando la copia…';
+        try {
+          await this.importProjectBackup(file);
+          status.textContent = 'Copia restaurada como un proyecto nuevo.';
+          this.closeExportSheet();
+          this.studio?.toast('Copia restaurada.');
+        } catch (error) {
+          status.textContent = error.message || 'No se pudo restaurar la copia.';
+        } finally {
+          importInput.value = '';
+          importButton.disabled = false;
+        }
+      });
+    }
+  }
+
+  async exportProjectBackup() {
+    await this.storage.flush();
+    const project = this.storage.captureProject();
+    const originals = {};
+    for (const item of this.engine.items) {
+      if (!item.originalKey || item.mediaType === 'video') continue;
+      try {
+        const blob = await this.storage.loadOriginal(item.originalKey);
+        originals[item.originalKey] = { data: await this.blobToBase64(blob), type: blob.type || 'image/jpeg' };
+      } catch {
+        /* The preview in imageSrc still backs up the layer. */
+      }
+    }
+    const payload = { app: 'notscrl', version: 1, exportedAt: new Date().toISOString(), project, originals };
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeName = (project.name || 'notscrl').replace(/[^\w\-]+/g, '-').slice(0, 60) || 'notscrl';
+    link.href = url;
+    link.download = `${safeName}.notscrl.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    return blob.size;
+  }
+
+  blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+      reader.onerror = () => reject(new Error('No se pudo leer un original.'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  base64ToBlob(data, type) {
+    const binary = atob(data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: type || 'application/octet-stream' });
+  }
+
+  async importProjectBackup(file) {
+    const text = await file.text();
+    let payload;
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      throw new Error('El archivo no es una copia válida.');
+    }
+    if (!payload || payload.app !== 'notscrl' || !Array.isArray(payload.project?.items)) {
+      throw new Error('El archivo no es una copia de NotSCRL.');
+    }
+    const keyMap = {};
+    for (const [oldKey, original] of Object.entries(payload.originals || {})) {
+      if (!original?.data) continue;
+      const blob = this.base64ToBlob(original.data, original.type);
+      keyMap[oldKey] = await this.storage.saveOriginal(
+        new File([blob], 'original', { type: original.type || 'image/jpeg' })
+      );
+    }
+    const source = payload.project;
+    const project = {
+      ...source,
+      id: crypto.randomUUID?.() || String(Date.now()),
+      name: `${source.name || 'Proyecto'} (importado)`,
+      timestamp: Date.now(),
+      items: source.items.map((item) => ({
+        ...item,
+        originalKey: keyMap[item.originalKey] || item.originalKey
+      }))
+    };
+    this.loadingProject = true;
+    this.storage.projectId = project.id;
+    this.storage.projectName = project.name;
+    await this.engine.restoreProject(project);
+    this.loadingProject = false;
+    this.studio.showEditor();
+    await this.storage.flush();
+    return project;
   }
 
   openExportSheet() {

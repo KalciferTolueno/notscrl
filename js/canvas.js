@@ -637,10 +637,16 @@ export class CanvasEngine {
 
   ensureAnimationLoop() {
     if (typeof requestAnimationFrame !== 'function' || this.animationFrame) return;
-    this.animationFrame = requestAnimationFrame(() => {
+    if (!this.hasAnimatedMedia() || this.enabled === false || document.hidden) return;
+    this.animationFrame = requestAnimationFrame((now) => {
       this.animationFrame = null;
-      if (!this.hasAnimatedMedia()) return;
-      this.render();
+      if (!this.hasAnimatedMedia() || this.enabled === false || document.hidden) return;
+      // 30 fps is enough for GIFs and keeps the canvas cheap.
+      if (now - (this.lastAnimationRender || 0) >= 33) {
+        this.lastAnimationRender = now;
+        this.render();
+      }
+      this.ensureAnimationLoop();
     });
   }
 
@@ -656,9 +662,11 @@ export class CanvasEngine {
       for (let i = 0; i < track.frameCount; i++) {
         const { image } = await decoder.decode({ frameIndex: i });
         const canvas = document.createElement('canvas');
-        canvas.width = image.displayWidth;
-        canvas.height = image.displayHeight;
-        canvas.getContext('2d').drawImage(image, 0, 0);
+        const maxSize = 480;
+        const scale = Math.min(1, maxSize / Math.max(image.displayWidth, image.displayHeight));
+        canvas.width = Math.max(1, Math.round(image.displayWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.displayHeight * scale));
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
         frames.push({ canvas, duration: Math.max(20, (image.duration || 70000) / 1000) });
         image.close();
       }
@@ -751,6 +759,10 @@ export class CanvasEngine {
         this.isSpacePressed = false;
         this.canvas.style.cursor = this.handMode ? 'grab' : 'default';
       }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) this.ensureAnimationLoop();
     });
 
     this.bindTouchEvents();

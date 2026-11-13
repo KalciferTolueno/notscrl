@@ -14,8 +14,9 @@ Editor de carruseles panorámicos para móvil y escritorio. Crea una historia co
 - **Fotos y composición:** recorte, ocho formas y marcos, encuadre con zoom, alineación, orden de capas, duplicación e historial. «Página completa» coloca una foto en los límites exactos de la página activa y restablece recorte, encuadre, giro y marcos; con igual proporción muestra la foto entera, con otra proporción aplica un recorte centrado. Se puede deshacer.
 - **Recorte sin desplazamientos:** oculta los píxeles descartados conservando la posición, el tamaño y el encuadre de la foto. El recorte se conserva al guardar y exportar.
 - **Eliminar páginas:** selecciona una miniatura y pulsa la papelera. Elimina los elementos cuyo centro pertenece a esa página y desplaza los de las páginas posteriores; se puede deshacer. Siempre queda al menos una página.
-- **Texto editable:** contenido, tipografía, tamaño, color, alineación, sombra y opacidad.
+- **Texto editable:** contenido, tipografía, tamaño, color, alineación, sombra y opacidad. El texto se ajusta solo al ancho del cuadro, con salto por palabras y corte de palabras largas; el alto crece si hacen falta más líneas.
 - **Exportación:** PNG individual, ZIP de todas las páginas o panorama completo. Formatos 4:5 (1080 × 1350), 1:1 (1080 × 1080) y 9:16 (1080 × 1920), de 1 a 10 páginas. Si el lienzo incluye vídeo o GIF, aparece además la exportación en **WebM del panorama** con duración, FPS, códec (VP9/VP8) y calidad, incluida una opción sin compresión de 50 Mbps.
+- **Copia de seguridad:** desde Exportar se descarga un `.notscrl.json` con el proyecto y los originales en base64. Restaurar copia crea un proyecto nuevo y conserva las fotos a resolución completa.
 - **Accesibilidad:** controles con etiquetas, foco de teclado, cierre con Escape, aislamiento del fondo en los diálogos y respeto a movimiento reducido.
 
 ## Ejecutar
@@ -40,7 +41,7 @@ node --test tests/studio.test.cjs
 node --check js/notscrl.bundle.js
 ```
 
-Las 20 pruebas cubren eliminación de páginas y recuperación, recortes sin cambios de posición o escala, ajuste móvil, fotos a página completa sin recorte cuando coincide la proporción, aislamiento de snapshots, importación secuencial, conservación y exportación de originales, recuperación de lienzos vacíos e imágenes, confirmación de transacciones, respaldo síncrono al salir, guardado con cuota local agotada, estados de cambios pendientes y coordenadas/dimensiones de exportación.
+Las 21 pruebas cubren eliminación de páginas y recuperación, recortes sin cambios de posición o escala, ajuste móvil, fotos a página completa sin recorte cuando coincide la proporción, aislamiento de snapshots, importación secuencial, conservación y exportación de originales, recuperación de lienzos vacíos e imágenes, confirmación de transacciones, respaldo síncrono al salir, guardado con cuota local agotada, estados de cambios pendientes, coordenadas/dimensiones de exportación y ajuste de línea de los textos.
 
 ## Guardado y privacidad
 

@@ -472,31 +472,65 @@ export class TextItem extends CanvasItem {
     ctx.font = `${this.fontStyle} ${this.fontWeight} ${this.fontSize}px ${this.fontFamily}`;
     ctx.fillStyle = this.color;
     ctx.textBaseline = 'middle';
+    if (this.letterSpacing > 0 && ctx.letterSpacing !== undefined) {
+      ctx.letterSpacing = `${this.letterSpacing}px`;
+    }
 
-    const lines = this.text.split('\n');
+    const maxWidth = Math.max(10, w - this.padding * 2);
+    const lines = this.wrapLines(ctx, maxWidth);
     const totalLineHeight = this.fontSize * this.lineHeight;
     const startY = (h - (lines.length - 1) * totalLineHeight) / 2;
 
+    ctx.textAlign =
+      this.textAlign === 'center' ? 'center' : this.textAlign === 'right' ? 'right' : 'left';
+    const lx =
+      this.textAlign === 'center' ? w / 2 : this.textAlign === 'right' ? w - this.padding : this.padding;
+
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const ly = startY + i * totalLineHeight;
-
-      let lx = this.padding;
-      if (this.textAlign === 'center') {
-        lx = w / 2;
-        ctx.textAlign = 'center';
-      } else if (this.textAlign === 'right') {
-        lx = w - this.padding;
-        ctx.textAlign = 'right';
-      } else {
-        ctx.textAlign = 'left';
-      }
-
-      if (this.letterSpacing > 0 && ctx.letterSpacing !== undefined) {
-        ctx.letterSpacing = `${this.letterSpacing}px`;
-      }
-      ctx.fillText(line, lx, ly);
+      ctx.fillText(lines[i], lx, startY + i * totalLineHeight);
     }
+  }
+
+  // Wrap by words to the item width; split very long words by characters.
+  wrapLines(ctx, maxWidth) {
+    const lines = [];
+    const paragraphs = String(this.text ?? '').split('\n');
+    for (const paragraph of paragraphs) {
+      const words = paragraph.split(/\s+/).filter(Boolean);
+      if (!words.length) {
+        lines.push('');
+        continue;
+      }
+      let line = '';
+      for (const word of words) {
+        const candidate = line ? `${line} ${word}` : word;
+        if (ctx.measureText(candidate).width <= maxWidth) {
+          line = candidate;
+          continue;
+        }
+        if (line) {
+          lines.push(line);
+          line = '';
+        }
+        if (ctx.measureText(word).width <= maxWidth) {
+          line = word;
+          continue;
+        }
+        let chunk = '';
+        for (const char of word) {
+          const next = chunk + char;
+          if (!chunk || ctx.measureText(next).width <= maxWidth) {
+            chunk = next;
+          } else {
+            lines.push(chunk);
+            chunk = char;
+          }
+        }
+        line = chunk;
+      }
+      if (line) lines.push(line);
+    }
+    return lines;
   }
 }
 

@@ -313,10 +313,13 @@ En escritorio el panel queda fijado al pie del inspector, siempre visible, con s
 - El contenedor de esa barra ya no pinta su propio velo, así que las esquinas superiores redondeadas (20 px) y su borde se ven sobre el lienzo.
 - Si el lienzo contiene vídeo o GIF, el diálogo de exportación añade un bloque de vídeo: duración (1–30 s), FPS (24/30/60), calidad (8, 20 o 50 Mbps sin compresión) y códec WebM VP9/VP8. Graba el panorama completo mientras los medios se reproducen; sin medios animados el bloque no aparece y se mantiene la exportación PNG.
 - El acordeón y el inspector son accesibles con teclado: las categorías responden a Enter y Espacio y exponen aria-expanded.
+- El texto hace salto de línea por palabras según el ancho del cuadro (y parte palabras más largas que el ancho). Al escribir o cambiar tipografía/tamaño, el alto del cuadro crece para que las líneas quepan.
+- Exportar incluye **Copia de seguridad (.json)** y **Restaurar copia**. El archivo lleva el proyecto serializado y los originales en base64; al restaurar se guardan los originales con claves nuevas, se remapean los `originalKey` y se abre como un proyecto nuevo, sin tocar el actual.
+- Rendimiento: el bucle de animación se detiene si la pestaña está oculta o el editor desactivado, dibuja como máximo a 30 fps y limita los frames de GIF a 480 px de lado. Al volver a la pestaña se reanuda.
 
 ### Validación
 
-`node build.js`, `node --check` y las 20 pruebas de `tests/studio.test.cjs` pasan. En navegador headless se comprobó: recarga en editor y en inicio, estado inicial del acordeón (cuatro categorías cerradas), exclusividad al abrir, ocultar capas, reordenación por arrastre y por Subir/Bajar, corazón en marcos cuadrados y anchos, y «Ocupar 2 páginas» con una foto vertical en 793 × 1190 dentro de una página de 1080 × 1350.
+`node build.js`, `node --check` y las 21 pruebas de `tests/studio.test.cjs` pasan. En navegador headless se comprobó: recarga en editor y en inicio, estado inicial del acordeón (cuatro categorías cerradas), exclusividad al abrir, ocultar capas, reordenación por arrastre y por Subir/Bajar, corazón en marcos cuadrados y anchos, «Ocupar 2 páginas» con una foto vertical en 793 × 1190 dentro de una página de 1080 × 1350, ajuste de línea de textos, exportación/importación de una copia con original, y el freno del bucle de animación con el editor desactivado.
 
 ### Límites actuales
 
