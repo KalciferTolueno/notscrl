@@ -301,6 +301,7 @@ En escritorio el panel queda fijado al pie del inspector, siempre visible, con s
 - La barra superior no tiene contenedor visual: el botón de volver, el nombre y las acciones flotan directamente sobre el fondo. En escritorio ocupa las tres columnas, de modo que el botón de volver queda en el borde izquierdo y no después del riel.
 - La tira de páginas reserva altura para las miniaturas de 60 px; antes el `max-height` recortaba su borde inferior y los botones parecían cortados.
 - En escritorio, el nombre del panorama y el porcentaje de zoom comparten fila con las miniaturas, a los lados, sin una línea extra encima.
+- El visor del lienzo tiene esquinas redondeadas (16 px en móvil, 22 px en escritorio) y recorta el contenido que llega a las esquinas al hacer zoom.
 - El acordeón y el inspector son accesibles con teclado: las categorías responden a Enter y Espacio y exponen aria-expanded.
 
 ### Validación

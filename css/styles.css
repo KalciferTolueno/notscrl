@@ -7438,3 +7438,14 @@ p,
     white-space: nowrap;
   }
 }
+
+/* Rounded canvas viewport: zoomed pages clip to the inner corners. */
+#canvas-workspace {
+  border-radius: 16px;
+}
+
+@media (min-width: 1024px) {
+  #canvas-workspace {
+    border-radius: 22px;
+  }
+}
