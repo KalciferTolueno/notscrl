@@ -279,7 +279,7 @@ El guardado sigue siendo local: un borrado de datos del navegador, almacenamient
 
 ### Inspector de propiedades
 
-En pantallas de 1024 px o más, las propiedades del elemento viven en una barra fija a la derecha. El panel se organiza en categorías plegables: **Posición y tamaño**, **Forma de recorte y marco**, **Alineación y ajuste de medidas** y **Ajustes visuales**. Todas empiezan minimizadas y abrir una cierra la anterior, de modo que el panel muestra solo el grupo que se está usando. El encabezado quedó reducido a la etiqueta PROPIEDADES; el tipo de elemento ya no se repite.
+En pantallas de 1024 px o más, las propiedades del elemento viven en una tarjeta de vidrio flotante a la derecha, separada de los bordes como el resto del chrome. El panel se organiza en categorías plegables: **Posición y tamaño**, **Forma de recorte y marco**, **Alineación y ajuste de medidas** y **Ajustes visuales**. Todas empiezan minimizadas y abrir una cierra la anterior, de modo que el panel muestra solo el grupo que se está usando. El encabezado quedó reducido a la etiqueta PROPIEDADES; el tipo de elemento ya no se repite.
 
 Las acciones que antes ocupaban la barra inferior del lienzo se trasladaron al inspector en una cuadrícula de cuatro botones: Recortar, Página completa, Duplicar y Eliminar. La barra inferior deja de mostrarse en escritorio y el lienzo gana esa altura. Recortar sigue disponible con doble clic y Eliminar con Supr o Backspace.
 

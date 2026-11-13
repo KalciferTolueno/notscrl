@@ -7338,3 +7338,17 @@ p,
     margin: 10px 16px 0;
   }
 }
+
+/* Desktop inspector: a floating glass card that matches the other chrome. */
+@media (min-width: 1024px) {
+  #desktop-inspector {
+    margin: 10px 14px 14px 0;
+    border: 1px solid var(--glass-dark-border);
+    border-radius: 20px;
+    background: rgba(20, 19, 17, 0.62);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    backdrop-filter: blur(20px) saturate(150%);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+  }
+}
