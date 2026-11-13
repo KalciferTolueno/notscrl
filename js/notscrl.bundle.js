@@ -1618,7 +1618,7 @@ class CanvasEngine {
           item = await this.restoreVideoItem(data);
         } else {
           const image = new Image();
-          image.src = data.imageSrc;
+          if (data.imageSrc) image.src = data.imageSrc;
           if (data.mediaType === 'gif') document.getElementById('gif-stage')?.appendChild(image);
           try { await image.decode(); } catch { /* Keep the layer available if its source is missing. */ }
           item = data.type === 'sticker'
@@ -6165,7 +6165,7 @@ class Studio {
       const select = document.createElement("button");
       select.type = "button";
       select.className = "layer-select";
-      if (item.image) {
+      if (item.image && item.image.naturalWidth > 0) {
         const img = document.createElement("img");
         img.src = item.image.src;
         img.alt = "";

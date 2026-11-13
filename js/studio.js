@@ -1032,7 +1032,7 @@ export class Studio {
       const select = document.createElement("button");
       select.type = "button";
       select.className = "layer-select";
-      if (item.image) {
+      if (item.image && item.image.naturalWidth > 0) {
         const img = document.createElement("img");
         img.src = item.image.src;
         img.alt = "";

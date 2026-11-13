@@ -7728,3 +7728,455 @@ select option {
     border-color: #cfcabb;
   }
 }
+
+/* ================================================================
+   Pulido general: una acción de color en la cabecera del editor,
+   el botón de vista previa es neutro y los campos de texto ya no
+   quedan dentro de un contenedor en forma de píldora.
+   ================================================================ */
+#btn-preview-ig,
+#btn-preview-ig:hover:not(:disabled) {
+  color: var(--text-secondary);
+  background: transparent;
+}
+#btn-save-draft,
+#btn-save-draft:hover {
+  color: var(--text-primary);
+  background: #ffffff14;
+  border: 1px solid #ffffff1f;
+  box-shadow: inset 0 1px 0 #ffffff1f;
+}
+#btn-open-export,
+#btn-open-export:hover {
+  color: #fff;
+  font-weight: 600;
+  background: linear-gradient(150deg, #f2906b, #e2603a);
+  border: 1px solid #ffb79e80;
+  box-shadow: 0 10px 24px -12px #e2603ab3, inset 0 1px 0 #ffd9c780;
+}
+#mobile-field-text,
+#mobile-field-polaroid {
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+  min-height: 0;
+}
+.drawer-tab-content select,
+.drawer-tab-content input[type="text"],
+.drawer-tab-content textarea,
+.mobile-text-preset-btn,
+.text-style-row input:not([type="color"]),
+.text-style-row select {
+  border-radius: 14px;
+}
+
+/* ================================================================
+   Pulido móvil (≤ 640 px): escala de app con títulos de 17 px,
+   etiquetas de 13 px y acciones de 15 px; objetivos táctiles de
+   40–48 px; campos de 16 px (iOS no amplía al escribir) y
+   borradores en lista, como en una app de notas.
+   ================================================================ */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Hojas y paneles */
+  .drawer-header {
+    padding: 4px 16px 10px;
+  }
+  .drawer-title {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    color: var(--text-primary);
+  }
+  .drawer-close-btn {
+    min-width: 40px !important;
+    min-height: 40px !important;
+  }
+  .drawer-body {
+    padding: 4px 16px 18px;
+  }
+  .drawer-section-label {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: #ffffff8f;
+    margin: 18px 0 8px;
+  }
+  .btn-primary-mobile,
+  .btn-secondary-mobile {
+    min-height: 48px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .btn-primary-mobile {
+    margin-bottom: 10px;
+  }
+  .drawer-tab-content select,
+  .drawer-tab-content input[type="text"],
+  .text-style-row input:not([type="color"]),
+  .text-style-row select {
+    min-height: 46px;
+  }
+  .text-style-row {
+    font-size: 13px;
+  }
+  .text-style-row input[type="color"] {
+    width: 100%;
+    height: 46px;
+    margin: 8px 0 16px;
+    padding: 5px;
+    border-radius: 14px;
+  }
+  .text-format-btn {
+    width: 48px;
+    height: 44px;
+    border-radius: 14px;
+  }
+  .emoji-btn {
+    min-height: 40px;
+    font-size: 20px;
+  }
+  .adjust-row {
+    min-height: 52px;
+    padding: 8px 16px;
+    font-size: 14px;
+    border-radius: 16px;
+  }
+  .shape-choice-btn {
+    min-height: 76px;
+    font-size: 13px;
+    border-radius: 16px;
+  }
+  .btn-align-pill {
+    min-height: 48px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+  .upload-text-wrap h3 {
+    font-size: 15px;
+  }
+  .upload-text-wrap p {
+    font-size: 13px;
+  }
+  .segment-btn,
+  .giphy-activate {
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .stk-create {
+    padding: 12px;
+  }
+  .stk-create-copy b {
+    font-size: 15px;
+  }
+  .stk-create-copy small {
+    font-size: 12px;
+  }
+  .mobile-sticker-card {
+    min-height: 96px;
+  }
+  .mobile-sticker-card img {
+    max-height: 72px;
+  }
+  .stk-head-title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--text-primary);
+  }
+  .stk-upload {
+    font-size: 15px;
+  }
+  .stk-upload small,
+  .stk-hint {
+    font-size: 12px;
+  }
+  .stk-slider,
+  .stk-toggle,
+  .stk-link,
+  .stk-btn {
+    font-size: 13px;
+  }
+  .stk-seg button {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .stk-btn {
+    min-height: 40px;
+    padding: 0 12px;
+  }
+  .mobile-palette-btn {
+    height: 52px;
+    border-radius: 14px;
+  }
+  #drawer-tab-templates .mobile-template-card {
+    height: 132px;
+  }
+  #drawer-tab-templates .mobile-template-card[data-template="blank"] {
+    grid-column: 1 / -1;
+    height: 84px;
+  }
+  #drawer-tab-templates .template-badge {
+    font-size: 11px;
+  }
+  #drawer-tab-templates .template-name {
+    font-size: 14px;
+  }
+
+  /* Editor: cabecera, herramientas, páginas y pestañas */
+  #mobile-header {
+    min-height: 56px;
+    padding: 6px 10px;
+    gap: 8px;
+  }
+  #mobile-header .icon-btn-circle {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+  }
+  .project-heading input {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .project-heading span {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #mobile-header .btn-header-cta {
+    min-height: 40px;
+    padding: 0 14px;
+    font-size: 14px;
+  }
+  #canvas-workspace .canvas-float-top button {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  @media (max-width: 380px) {
+    #canvas-workspace .canvas-float-top button {
+      width: 38px;
+      height: 38px;
+      min-width: 38px;
+      min-height: 38px;
+    }
+    .canvas-float-top {
+      gap: 3px;
+    }
+  }
+  @media (max-width: 340px) {
+    #mobile-header {
+      gap: 6px;
+    }
+    #mobile-header .btn-header-cta {
+      padding: 0 10px;
+    }
+    .canvas-float-top {
+      gap: 2px;
+      padding: 4px;
+    }
+    #canvas-workspace .canvas-float-top button {
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      min-height: 34px;
+    }
+  }
+  #page-strip {
+    max-height: 52px;
+  }
+  .page-thumb {
+    height: 46px;
+    min-width: 38px;
+  }
+  .page-thumb canvas {
+    height: 38px;
+  }
+  .pages-bar .icon-btn-circle {
+    width: 40px;
+    height: 40px;
+  }
+  .page-status-pill {
+    min-height: 30px;
+    font-size: 12px;
+  }
+  .nav-tab-btn {
+    min-height: 52px;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .nav-tab-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+  #context-action-bar .context-btn {
+    min-width: 62px;
+    min-height: 52px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  #context-action-bar .context-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Export y nuevo proyecto */
+  #export-modal .export-title {
+    font-size: 26px;
+  }
+  #export-modal .export-subtitle,
+  #export-modal #export-status-label {
+    font-size: 13px;
+  }
+  #export-modal .export-hint {
+    font-size: 12px;
+  }
+  #export-modal .export-mini-card {
+    flex: 0 0 104px;
+  }
+  #export-modal .export-mini-info span,
+  #export-modal .btn-mini-dl {
+    font-size: 11px;
+  }
+  #export-modal .export-action {
+    min-height: 44px;
+    font-size: 14px;
+  }
+  #export-modal .btn-primary-mobile {
+    min-height: 50px;
+    font-size: 16px;
+  }
+  #new-project-dialog label {
+    font-size: 13px;
+  }
+  #new-project-dialog input,
+  #new-project-dialog select {
+    min-height: 44px;
+  }
+  #new-project-dialog .create-project-btn {
+    min-height: 50px;
+    font-size: 16px;
+    border-radius: 14px !important;
+  }
+  #new-project-dialog .dialog-top button {
+    width: 36px;
+    height: 36px;
+  }
+  #studio-toast {
+    font-size: 14px;
+  }
+
+  /* Inicio: portada más baja, títulos de sección y barra de pestañas */
+  .glass-pill {
+    height: 44px;
+    font-size: 14px;
+  }
+  .home-icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .hero-card {
+    height: 300px;
+  }
+  .hero-card .hero-kicker {
+    font-size: 12px;
+  }
+  .hero-card .hero-facts {
+    font-size: 13px;
+  }
+  .hero-card .hero-go {
+    height: 44px;
+    font-size: 14px;
+  }
+  .section-heading h2 {
+    font-size: 28px;
+    letter-spacing: -0.8px;
+  }
+  .home-rail-head h2 {
+    font-size: 14px;
+    color: #6a6459;
+  }
+  .home-rail-head .text-link {
+    font-size: 14px;
+  }
+  .rail-card b {
+    font-size: 14px;
+  }
+  .rail-card small {
+    font-size: 12px;
+  }
+  .home-nav button {
+    min-height: 46px;
+    font-size: 13px;
+  }
+
+  /* Borradores en lista: miniatura 4:5 a la izquierda y acciones a la derecha */
+  .project-list {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .project-card {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 8px 10px 10px;
+    border-radius: 20px !important;
+  }
+  .project-open {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+  }
+  .project-thumb {
+    flex: 0 0 76px;
+    width: 76px;
+    height: 96px;
+    padding: 4px;
+    border-radius: 12px;
+  }
+  .draft-badge {
+    display: none;
+  }
+  .project-card-info {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    padding: 0;
+  }
+  .project-card strong {
+    font-size: 16px;
+    padding-right: 0;
+  }
+  .project-card small {
+    font-size: 13px;
+    margin-top: 4px;
+  }
+  .project-actions {
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0;
+  }
+  .project-action {
+    position: relative;
+    width: 36px;
+    height: 36px;
+  }
+  .project-action::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+  }
+}

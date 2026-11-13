@@ -558,7 +558,7 @@ export class CanvasEngine {
           item = await this.restoreVideoItem(data);
         } else {
           const image = new Image();
-          image.src = data.imageSrc;
+          if (data.imageSrc) image.src = data.imageSrc;
           if (data.mediaType === 'gif') document.getElementById('gif-stage')?.appendChild(image);
           try { await image.decode(); } catch { /* Keep the layer available if its source is missing. */ }
           item = data.type === 'sticker'
