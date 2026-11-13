@@ -7409,3 +7409,32 @@ p,
     align-items: center;
   }
 }
+
+/* Desktop page bar: label and zoom sit beside the thumbnails, not above them. */
+@media (min-width: 1024px) {
+  .pages-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 6px 24px 8px;
+  }
+  .pages-bar .pages-label {
+    display: contents;
+  }
+  #active-page-label {
+    order: 1;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .pages-bar .page-navigation {
+    order: 2;
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+  #canvas-zoom-label {
+    order: 3;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
