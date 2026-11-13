@@ -7567,3 +7567,29 @@ p,
   font-family: Georgia, "Times New Roman", serif;
   font-size: 17px;
 }
+
+/* Bundled display fonts (SIL OFL) */
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('../fonts/PressStart2P-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Bungee';
+  src: url('../fonts/Bungee-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Russo One';
+  src: url('../fonts/RussoOne-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* Native dropdowns inherit the dark scheme instead of a white popup. */
+select {
+  color-scheme: dark;
+}
+select option {
+  background-color: #1c1b19;
+  color: #f6f3ea;
+}

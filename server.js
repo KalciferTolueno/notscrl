@@ -25,6 +25,9 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon',
   '.wasm': 'application/wasm',
   '.onnx': 'application/octet-stream',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.woff2': 'font/woff2',
   '.zip': 'application/zip'
 };
 

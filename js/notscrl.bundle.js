@@ -189,7 +189,12 @@ const FONTS = [
   { name: 'Clásica · Times', family: "'Cinzel', 'Times New Roman', serif" },
   { name: 'Manuscrita', family: "'Caveat', 'Segoe Print', 'Brush Script MT', cursive" },
   { name: 'Máquina de escribir', family: "'Courier Prime', 'Courier New', monospace" },
-  { name: 'Impacto', family: "'Oswald', Impact, sans-serif" }
+  { name: 'Impacto', family: "'Oswald', Impact, sans-serif" },
+  { name: 'Pixel · Minecraft', family: "'Press Start 2P', monospace" },
+  { name: 'Bungee', family: "'Bungee', Impact, sans-serif" },
+  { name: 'Espacial · Among Us', family: "'Russo One', 'Segoe UI', sans-serif" },
+  { name: 'Cómic', family: "'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', cursive" },
+  { name: 'Manuscrita divertida', family: "'Ink Free', 'Segoe Print', 'Bradley Hand', cursive" }
 ];
 
 // Helper to convert SVG string to safe Data URI
