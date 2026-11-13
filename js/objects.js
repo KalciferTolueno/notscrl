@@ -16,6 +16,7 @@ export class CanvasItem {
     this.height = height;
     this.rotation = 0; // degrees
     this.opacity = 1.0;
+    this.visible = true;
     this.zIndex = 0;
     this.isLocked = false;
     this.shadow = {
@@ -392,17 +393,21 @@ export class ImageItem extends CanvasItem {
   }
 
   drawHeartPath(ctx, w, h) {
-    // Proportional heart curve strictly centered inside min(w, h)
+    // Classic heart: two lobes, a deep centre notch and a pointed bottom.
+    // Sized to the shortest side so a wide frame does not stretch it into an oval.
     const s = Math.min(w, h);
     const ox = (w - s) / 2;
     const oy = (h - s) / 2;
-    const topCurveHeight = s * 0.3;
+    const x = (u) => ox + u * s;
+    const y = (v) => oy + v * s;
 
-    ctx.moveTo(ox + s / 2, oy + s);
-    // Left curve
-    ctx.bezierCurveTo(ox, oy + s * 0.65, ox, oy + topCurveHeight, ox + s / 2, oy + topCurveHeight);
-    // Right curve
-    ctx.bezierCurveTo(ox + s, oy + topCurveHeight, ox + s, oy + s * 0.65, ox + s / 2, oy + s);
+    ctx.moveTo(x(0.5), y(1));
+    ctx.bezierCurveTo(x(0.2), y(0.75), x(0), y(0.55), x(0), y(0.32));
+    ctx.bezierCurveTo(x(0), y(0.12), x(0.15), y(0), x(0.3), y(0));
+    ctx.bezierCurveTo(x(0.42), y(0), x(0.5), y(0.1), x(0.5), y(0.2));
+    ctx.bezierCurveTo(x(0.5), y(0.1), x(0.58), y(0), x(0.7), y(0));
+    ctx.bezierCurveTo(x(0.85), y(0), x(1), y(0.12), x(1), y(0.32));
+    ctx.bezierCurveTo(x(1), y(0.55), x(0.8), y(0.75), x(0.5), y(1));
     ctx.closePath();
   }
 

@@ -31,7 +31,10 @@ export class CanvasExporter {
 
   renderContent(ctx, width, height) {
     this.renderBackground(ctx, width, height);
-    for (const item of this.engine.items) item.render(ctx);
+    for (const item of this.engine.items) {
+      if (item.visible === false) continue;
+      item.render(ctx);
+    }
   }
 
   renderBackground(ctx, width, height) {
@@ -57,6 +60,7 @@ export class CanvasExporter {
     const items = engine.items.map(item => Object.assign(Object.create(Object.getPrototypeOf(item)), item));
     try {
       for (const item of items) {
+        if (item.visible === false) continue;
         if (!item.originalKey || item.mediaType === 'video') {
           item.render(ctx);
           continue;
@@ -158,6 +162,24 @@ export class CanvasExporter {
 
     if (onProgress) {
       onProgress('Tu carrusel está listo. Descarga iniciada.', 1.0);
+    }
+  }
+
+  /**
+   * Downloads every slide as its own PNG, no ZIP involved.
+   * Browsers throttle multiple downloads from one gesture, so the status
+   * message tells the user to allow them if a prompt appears.
+   */
+  async downloadAllSlides(onProgress = null) {
+    const total = this.engine.slideCount;
+    for (let i = 0; i < total; i++) {
+      const canvas = await this.renderOriginals(i);
+      let blob;
+      try { blob = await this.toBlob(canvas); }
+      finally { canvas.width = canvas.height = 0; }
+      this.triggerDownload(blob, `notscrl-slide-${String(i + 1).padStart(2, '0')}.png`);
+      if (onProgress) onProgress(`Descargando página ${i + 1} de ${total}…`);
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }
 

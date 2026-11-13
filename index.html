@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <title>NotSCRL — Tu estudio creativo</title>
+    <title>BRB — Tu estudio creativo</title>
     <meta name="theme-color" content="#f5f3ee" />
     <meta
       name="description"
@@ -17,7 +17,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="NotSCRL" />
+    <meta name="apple-mobile-web-app-title" content="BRB" />
     <meta name="mobile-web-app-capable" content="yes" />
     <link
       rel="icon"
@@ -36,20 +36,11 @@
       <div id="mobile-app-shell">
         <section id="home-view" aria-label="Estudio creativo">
           <header class="home-header">
-            <a href="#inicio" class="wordmark" aria-label="NotSCRL, inicio"
-              ><span class="brand-symbol" aria-hidden="true">n.</span
-              >NotSCRL<span class="wordmark-label">ESTUDIO CREATIVO</span></a
+            <a href="#inicio" class="wordmark" aria-label="BRB, inicio"
+              ><span class="brand-symbol" aria-hidden="true">b.</span
+              >BRB<span class="wordmark-label">BE RIGHT BACK</span></a
             >
             <div class="home-header-actions">
-              <button
-                class="home-header-cta create-project-btn"
-                data-new-project
-                aria-label="Nuevo carrusel"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 5v14M5 12h14" /></svg
-                ><span>Nuevo carrusel</span>
-              </button>
               <button
                 class="home-icon-btn"
                 id="btn-help"
@@ -60,74 +51,65 @@
                   <path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4m0 3h.01" />
                 </svg>
               </button>
+              <button
+                class="glass-pill home-new-pill"
+                data-new-project
+                aria-label="Nuevo carrusel"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" /></svg
+                ><span>Nuevo</span>
+              </button>
             </div>
           </header>
           <div class="home-scroll">
             <div class="home-content">
-              <section id="home-intro">
-                <p class="eyebrow">CARRUSELES PANORÁMICOS</p>
-                <h1>¿Qué creamos hoy?</h1>
-                <p class="intro-copy">
-                  Empieza algo nuevo o sigue donde lo dejaste.
-                </p>
-              </section>
-              <section id="projects-section" class="home-section">
-                <div id="drafts-info" class="drafts-info hidden">
-                  <span class="saved-symbol" aria-hidden="true">✓</span>
-                  <div>
-                    <strong>Guardado automático</strong>
-                    <p id="drafts-storage-status" role="status">
-                      Se guardan en este dispositivo mientras editas.
-                    </p>
-                  </div>
+              <h1 class="sr-only">¿Qué creamos hoy?</h1>
+
+              <section id="home-continue" aria-label="Continuar">
+                <div id="home-hero"></div>
+
+                <div class="home-rail-head" id="home-drafts-head">
+                  <h2>Tus borradores</h2>
+                  <button class="text-link" data-home-tab="projects">
+                    Ver todos
+                  </button>
                 </div>
+                <div id="home-draft-rail" class="home-rail"></div>
+
+                <div class="home-band">
+                  <div class="home-rail-head">
+                    <h2>Plantillas</h2>
+                    <button class="text-link" data-home-tab="templates">
+                      Explorar
+                    </button>
+                  </div>
+                  <div id="home-template-rail" class="home-rail"></div>
+                </div>
+              </section>
+
+              <section id="projects-section" class="home-section hidden">
                 <div class="section-heading">
                   <div>
                     <span class="eyebrow">A tu ritmo</span>
                     <h2 id="projects-heading">Borradores recientes</h2>
                   </div>
-                  <button class="text-link" data-home-tab="projects">
-                    Ver todos <span aria-hidden="true">↗</span>
-                  </button>
                 </div>
                 <div id="project-list" class="project-list" aria-live="polite">
                   <p class="empty-projects">Buscando tus borradores…</p>
                 </div>
               </section>
-              <section id="templates-section" class="home-section">
+              <section id="templates-section" class="home-section hidden">
                 <div class="section-heading">
                   <div>
                     <span class="eyebrow">Para empezar</span>
                     <h2 id="templates-heading">Encuentra tu estilo</h2>
                   </div>
-                  <button class="text-link" data-home-tab="templates">
-                    Explorar <span aria-hidden="true">↗</span>
-                  </button>
                 </div>
                 <div id="home-template-list" class="template-gallery"></div>
               </section>
-              <div class="privacy-note">
-                <svg viewBox="0 0 24 24">
-                  <rect x="5" y="10" width="14" height="11" rx="3" />
-                  <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-                </svg>
-                <div>
-                  <strong>Guardado en este navegador.</strong><br />Las fotos y
-                  los proyectos no se sincronizan entre dispositivos.
-                </div>
-              </div>
             </div>
           </div>
-          <button
-            id="home-create"
-            class="create-project-btn"
-            data-new-project
-            aria-label="Nuevo carrusel"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" /></svg
-            ><span>Nuevo carrusel</span>
-          </button>
           <nav class="home-nav" aria-label="Navegación del estudio">
             <button data-home-tab="home" class="active">
               <svg viewBox="0 0 24 24">
@@ -207,9 +189,9 @@
           <div class="canvas-float-top">
             <div class="editor-settings" id="editor-settings">
               <select id="aspect-ratio-select" aria-label="Formato del carrusel">
-                <option value="4:5">4:5 · Retrato</option>
-                <option value="1:1">1:1 · Cuadrado</option>
-                <option value="9:16">9:16 · Historia</option>
+                <option value="4:5">4:5 Retrato</option>
+                <option value="1:1">1:1 Cuadrado</option>
+                <option value="9:16">9:16 Historia</option>
               </select>
               <div class="stepper-pill">
                 <span><b id="slide-count-display">3</b> <span id="slide-count-unit">páginas</span></span
@@ -217,7 +199,7 @@
                   id="btn-plus-slide"
                   class="stepper-btn"
                   aria-label="Añadir página (máximo 10 páginas)"
-                  title="Añadir página después de la actual · máximo 10"
+                  title="Añadir página después de la actual (máximo 10)"
                 >
                   +
                 </button>
@@ -341,11 +323,10 @@
           >
             <header class="inspector-head">
               <span class="inspector-eyebrow">PROPIEDADES</span>
-              <span id="inspector-selection" class="inspector-selection">Sin selección</span>
             </header>
             <div class="inspector-body">
-              <section id="inspector-transform" class="inspector-section">
-                <span class="inspector-label">Posición y tamaño</span>
+              <section id="inspector-transform" class="inspector-section adjust-group">
+                <span class="inspector-label drawer-section-label">Posición y tamaño</span>
                 <div class="inspector-fields">
                   <label for="insp-x">X<input id="insp-x" type="number" step="1" inputmode="numeric" /></label>
                   <label for="insp-y">Y<input id="insp-y" type="number" step="1" inputmode="numeric" /></label>
@@ -353,22 +334,27 @@
                   <label for="insp-width">Ancho<input id="insp-width" type="number" min="1" step="1" inputmode="numeric" /></label>
                   <label for="insp-height">Alto<input id="insp-height" type="number" min="1" step="1" inputmode="numeric" /></label>
                 </div>
+                <div class="inspector-actions">
+                  <button id="insp-crop" type="button" data-image-only>Recortar</button>
+                  <button id="insp-fill" type="button" data-image-only>Página completa</button>
+                  <button id="insp-duplicate" type="button">Duplicar</button>
+                  <button id="insp-delete" type="button" class="danger">Eliminar</button>
+                </div>
               </section>
               <div id="inspector-adjustments"></div>
               <p id="inspector-empty" class="inspector-empty">
-                Selecciona un elemento del lienzo para ajustar su posición, forma
-                y orden de capas.
+                Selecciona un elemento del lienzo.
               </p>
-              <section id="inspector-layers" class="inspector-section">
-                <span class="inspector-label">Capas</span>
-                <div id="inspector-layers-host"></div>
-              </section>
             </div>
+            <section id="inspector-layers" class="inspector-section">
+              <span class="inspector-label">Capas</span>
+              <div id="inspector-layers-host"></div>
+            </section>
           </aside>
 
           <div id="selection-toolbar">
             <span id="selection-hint"
-              >Toca para editar · Pellizca para acercar</span
+              >Toca para editar, pellizca para acercar</span
             >
             <!-- ================= 3. CONTEXT ACTION BAR (FLOATS AT TOP UNDER HEADER) ================= -->
             <div
@@ -638,7 +624,7 @@
               ><span id="canvas-zoom-label">100%</span>
             </div>
             <div class="page-navigation">
-              <span id="page-status-pill" class="page-status-pill" aria-hidden="true">01/03 · 100%</span>
+              <span id="page-status-pill" class="page-status-pill" aria-hidden="true">01/03 (100%)</span>
               <div class="page-strip-wrap">
                 <div id="page-strip" aria-label="Páginas del carrusel"></div>
                 <span id="page-strip-cue" class="page-strip-cue hidden" aria-hidden="true">›</span>
@@ -652,7 +638,7 @@
             </div>
           </div>
           <!-- ================= 4. MOBILE BOTTOM NAV BAR (PRIMARY THUMB ZONE) ================= -->
-          <nav id="mobile-bottom-bar" class="liquid-glass">
+          <nav id="mobile-bottom-bar" aria-label="Herramientas">
             <button class="nav-tab-btn" data-tab="photos">
               <svg
                 viewBox="0 0 24 24"
@@ -770,7 +756,6 @@
                 </div>
                 <div class="upload-text-wrap">
                   <h3>Añadir fotos, GIFs o vídeos</h3>
-                  <p>Desde tu galería, directo a tu historia</p>
                 </div></button
               ><input
                 type="file"
@@ -784,14 +769,13 @@
 
             <!-- 2. Text Tab -->
             <div id="drawer-tab-text" class="drawer-tab-content">
-              <div class="drawer-section-label">Estilos tipográficos</div>
               <button
                 id="btn-add-mobile-heading"
                 class="mobile-text-preset-btn"
               >
                 <div
                   style="
-                    font-family: &quot;Playfair Display&quot;, serif;
+                    font-family: Georgia, serif;
                     font-size: 18px;
                     font-weight: 700;
                   "
@@ -805,7 +789,7 @@
                     margin-top: 2px;
                   "
                 >
-                  Serif editorial · 52 px
+                  Serif editorial, 52 px
                 </div>
               </button>
               <button
@@ -814,7 +798,7 @@
               >
                 <div
                   style="
-                    font-family: &quot;Inter&quot;, sans-serif;
+                    font-family: system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif;
                     font-size: 14px;
                     font-weight: 700;
                     letter-spacing: 1px;
@@ -829,7 +813,7 @@
                     margin-top: 2px;
                   "
                 >
-                  Sans moderna · 24 px
+                  Sans moderna, 24 px
                 </div>
               </button>
               <button id="btn-add-mobile-body" class="mobile-text-preset-btn">
@@ -874,6 +858,18 @@
               </div>
 
               <div id="segment-stickers">
+                <button type="button" class="stk-create" id="btn-open-sticker-studio">
+                  <span class="stk-create-icon">✂️</span>
+                  <span class="stk-create-copy">
+                    <b>Crear sticker</b>
+                    <small>Recorta un objeto de una foto</small>
+                  </span>
+                  <span class="stk-create-arrow" aria-hidden="true">→</span>
+                </button>
+                <div class="drawer-section-label" id="custom-stickers-label">
+                  Tus stickers
+                </div>
+                <div class="drawer-grid-2col" id="custom-stickers-grid"></div>
                 <div class="drawer-section-label">
                   Cintas washi, sellos y vintage
                 </div>
@@ -881,7 +877,7 @@
               </div>
 
               <div id="segment-gifs" class="hidden">
-                <div class="drawer-section-label">GIFs · Giphy · opcional</div>
+                <div class="drawer-section-label">GIFs de Giphy (opcional)</div>
                 <div class="giphy-setup" id="giphy-setup">
                   <p>
                     Los stickers ya están listos. Los GIFs son opcionales:
@@ -932,48 +928,28 @@
 
             <!-- 4. Templates Tab -->
             <div id="drawer-tab-templates" class="drawer-tab-content">
-              <div class="drawer-section-label">Plantillas y lienzo</div>
               <!-- Clean Blank White Canvas at top -->
-              <div class="mobile-template-card" data-template="blank">
-                <div class="template-badge">Empezar de cero</div>
-                <div class="template-name">Lienzo blanco vacío</div>
-                <div class="template-desc">
-                  Borra el lienzo y empieza con un fondo blanco.
-                </div>
-              </div>
+              <button type="button" class="mobile-template-card" data-template="blank">
+                <span class="template-badge">Empezar de cero</span>
+                <span class="template-name">Lienzo blanco vacío</span>
+              </button>
 
-              <div class="mobile-template-card" data-template="panorama">
-                <div class="template-badge">Firma SCRL</div>
-                <div class="template-name">Wanderlust Panorama</div>
-                <div class="template-desc">
-                  Una foto apaisada cruza las 3 páginas; lleva tipografía y una
-                  polaroid.
-                </div>
-              </div>
-              <div class="mobile-template-card" data-template="editorial">
-                <div class="template-badge">Vogue Aesthetic</div>
-                <div class="template-name">Editorial Magazine</div>
-                <div class="template-desc">
-                  Composición de alta costura, marcos arquitectónicos y citas
-                  minimalistas.
-                </div>
-              </div>
-              <div class="mobile-template-card" data-template="scrapbook">
-                <div class="template-badge">Photo Dump</div>
-                <div class="template-name">Nostalgic Scrapbook</div>
-                <div class="template-desc">
-                  Polaroids inclinadas sobre las costuras con cinta adhesiva
-                  washi.
-                </div>
-              </div>
-              <div class="mobile-template-card" data-template="filmstrip">
-                <div class="template-badge">35mm Vintage</div>
-                <div class="template-name">Analog Film Roll</div>
-                <div class="template-desc">
-                  Perforaciones de película de 35mm, código de barras y códigos
-                  Kodak.
-                </div>
-              </div>
+              <button type="button" class="mobile-template-card" data-template="panorama">
+                <span class="template-badge">Firma SCRL</span>
+                <span class="template-name">Wanderlust Panorama</span>
+              </button>
+              <button type="button" class="mobile-template-card" data-template="editorial">
+                <span class="template-badge">Vogue Aesthetic</span>
+                <span class="template-name">Editorial Magazine</span>
+              </button>
+              <button type="button" class="mobile-template-card" data-template="scrapbook">
+                <span class="template-badge">Photo Dump</span>
+                <span class="template-name">Nostalgic Scrapbook</span>
+              </button>
+              <button type="button" class="mobile-template-card" data-template="filmstrip">
+                <span class="template-badge">35mm Vintage</span>
+                <span class="template-name">Analog Film Roll</span>
+              </button>
             </div>
 
             <!-- 5. Background Tab -->
@@ -989,6 +965,7 @@
               <div id="layers-list" class="hidden"></div>
               <div id="object-adjustments">
                 <!-- Shape and Frame clipping -->
+                <div class="adjust-group">
                 <div class="drawer-section-label" id="shape-section-label">
                   Forma de recorte y marco
                 </div>
@@ -1092,8 +1069,10 @@
                     <span>Film 35mm</span>
                   </button>
                 </div>
+                </div>
 
                 <!-- Alignment & Measurement Tools -->
+                <div class="adjust-group">
                 <div class="drawer-section-label">
                   Alineación y ajuste de medidas
                 </div>
@@ -1162,6 +1141,7 @@
                     <span>Ocupar 2 páginas</span>
                   </button>
                 </div>
+                </div>
 
                 <!-- Polaroid caption input -->
                 <div
@@ -1181,7 +1161,7 @@
                     id="mobile-input-polaroid"
                     class="mobile-text-preset-btn"
                     style="padding: 10px; font-size: 13px"
-                    placeholder="Escribe aquí..."
+                    placeholder="Escribe aquí…"
                   />
                 </div>
 
@@ -1235,6 +1215,8 @@
                     >
                   </div>
                 </div>
+                <div class="adjust-group">
+                <div class="drawer-section-label">Ajustes visuales</div>
                 <div class="adjust-row" id="radius-field">
                   <label for="mobile-slider-radius">Borde redondeado:</label>
                   <input
@@ -1243,6 +1225,7 @@
                     min="0"
                     max="60"
                     value="0"
+                    data-suffix="px"
                   />
                 </div>
 
@@ -1255,6 +1238,7 @@
                     max="1.0"
                     step="0.05"
                     value="1.0"
+                    data-format="percent"
                   />
                 </div>
 
@@ -1296,45 +1280,6 @@
                     <span>Ajustar encuadre de la foto</span>
                   </button>
                 </div>
-
-                <div class="drawer-section-label" style="margin-top: 14px">
-                  Capas de profundidad
-                </div>
-                <div
-                  style="
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 8px;
-                  "
-                >
-                  <button
-                    id="btn-mobile-step-up"
-                    class="btn-secondary-mobile"
-                    style="padding: 10px"
-                  >
-                    Subir 1 capa
-                  </button>
-                  <button
-                    id="btn-mobile-step-down"
-                    class="btn-secondary-mobile"
-                    style="padding: 10px"
-                  >
-                    Bajar 1 capa
-                  </button>
-                  <button
-                    id="btn-mobile-layer-up"
-                    class="btn-secondary-mobile"
-                    style="padding: 10px"
-                  >
-                    Al frente
-                  </button>
-                  <button
-                    id="btn-mobile-layer-down"
-                    class="btn-secondary-mobile"
-                    style="padding: 10px"
-                  >
-                    Al fondo
-                  </button>
                 </div>
               </div>
             </div>
@@ -1433,6 +1378,147 @@
         </div>
 
         <!-- ================= 7. INTERNAL IMAGE CROPPER MODAL ================= -->
+        <div id="sticker-modal" class="mobile-modal-overlay hidden" aria-hidden="true">
+          <div
+            class="stk-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sticker-title"
+          >
+            <header class="stk-head">
+              <div class="stk-head-title">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M4 15.5 15.5 4a2.1 2.1 0 0 1 3 3L7 18.5H4z" />
+                  <path d="M4 21h16" />
+                </svg>
+                <span id="sticker-title">Crear sticker</span>
+              </div>
+              <button
+                class="ig-close-btn"
+                id="btn-close-sticker"
+                aria-label="Cerrar editor de sticker"
+              >
+                ✕
+              </button>
+            </header>
+
+            <div class="stk-stage" id="sticker-stage">
+              <canvas id="sticker-canvas" aria-label="Vista del sticker"></canvas>
+              <div class="stk-empty" id="sticker-empty">
+                <button type="button" class="stk-upload" id="btn-sticker-upload">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <span>Elegir imagen</span>
+                  <small>JPG, PNG o WebP; se recorta el fondo solo</small>
+                </button>
+              </div>
+              <div class="stk-hint hidden" id="sticker-hint" role="status"></div>
+            </div>
+
+            <div class="stk-controls hidden" id="sticker-controls">
+              <div class="stk-row">
+                <div class="stk-seg" role="group" aria-label="Herramienta">
+                  <button type="button" data-brush="erase" class="active">
+                    Borrar
+                  </button>
+                  <button type="button" data-brush="restore">Recuperar</button>
+                </div>
+                <label class="stk-slider"
+                  >Pincel
+                  <input
+                    id="sticker-brush"
+                    type="range"
+                    min="8"
+                    max="72"
+                    value="28"
+                    data-suffix="px"
+                /></label>
+              </div>
+
+              <div class="stk-row">
+                <label class="stk-slider"
+                  >Tolerancia
+                  <input
+                    id="sticker-tolerance"
+                    type="range"
+                    min="4"
+                    max="80"
+                    value="24"
+                /></label>
+                <button type="button" class="stk-btn" id="btn-sticker-auto">
+                  Detectar
+                </button>
+              </div>
+
+              <div class="stk-row">
+                <label class="stk-toggle"
+                  ><input type="checkbox" id="sticker-outline" /> Contorno</label
+                >
+                <label class="stk-slider"
+                  >Grosor
+                  <input
+                    id="sticker-outline-width"
+                    type="range"
+                    min="2"
+                    max="24"
+                    value="8"
+                    data-suffix="px"
+                /></label>
+                <div class="stk-swatches" id="sticker-swatches">
+                  <button
+                    type="button"
+                    data-color="#ffffff"
+                    class="active"
+                    style="--c: #ffffff"
+                    aria-label="Contorno blanco"
+                  ></button>
+                  <button
+                    type="button"
+                    data-color="#141310"
+                    style="--c: #141310"
+                    aria-label="Contorno negro"
+                  ></button>
+                  <button
+                    type="button"
+                    data-color="#f5e9d8"
+                    style="--c: #f5e9d8"
+                    aria-label="Contorno crema"
+                  ></button>
+                </div>
+              </div>
+
+              <button type="button" class="stk-link" id="btn-sticker-change">
+                Cambiar foto
+              </button>
+            </div>
+
+            <footer class="stk-foot">
+              <button type="button" class="btn-secondary-mobile" id="btn-sticker-cancel">
+                Cancelar
+              </button>
+              <button type="button" class="btn-primary-mobile" id="btn-sticker-save" disabled>
+                Guardar sticker
+              </button>
+            </footer>
+            <input type="file" id="sticker-file" accept="image/*" class="hidden" />
+          </div>
+        </div>
+
         <div id="crop-modal" class="mobile-modal-overlay hidden">
           <div class="crop-modal-container">
             <!-- Crop Header -->
@@ -1627,6 +1713,7 @@
                   max="3.5"
                   step="0.05"
                   value="1.0"
+                  data-no-value
                   style="flex: 1"
                 />
                 <span style="font-size: 12px">3.5x</span>
@@ -1680,7 +1767,6 @@
           class="mobile-modal-overlay hidden"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="export-title"
         >
           <div class="export-sheet-card">
             <div
@@ -1691,18 +1777,15 @@
               "
             >
               <div>
-                <div class="export-hero-badge">TU HISTORIA, LISTA</div>
                 <div
                   class="export-title"
                   id="export-title"
                   role="heading"
                   aria-level="2"
                 >
-                  Que siga la historia.
+                  Exportar
                 </div>
-                <div class="export-subtitle">
-                  Cortado automáticamente en alta resolución (1080p).
-                </div>
+                <div class="export-subtitle">Alta resolución, 1080p</div>
               </div>
               <button class="drawer-close-btn" id="btn-close-export-sheet">
                 ✕
@@ -1711,16 +1794,22 @@
 
             <!-- Horizontal Previews Strip -->
             <div class="export-strip-scroll" id="export-strip-container"></div>
+            <p class="export-hint">Toca una página para descargarla en PNG.</p>
 
             <!-- Primary Thumb Action: Download ZIP -->
             <button id="btn-download-zip" class="btn-primary-mobile">
-              <span>Descargar 3 páginas · ZIP</span>
+              <span>Descargar las 3 páginas (ZIP)</span>
             </button>
 
-            <!-- Secondary Action: Full Panorama -->
-            <button id="btn-download-panorama" class="btn-secondary-mobile">
-              <span>Descargar panorama completo</span>
-            </button>
+            <!-- Two ways out: loose pages or the whole ribbon -->
+            <div class="export-actions">
+              <button id="btn-download-slides" class="export-action">
+                Páginas sueltas
+              </button>
+              <button id="btn-download-panorama" class="export-action">
+                Panorama completo
+              </button>
+            </div>
 
             <div
               role="status"
@@ -1732,22 +1821,21 @@
                 color: var(--text-tertiary);
                 margin-top: 10px;
               "
-            >
-              Descarga instantánea generada en tu dispositivo
-            </div>
+            ></div>
           </div>
         </div>
 
-        <dialog id="new-project-dialog" class="studio-dialog">
+        <dialog
+          id="new-project-dialog"
+          class="studio-dialog"
+          aria-label="Nuevo proyecto"
+        >
           <form id="new-project-form">
             <div class="dialog-top">
-              <span class="eyebrow">UNA NUEVA HISTORIA</span
-              ><button type="button" data-close-dialog aria-label="Cerrar">
+              <button type="button" data-close-dialog aria-label="Cerrar">
                 ✕
               </button>
             </div>
-            <h2>Hazlo tuyo.</h2>
-            <p>Tus páginas forman una sola imagen continua.</p>
             <label for="new-project-name">Nombre del proyecto</label
             ><input
               id="new-project-name"
@@ -1755,22 +1843,26 @@
               placeholder="Mi próxima historia"
               autocomplete="off"
             />
-            <label for="new-project-ratio">Formato</label
-            ><select id="new-project-ratio">
-              <option value="4:5">4:5 · Retrato — 1080 × 1350</option>
-              <option value="1:1">1:1 · Cuadrado — 1080 × 1080</option>
-              <option value="9:16">9:16 · Historia — 1080 × 1920</option>
-            </select>
-            <label for="new-project-count">Número de páginas</label>
-            <div class="count-input">
-              <input
-                id="new-project-count"
-                type="number"
-                min="1"
-                max="10"
-                value="3"
-                required
-              /><span>De 1 a 10 páginas conectadas</span>
+            <div class="dialog-row">
+              <div>
+                <label for="new-project-ratio">Formato</label
+                ><select id="new-project-ratio">
+                  <option value="4:5">4:5 Retrato</option>
+                  <option value="1:1">1:1 Cuadrado</option>
+                  <option value="9:16">9:16 Historia</option>
+                </select>
+              </div>
+              <div>
+                <label for="new-project-count">Páginas</label
+                ><input
+                  id="new-project-count"
+                  type="number"
+                  min="1"
+                  max="10"
+                  value="3"
+                  required
+                />
+              </div>
             </div>
             <button type="submit" class="create-project-btn">
               Empezar a crear <span aria-hidden="true">↗</span>
@@ -1808,9 +1900,9 @@
               <div>
                 <strong>Ordena tus páginas</strong>
                 <p>
-                  Mantén presionada una miniatura para moverla. Duplica o elimina
-                  desde la barra de páginas; el borrado se puede deshacer en el
-                  aviso. Máximo 10 páginas por carrusel.
+                  Arrastra una miniatura para moverla. Duplica o elimina desde la
+                  barra de páginas; el borrado se puede deshacer en el aviso.
+                  Máximo 10 páginas por carrusel.
                 </p>
               </div>
             </li>

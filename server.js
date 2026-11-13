@@ -1,5 +1,5 @@
 /**
- * Zero-Dependency Local Static HTTP Server for NotSCRL
+ * Zero-Dependency Local Static HTTP Server for BRB
  * Uses native Node.js http, fs, and path modules (No npm install needed)
  */
 
@@ -23,6 +23,8 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
+  '.wasm': 'application/wasm',
+  '.onnx': 'application/octet-stream',
   '.zip': 'application/zip'
 };
 
@@ -127,7 +129,7 @@ const LOCAL_IP = getLocalIp();
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n======================================================`);
-  console.log(`🚀 NotSCRL Web Studio is live!`);
+  console.log(`🚀 BRB Studio is live!`);
   console.log(`💻 Local:   http://localhost:${PORT}`);
   console.log(`📱 Móvil:   http://${LOCAL_IP}:${PORT}`);
   console.log(`📁 Carpeta: ${BASE_DIR}`);

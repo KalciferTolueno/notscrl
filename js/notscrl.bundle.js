@@ -184,8 +184,8 @@ const PALETTES = [
 ];
 
 const FONTS = [
-  { name: 'Editorial · Georgia', family: "'Playfair Display', Georgia, serif" },
-  { name: 'Moderna · Sistema', family: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" },
+  { name: 'Editorial · Georgia', family: 'Georgia, "Times New Roman", serif' },
+  { name: 'Moderna · Sistema', family: 'system-ui, -apple-system, "Segoe UI", sans-serif' },
   { name: 'Clásica · Times', family: "'Cinzel', 'Times New Roman', serif" },
   { name: 'Manuscrita', family: "'Caveat', 'Segoe Print', 'Brush Script MT', cursive" },
   { name: 'Máquina de escribir', family: "'Courier Prime', 'Courier New', monospace" },
@@ -518,6 +518,7 @@ class CanvasItem {
     this.height = height;
     this.rotation = 0; // degrees
     this.opacity = 1.0;
+    this.visible = true;
     this.zIndex = 0;
     this.isLocked = false;
     this.shadow = {
@@ -894,17 +895,21 @@ class ImageItem extends CanvasItem {
   }
 
   drawHeartPath(ctx, w, h) {
-    // Proportional heart curve strictly centered inside min(w, h)
+    // Classic heart: two lobes, a deep centre notch and a pointed bottom.
+    // Sized to the shortest side so a wide frame does not stretch it into an oval.
     const s = Math.min(w, h);
     const ox = (w - s) / 2;
     const oy = (h - s) / 2;
-    const topCurveHeight = s * 0.3;
+    const x = (u) => ox + u * s;
+    const y = (v) => oy + v * s;
 
-    ctx.moveTo(ox + s / 2, oy + s);
-    // Left curve
-    ctx.bezierCurveTo(ox, oy + s * 0.65, ox, oy + topCurveHeight, ox + s / 2, oy + topCurveHeight);
-    // Right curve
-    ctx.bezierCurveTo(ox + s, oy + topCurveHeight, ox + s, oy + s * 0.65, ox + s / 2, oy + s);
+    ctx.moveTo(x(0.5), y(1));
+    ctx.bezierCurveTo(x(0.2), y(0.75), x(0), y(0.55), x(0), y(0.32));
+    ctx.bezierCurveTo(x(0), y(0.12), x(0.15), y(0), x(0.3), y(0));
+    ctx.bezierCurveTo(x(0.42), y(0), x(0.5), y(0.1), x(0.5), y(0.2));
+    ctx.bezierCurveTo(x(0.5), y(0.1), x(0.58), y(0), x(0.7), y(0));
+    ctx.bezierCurveTo(x(0.85), y(0), x(1), y(0.12), x(1), y(0.32));
+    ctx.bezierCurveTo(x(1), y(0.55), x(0.8), y(0.75), x(0.5), y(1));
     ctx.closePath();
   }
 
@@ -1472,6 +1477,15 @@ class CanvasEngine {
   reindexLayers() {
     this.items.forEach((it, i) => { it.zIndex = i; });
     this.saveHistory('Reorder layers');
+  }
+
+  // Front-to-back list (same order the layers panel shows).
+  setLayerOrder(frontToBack) {
+    if (!Array.isArray(frontToBack) || frontToBack.length !== this.items.length) return;
+    this.items = [...frontToBack].reverse();
+    this.items.forEach((item, i) => { item.zIndex = i; });
+    this.saveHistory('Reordenar capas');
+    this.triggerChange();
   }
 
   duplicateItem(item) {
@@ -2179,8 +2193,9 @@ class CanvasEngine {
     const ctx = this.ctx;
     ctx.save();
 
-    ctx.fillStyle = '#111310';
-    ctx.fillRect(0, 0, this.viewportWidth, this.viewportHeight);
+    // Transparent viewport: the editor's own background shows through, so the
+    // canvas and the chrome never meet in a visible seam.
+    ctx.clearRect(0, 0, this.viewportWidth, this.viewportHeight);
 
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.zoom, this.zoom);
@@ -2191,7 +2206,10 @@ class CanvasEngine {
     ctx.beginPath();
     ctx.rect(0, 0, this.totalWidth, this.totalHeight);
     ctx.clip();
-    for (const item of this.items) item.render(ctx);
+    for (const item of this.items) {
+      if (item.visible === false) continue;
+      item.render(ctx);
+    }
     ctx.restore();
 
     if (this.showGuides) {
@@ -2200,7 +2218,7 @@ class CanvasEngine {
 
     this.renderSnapLines(ctx);
 
-    if (this.selectedItem) {
+    if (this.selectedItem && this.selectedItem.visible !== false) {
       this.renderSelectionHandles(ctx, this.selectedItem);
     }
 
@@ -2214,9 +2232,8 @@ class CanvasEngine {
     const h = this.totalHeight;
 
     ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-    ctx.shadowBlur = 36 / this.zoom;
-    ctx.shadowOffsetY = 16 / this.zoom;
+    // No drop shadow: on a transparent viewport it would be cut off at the
+    // canvas edge and read as a seam above the page strip.
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
@@ -2605,7 +2622,10 @@ class CanvasExporter {
 
   renderContent(ctx, width, height) {
     this.renderBackground(ctx, width, height);
-    for (const item of this.engine.items) item.render(ctx);
+    for (const item of this.engine.items) {
+      if (item.visible === false) continue;
+      item.render(ctx);
+    }
   }
 
   renderBackground(ctx, width, height) {
@@ -2631,6 +2651,7 @@ class CanvasExporter {
     const items = engine.items.map(item => Object.assign(Object.create(Object.getPrototypeOf(item)), item));
     try {
       for (const item of items) {
+        if (item.visible === false) continue;
         if (!item.originalKey || item.mediaType === 'video') {
           item.render(ctx);
           continue;
@@ -2732,6 +2753,24 @@ class CanvasExporter {
 
     if (onProgress) {
       onProgress('Tu carrusel está listo. Descarga iniciada.', 1.0);
+    }
+  }
+
+  /**
+   * Downloads every slide as its own PNG, no ZIP involved.
+   * Browsers throttle multiple downloads from one gesture, so the status
+   * message tells the user to allow them if a prompt appears.
+   */
+  async downloadAllSlides(onProgress = null) {
+    const total = this.engine.slideCount;
+    for (let i = 0; i < total; i++) {
+      const canvas = await this.renderOriginals(i);
+      let blob;
+      try { blob = await this.toBlob(canvas); }
+      finally { canvas.width = canvas.height = 0; }
+      this.triggerDownload(blob, `notscrl-slide-${String(i + 1).padStart(2, '0')}.png`);
+      if (onProgress) onProgress(`Descargando página ${i + 1} de ${total}…`);
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }
 
@@ -3530,6 +3569,1076 @@ class FrameAdjuster {
 
 // ---- END js/frame-adjuster.js ----
 
+// ---- BEGIN js/segmenter.js ----
+﻿/**
+ * Sticker cut-out.
+ *
+ * Preferred path: ISNet (general use, 1024 px) on onnxruntime-web with the
+ * WebGPU backend. Fallback: silueta (pruned U²-Net, 320 px) on wasm, which
+ * needs no GPU. Both models and runtimes live in js/vendor, so nothing leaves
+ * the device; if they can't be fetched (file://) the caller keeps its border
+ * flood fill.
+ *
+ * After the model runs, the mask is cleaned so one sticker is one subject:
+ * largest connected blob, holes filled, thin clutter opened away, and backdrop
+ * that still touches the subject peeled off by colour.
+ */
+
+const ORT_WEBGPU = "js/vendor/ort-webgpu/";
+const ORT_WASM = "js/vendor/ort-wasm/";
+const ISNET = "js/vendor/models/isnet.onnx";
+const SILUETA = "js/vendor/models/silueta.onnx";
+const MEAN = [0.485, 0.456, 0.406];
+const STD = [0.229, 0.224, 0.225];
+
+let runtimePromise = null;
+let modelPromise = null;
+
+function loadRuntime(kind) {
+  if (window.ort) return Promise.resolve(window.ort);
+  if (runtimePromise) return runtimePromise;
+  const dir = kind === "webgpu" ? ORT_WEBGPU : ORT_WASM;
+  const file = kind === "webgpu" ? "ort.webgpu.min.js" : "ort.wasm.min.js";
+  runtimePromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = dir + file;
+    script.onload = () => {
+      const ort = window.ort;
+      if (!ort) {
+        reject(new Error("ort_missing"));
+        return;
+      }
+      ort.env.wasm.wasmPaths = new URL(dir, document.baseURI).href;
+      // Single thread: SharedArrayBuffer needs cross-origin isolation we don't have.
+      ort.env.wasm.numThreads = 1;
+      resolve(ort);
+    };
+    script.onerror = () => reject(new Error("ort_unavailable"));
+    document.head.appendChild(script);
+  }).catch((error) => {
+    runtimePromise = null;
+    throw error;
+  });
+  return runtimePromise;
+}
+
+async function getModel() {
+  if (modelPromise) return modelPromise;
+  modelPromise = (async () => {
+    if (navigator.gpu) {
+      try {
+        const ort = await loadRuntime("webgpu");
+        const session = await ort.InferenceSession.create(
+          new URL(ISNET, document.baseURI).href,
+          { executionProviders: ["webgpu"] },
+        );
+        return { ort, session, size: 1024, unit: true };
+      } catch (error) {
+        console.warn("WebGPU no disponible, usando wasm:", error);
+        delete window.ort;
+        runtimePromise = null;
+      }
+    }
+    const ort = await loadRuntime("wasm");
+    const session = await ort.InferenceSession.create(
+      new URL(SILUETA, document.baseURI).href,
+      { executionProviders: ["wasm"] },
+    );
+    return { ort, session, size: 320, unit: false };
+  })().catch((error) => {
+    modelPromise = null;
+    throw error;
+  });
+  return modelPromise;
+}
+
+// Returns a cut-out canvas, or null when the model finds no clear subject.
+async function cutoutWithAI(source) {
+  // Illustrations and memes often arrive already cut (transparent PNG). Then
+  // the source alpha *is* the answer: don't let a photo-trained model guess.
+  const existing = existingCutout(source);
+  if (existing) return existing;
+
+  const { ort, session, size, unit } = await getModel();
+  const input = new ort.Tensor("float32", toInput(source, size, unit), [
+    1,
+    3,
+    size,
+    size,
+  ]);
+  const feeds = {};
+  feeds[session.inputNames[0]] = input;
+  const results = await session.run(feeds);
+  const output = results[session.outputNames[0]];
+  return applyMask(source, output.data, output.dims, unit);
+}
+
+// A source that already has a real cut-out (transparent PNG) needs no model.
+function existingCutout(source) {
+  const w = source.width;
+  const h = source.height;
+  const ctx = document.createElement("canvas").getContext("2d");
+  ctx.canvas.width = w;
+  ctx.canvas.height = h;
+  ctx.drawImage(source, 0, 0);
+  const px = ctx.getImageData(0, 0, w, h).data;
+  let clear = 0;
+  for (let i = 3; i < px.length; i += 4) if (px[i] < 16) clear++;
+  if (clear / (w * h) < 0.08) return null;
+  const copy = document.createElement("canvas");
+  copy.width = w;
+  copy.height = h;
+  copy.getContext("2d").drawImage(source, 0, 0);
+  return copy;
+}
+
+function toInput(source, size, unit) {
+  const small = document.createElement("canvas");
+  small.width = size;
+  small.height = size;
+  const ctx = small.getContext("2d");
+  ctx.drawImage(source, 0, 0, size, size);
+  const px = ctx.getImageData(0, 0, size, size).data;
+  const n = size * size;
+  const data = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const p = i * 4;
+    if (unit) {
+      // ISNet's export expects plain 0..1 RGB.
+      data[i] = px[p] / 255;
+      data[n + i] = px[p + 1] / 255;
+      data[n * 2 + i] = px[p + 2] / 255;
+    } else {
+      data[i] = (px[p] / 255 - MEAN[0]) / STD[0];
+      data[n + i] = (px[p + 1] / 255 - MEAN[1]) / STD[1];
+      data[n * 2 + i] = (px[p + 2] / 255 - MEAN[2]) / STD[2];
+    }
+  }
+  return data;
+}
+
+function applyMask(source, values, dims, unit) {
+  const mw = dims[dims.length - 1];
+  const mh = dims[dims.length - 2];
+  if (mw * mh !== values.length) return null;
+
+  const alpha = new Float32Array(values.length);
+  if (unit) {
+    // The sigmoid output is already 0..1: sharpen the transition band instead
+    // of stretching it, so the edge stays tight but antialiased.
+    for (let i = 0; i < alpha.length; i++) {
+      let a = (values[i] - 0.35) / 0.3;
+      a = a < 0 ? 0 : a > 1 ? 1 : a;
+      alpha[i] = a < 0.06 ? 0 : a;
+    }
+  } else {
+    // Stretch to the 2–98 percentile band so soft edges survive but fog goes.
+    const sorted = Float32Array.from(values).sort();
+    const lo = sorted[Math.floor(sorted.length * 0.02)];
+    const hi = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.98))];
+    const span = hi - lo || 1;
+    for (let i = 0; i < alpha.length; i++) {
+      let a = (values[i] - lo) / span;
+      a = a < 0 ? 0 : a > 1 ? 1 : a;
+      alpha[i] = a < 0.06 ? 0 : a;
+    }
+  }
+
+  // Decisions (islands, holes, peeling, opening) run on a 512 grid: the same
+  // judgement at a quarter of the cost. The final alpha keeps the model's full
+  // resolution through the upscaled gate.
+  const gw = Math.min(512, mw);
+  const gh = Math.max(1, Math.round((mh * gw) / mw));
+  const coarse = resampleField(alpha, mw, mh, gw, gh);
+
+  let gate = keepMainSubject(coarse, gw, gh);
+  if (!gate) return null;
+  gate = trimBackdrop(gate, source, gw, gh);
+  gate = keepMainSubject(gate, gw, gh) || gate;
+
+  const soft = resampleField(gate, gw, gh, mw, mh);
+  const masked = new Float32Array(alpha.length);
+  let covered = 0;
+  for (let i = 0; i < alpha.length; i++) {
+    masked[i] = alpha[i] * soft[i];
+    if (masked[i] > 0.5) covered++;
+  }
+  const ratio = covered / masked.length;
+  if (ratio < 0.02 || ratio > 0.98) return null;
+
+  const mask = new ImageData(mw, mh);
+  const out = mask.data;
+  for (let i = 0; i < masked.length; i++) {
+    const p = i * 4;
+    out[p] = 255;
+    out[p + 1] = 255;
+    out[p + 2] = 255;
+    out[p + 3] = Math.round(masked[i] * 255);
+  }
+
+  const maskCanvas = document.createElement("canvas");
+  maskCanvas.width = mw;
+  maskCanvas.height = mh;
+  maskCanvas.getContext("2d").putImageData(mask, 0, 0);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = source.width;
+  canvas.height = source.height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(source, 0, 0);
+  ctx.globalCompositeOperation = "destination-in";
+  ctx.drawImage(maskCanvas, 0, 0, canvas.width, canvas.height);
+  ctx.globalCompositeOperation = "source-over";
+  return canvas;
+}
+
+// Largest connected blob (4-way), holes filled, used as a soft gate over the
+// model's alpha so fur and whiskers keep their detail inside the subject while
+// disconnected leftovers disappear.
+function keepMainSubject(alpha, w, h) {
+  const bin = new Uint8Array(w * h);
+  for (let i = 0; i < bin.length; i++) bin[i] = alpha[i] > 0.5 ? 1 : 0;
+
+  const label = new Int32Array(w * h).fill(-1);
+  const sizes = [];
+  const stack = [];
+  let next = 0;
+  for (let start = 0; start < bin.length; start++) {
+    if (!bin[start] || label[start] >= 0) continue;
+    const id = next++;
+    let count = 0;
+    label[start] = id;
+    stack.push(start);
+    while (stack.length) {
+      const i = stack.pop();
+      count++;
+      const x = i % w;
+      const y = (i - x) / w;
+      const visit = (nx, ny) => {
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
+        const j = ny * w + nx;
+        if (bin[j] && label[j] < 0) {
+          label[j] = id;
+          stack.push(j);
+        }
+      };
+      visit(x - 1, y);
+      visit(x + 1, y);
+      visit(x, y - 1);
+      visit(x, y + 1);
+    }
+    sizes.push(count);
+  }
+  if (!sizes.length) return null;
+  let best = 0;
+  for (let i = 1; i < sizes.length; i++) if (sizes[i] > sizes[best]) best = i;
+
+  const keep = new Uint8Array(w * h);
+  for (let i = 0; i < keep.length; i++) keep[i] = label[i] === best ? 1 : 0;
+
+  // Dropping whisker-thin clutter (grass, stems, cables) the model attached to
+  // the subject; the body keeps its shape because erode+dilate cancels out.
+  const r = Math.max(2, Math.round((Math.max(w, h) / 512) * 3));
+  openMask(keep, w, h, r);
+  // Closing seals pinholes and thin breaks before the background flood runs,
+  // so enclosed areas (a white shirt against a white backdrop) stay filled.
+  closeMask(keep, w, h, r);
+
+  // Flood the background from the border: whatever it can't reach is a hole.
+  const outside = new Uint8Array(w * h);
+  const queue = [];
+  const seed = (x, y) => {
+    const j = y * w + x;
+    if (!keep[j] && !outside[j]) {
+      outside[j] = 1;
+      queue.push(j);
+    }
+  };
+  for (let x = 0; x < w; x++) {
+    seed(x, 0);
+    seed(x, h - 1);
+  }
+  for (let y = 0; y < h; y++) {
+    seed(0, y);
+    seed(w - 1, y);
+  }
+  while (queue.length) {
+    const i = queue.pop();
+    const x = i % w;
+    const y = (i - x) / w;
+    if (x > 0) seed(x - 1, y);
+    if (x < w - 1) seed(x + 1, y);
+    if (y > 0) seed(x, y - 1);
+    if (y < h - 1) seed(x, y + 1);
+  }
+
+  // Soft, slightly dilated gate: keeps edge detail just outside the 0.5 cut.
+  const gate = new Float32Array(w * h);
+  for (let i = 0; i < gate.length; i++) gate[i] = outside[i] ? 0 : 1;
+  const soft = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (!gate[i]) continue;
+      let sum = 0;
+      let n = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          sum += gate[ny * w + nx];
+          n++;
+        }
+      }
+      soft[i] = Math.min(1, (sum / n) * 1.15);
+    }
+  }
+  const dilated = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let m = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const v = soft[ny * w + nx];
+          if (v > m) m = v;
+        }
+      }
+      dilated[y * w + x] = m;
+    }
+  }
+  const out = new Float32Array(w * h);
+  for (let i = 0; i < out.length; i++) out[i] = dilated[i];
+  return out;
+}
+
+// Bilinear resample of a 0..1 field through a canvas (GPU-friendly smoothing).
+function resampleField(field, w, h, tw, th) {
+  const src = document.createElement("canvas");
+  src.width = w;
+  src.height = h;
+  const data = src.getContext("2d").createImageData(w, h);
+  for (let i = 0; i < field.length; i++) {
+    const p = i * 4;
+    data.data[p] = 255;
+    data.data[p + 1] = 255;
+    data.data[p + 2] = 255;
+    data.data[p + 3] = Math.round(Math.max(0, Math.min(1, field[i])) * 255);
+  }
+  src.getContext("2d").putImageData(data, 0, 0);
+
+  const dst = document.createElement("canvas");
+  dst.width = tw;
+  dst.height = th;
+  const ctx = dst.getContext("2d");
+  ctx.drawImage(src, 0, 0, tw, th);
+  const px = ctx.getImageData(0, 0, tw, th).data;
+  const out = new Float32Array(tw * th);
+  for (let i = 0; i < out.length; i++) out[i] = px[i * 4 + 3] / 255;
+  return out;
+}
+
+// In-place morphological closing on a binary mask (dilate, then erode).
+function closeMask(mask, w, h, r) {
+  const grow = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let any = 0;
+      for (let dy = -r; dy <= r && !any; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= h) continue;
+        for (let dx = -r; dx <= r; dx++) {
+          const nx = x + dx;
+          if (nx >= 0 && nx < w && mask[ny * w + nx]) {
+            any = 1;
+            break;
+          }
+        }
+      }
+      grow[y * w + x] = any;
+    }
+  }
+  const shrink = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let solid = 1;
+      for (let dy = -r; dy <= r && solid; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= h) {
+          solid = 0;
+          break;
+        }
+        for (let dx = -r; dx <= r; dx++) {
+          const nx = x + dx;
+          if (nx < 0 || nx >= w || !grow[ny * w + nx]) {
+            solid = 0;
+            break;
+          }
+        }
+      }
+      shrink[y * w + x] = solid;
+    }
+  }
+  for (let i = 0; i < mask.length; i++) mask[i] = shrink[i];
+}
+
+// In-place morphological opening on a binary mask.
+function openMask(mask, w, h, r) {
+  const erode = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let solid = 1;
+      for (let dy = -r; dy <= r && solid; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= h) {
+          solid = 0;
+          break;
+        }
+        for (let dx = -r; dx <= r; dx++) {
+          const nx = x + dx;
+          if (nx < 0 || nx >= w || !mask[ny * w + nx]) {
+            solid = 0;
+            break;
+          }
+        }
+      }
+      erode[y * w + x] = solid;
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let any = 0;
+      for (let dy = -r; dy <= r && !any; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= h) continue;
+        for (let dx = -r; dx <= r; dx++) {
+          const nx = x + dx;
+          if (nx >= 0 && nx < w && erode[ny * w + nx]) {
+            any = 1;
+            break;
+          }
+        }
+      }
+      mask[y * w + x] = any;
+    }
+  }
+}
+
+// Peel backdrop that is still attached to the subject (grass, branches, chair
+// arms): flood inwards from the frame edge comparing each pixel with its
+// neighbour and with a palette of border colours, then peel matching pixels
+// that sit on the outline. The eroded core of the blob is never touched.
+function trimBackdrop(alpha, source, w, h) {
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(source, 0, 0, w, h);
+  const px = ctx.getImageData(0, 0, w, h).data;
+
+  const palette = [];
+  const step = Math.max(4, Math.round(Math.max(w, h) / 64));
+  const addColor = (x, y) => {
+    const p = (y * w + x) * 4;
+    palette.push(px[p], px[p + 1], px[p + 2]);
+  };
+  for (let x = 0; x < w; x += step) {
+    addColor(x, 0);
+    addColor(x, h - 1);
+  }
+  for (let y = 0; y < h; y += step) {
+    addColor(0, y);
+    addColor(w - 1, y);
+  }
+
+  // Core = pixels still opaque after a small erosion; those never get trimmed.
+  const core = new Uint8Array(w * h);
+  const R = Math.max(3, Math.round(Math.max(w, h) / 300));
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (alpha[y * w + x] <= 0.5) continue;
+      let solid = true;
+      for (let dy = -R; dy <= R && solid; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= h) {
+          solid = false;
+          break;
+        }
+        for (let dx = -R; dx <= R; dx++) {
+          const nx = x + dx;
+          if (nx < 0 || nx >= w || alpha[ny * w + nx] <= 0.5) {
+            solid = false;
+            break;
+          }
+        }
+      }
+      if (solid) core[y * w + x] = 1;
+    }
+  }
+
+  const limit = 44 * 44 * 3;
+  const localLimit = 26 * 26 * 3;
+  const seen = new Uint8Array(w * h);
+  const stack = [];
+  const push = (i, r, g, b) => {
+    if (seen[i]) return;
+    seen[i] = 1;
+    stack.push(i, r, g, b);
+  };
+  const seedAt = (x, y) => {
+    const i = y * w + x;
+    const p = i * 4;
+    push(i, px[p], px[p + 1], px[p + 2]);
+  };
+  for (let x = 0; x < w; x += 2) {
+    seedAt(x, 0);
+    seedAt(x, h - 1);
+  }
+  for (let y = 0; y < h; y += 2) {
+    seedAt(0, y);
+    seedAt(w - 1, y);
+  }
+  while (stack.length) {
+    const b = stack.pop();
+    const g = stack.pop();
+    const r = stack.pop();
+    const i = stack.pop();
+    if (core[i]) continue;
+    const p = i * 4;
+    const cr = px[p];
+    const cg = px[p + 1];
+    const cb = px[p + 2];
+    const dr = cr - r;
+    const dg = cg - g;
+    const db = cb - b;
+    let backdrop = dr * dr + dg * dg + db * db <= localLimit;
+    if (!backdrop) {
+      for (let k = 0; k < palette.length; k += 3) {
+        const pr = cr - palette[k];
+        const pg = cg - palette[k + 1];
+        const pb = cb - palette[k + 2];
+        if (pr * pr + pg * pg + pb * pb <= limit) {
+          backdrop = true;
+          break;
+        }
+      }
+    }
+    if (!backdrop) continue;
+    alpha[i] = 0;
+    const x = i % w;
+    const y = (i - x) / w;
+    if (x > 0) push(i - 1, cr, cg, cb);
+    if (x < w - 1) push(i + 1, cr, cg, cb);
+    if (y > 0) push(i - w, cr, cg, cb);
+    if (y < h - 1) push(i + w, cr, cg, cb);
+  }
+
+  // Stems and leaves inside the silhouette have no colour path to the border,
+  // so peel the ones that still match the backdrop from the outline inwards.
+  for (let round = 0; round < 6; round++) {
+    const doomed = [];
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x;
+        if (alpha[i] <= 0.05) continue;
+        let nearEdge = false;
+        for (let dy = -1; dy <= 1 && !nearEdge; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (alpha[(y + dy) * w + (x + dx)] <= 0.05) {
+              nearEdge = true;
+              break;
+            }
+          }
+        }
+        if (!nearEdge) continue;
+        const p = i * 4;
+        for (let k = 0; k < palette.length; k += 3) {
+          const dr = px[p] - palette[k];
+          const dg = px[p + 1] - palette[k + 1];
+          const db = px[p + 2] - palette[k + 2];
+          if (dr * dr + dg * dg + db * db <= limit) {
+            doomed.push(i);
+            break;
+          }
+        }
+      }
+    }
+    if (!doomed.length) break;
+    for (const i of doomed) alpha[i] = 0;
+  }
+  return alpha;
+}
+
+// ---- END js/segmenter.js ----
+
+// ---- BEGIN js/sticker-studio.js ----
+﻿/**
+ * Sticker Studio: cut an object out of a photo, fix the mask with a brush,
+ * add an outline and keep the result in the sticker library.
+ *
+ * Zero dependencies: the cut-out is a salient-object pass with u2netp (ONNX,
+ * local) and falls back to a border flood-fill, the brush paints on the
+ * resulting canvas, and the outline is an 8-way dilation of the silhouette.
+ * Everything runs locally in the browser.
+ */
+
+const LIBRARY_KEY = "notscrl_stickers";
+const MAX_SIDE = 720;
+
+class StickerStudio {
+  constructor(storage) {
+    this.storage = storage;
+    this.onSaved = null;
+
+    this.modal = document.getElementById("sticker-modal");
+    this.canvas = document.getElementById("sticker-canvas");
+    this.ctx = this.canvas ? this.canvas.getContext("2d") : null;
+    this.stage = document.getElementById("sticker-stage");
+    this.empty = document.getElementById("sticker-empty");
+    this.controls = document.getElementById("sticker-controls");
+    this.fileInput = document.getElementById("sticker-file");
+    this.hint = document.getElementById("sticker-hint");
+    this.saveBtn = document.getElementById("btn-sticker-save");
+
+    this.image = null;
+    this.base = null; // original pixels, used to restore erased areas
+    this.work = null; // current cut-out
+    this.tolerance = 24;
+    this.brush = 28;
+    this.brushMode = "erase";
+    this.outline = false;
+    this.outlineWidth = 8;
+    this.outlineColor = "#ffffff";
+    this.painting = false;
+
+    if (!this.modal) return;
+    this.bind();
+  }
+
+  bind() {
+    const on = (id, evt, fn) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener(evt, fn);
+    };
+    on("btn-close-sticker", "click", () => this.close());
+    on("btn-sticker-cancel", "click", () => this.close());
+    on("btn-sticker-upload", "click", () => this.fileInput.click());
+    on("btn-sticker-change", "click", () => this.fileInput.click());
+    on("btn-sticker-save", "click", () => this.save());
+    on("btn-sticker-auto", "click", () => this.detect());
+
+    this.fileInput?.addEventListener("change", (event) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (file) this.loadFile(file);
+    });
+
+    document
+      .querySelectorAll("#sticker-modal [data-brush]")
+      .forEach((btn) => {
+        btn.addEventListener("click", () => {
+          this.brushMode = btn.dataset.brush;
+          document
+            .querySelectorAll("#sticker-modal [data-brush]")
+            .forEach((b) => b.classList.toggle("active", b === btn));
+          this.canvas.style.cursor =
+            this.brushMode === "erase" ? "cell" : "copy";
+        });
+      });
+
+    on("sticker-brush", "input", (event) => {
+      this.brush = Number(event.target.value);
+    });
+    on("sticker-tolerance", "input", (event) => {
+      this.tolerance = Number(event.target.value);
+    });
+    on("sticker-outline", "change", (event) => {
+      this.outline = event.target.checked;
+      this.render();
+    });
+    on("sticker-outline-width", "input", (event) => {
+      this.outlineWidth = Number(event.target.value);
+      if (this.outline) this.render();
+    });
+
+    document
+      .querySelectorAll("#sticker-swatches button")
+      .forEach((btn) => {
+        btn.addEventListener("click", () => {
+          this.outlineColor = btn.dataset.color;
+          document
+            .querySelectorAll("#sticker-swatches button")
+            .forEach((b) => b.classList.toggle("active", b === btn));
+          if (this.outline) this.render();
+        });
+      });
+
+    this.canvas?.addEventListener("pointerdown", (event) => {
+      if (!this.work) return;
+      this.painting = true;
+      this.canvas.setPointerCapture(event.pointerId);
+      this.paint(event);
+    });
+    this.canvas?.addEventListener("pointermove", (event) => {
+      if (this.painting) this.paint(event);
+    });
+    const stop = (event) => {
+      if (!this.painting) return;
+      this.painting = false;
+      try {
+        this.canvas.releasePointerCapture(event.pointerId);
+      } catch {
+        /* capture already released */
+      }
+    };
+    this.canvas?.addEventListener("pointerup", stop);
+    this.canvas?.addEventListener("pointercancel", stop);
+
+    this.modal.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") this.close();
+    });
+  }
+
+  open() {
+    this.modal.classList.remove("hidden");
+    this.modal.setAttribute("aria-hidden", "false");
+    if (!this.image) {
+      this.empty.classList.remove("hidden");
+      this.controls.classList.add("hidden");
+      this.saveBtn.disabled = true;
+    }
+    this.modal.querySelector("button")?.focus({ preventScroll: true });
+  }
+
+  close() {
+    this.modal.classList.add("hidden");
+    this.modal.setAttribute("aria-hidden", "true");
+  }
+
+  async loadFile(file) {
+    try {
+      const img = await loadStickerImage(file);
+      const scale = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      this.base = document.createElement("canvas");
+      this.base.width = w;
+      this.base.height = h;
+      this.base.getContext("2d").drawImage(img, 0, 0, w, h);
+      this.image = img;
+      this.empty.classList.add("hidden");
+      this.controls.classList.remove("hidden");
+      this.saveBtn.disabled = false;
+      await this.cut();
+    } catch (error) {
+      this.showHint("No se pudo abrir esa imagen.");
+      console.error(error);
+    }
+  }
+
+  // Salient-object pass first; the border flood fill stays as the fallback
+  // (and as the "Detectar" button when the model misses).
+  async cut() {
+    if (!this.base) return;
+    this.setBusy(true);
+    this.showHint("Recortando el sujeto…");
+    let result = null;
+    try {
+      result = await cutoutWithAI(this.base);
+    } catch {
+      this.showHint("IA no disponible aquí. Usando recorte por bordes.");
+    }
+    if (result) {
+      this.work = result;
+      this.showHint("");
+      this.render();
+    } else {
+      this.detect();
+    }
+    this.setBusy(false);
+  }
+
+  setBusy(busy) {
+    this.modal.classList.toggle("busy", busy);
+    this.saveBtn.disabled = busy || !this.work;
+    const auto = document.getElementById("btn-sticker-auto");
+    if (auto) auto.disabled = busy;
+  }
+
+  // Border flood fill: whatever is connected to the edges and close to the
+  // average border colour becomes transparent.
+  detect() {
+    if (!this.base) return;
+    const w = this.base.width;
+    const h = this.base.height;
+    const src = this.base
+      .getContext("2d")
+      .getImageData(0, 0, w, h);
+    const px = src.data;
+    const bg = borderColor(px, w, h);
+    const limit = Math.pow(this.tolerance * 2.2, 2) * 3;
+    const seen = new Uint8Array(w * h);
+    const stack = [];
+    const push = (x, y) => {
+      const i = y * w + x;
+      if (!seen[i]) {
+        seen[i] = 1;
+        stack.push(i);
+      }
+    };
+    for (let x = 0; x < w; x++) {
+      push(x, 0);
+      push(x, h - 1);
+    }
+    for (let y = 0; y < h; y++) {
+      push(0, y);
+      push(w - 1, y);
+    }
+    let cleared = 0;
+    while (stack.length) {
+      const i = stack.pop();
+      const p = i * 4;
+      if (px[p + 3] === 0) continue;
+      const dr = px[p] - bg[0];
+      const dg = px[p + 1] - bg[1];
+      const db = px[p + 2] - bg[2];
+      if (dr * dr + dg * dg + db * db > limit) continue;
+      px[p + 3] = 0;
+      cleared++;
+      const x = i % w;
+      const y = (i - x) / w;
+      if (x > 0) push(x - 1, y);
+      if (x < w - 1) push(x + 1, y);
+      if (y > 0) push(x, y - 1);
+      if (y < h - 1) push(x, y + 1);
+    }
+
+    const out = document.createElement("canvas");
+    out.width = w;
+    out.height = h;
+    out.getContext("2d").putImageData(src, 0, 0);
+    this.work = out;
+
+    const ratio = cleared / (w * h);
+    if (ratio > 0.985) {
+      this.showHint("Se comiÃ³ casi todo. Baja la tolerancia o pinta para recuperar.");
+    } else if (ratio < 0.02) {
+      this.showHint("No encontrÃ³ fondo. Sube la tolerancia o borra a mano.");
+    } else {
+      this.showHint("");
+    }
+    this.render();
+  }
+
+  render() {
+    if (!this.work) return;
+    const w = this.work.width;
+    const h = this.work.height;
+    const pad = this.outline ? Math.ceil(this.outlineWidth) + 2 : 0;
+    this.canvas.width = w + pad * 2;
+    this.canvas.height = h + pad * 2;
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.outline && pad) {
+      const silhouette = document.createElement("canvas");
+      silhouette.width = w;
+      silhouette.height = h;
+      const sctx = silhouette.getContext("2d");
+      sctx.drawImage(this.work, 0, 0);
+      sctx.globalCompositeOperation = "source-in";
+      sctx.fillStyle = this.outlineColor;
+      sctx.fillRect(0, 0, w, h);
+      const r = this.outlineWidth;
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
+        ctx.drawImage(
+          silhouette,
+          pad + Math.cos(a) * r,
+          pad + Math.sin(a) * r,
+        );
+      }
+    }
+    ctx.drawImage(this.work, pad, pad);
+  }
+
+  paint(event) {
+    const rect = this.canvas.getBoundingClientRect();
+    const pad = this.outline ? Math.ceil(this.outlineWidth) + 2 : 0;
+    const x = ((event.clientX - rect.left) / rect.width) * this.canvas.width - pad;
+    const y = ((event.clientY - rect.top) / rect.height) * this.canvas.height - pad;
+    const r = this.brush / 2;
+    const wctx = this.work.getContext("2d");
+    wctx.save();
+    wctx.beginPath();
+    wctx.arc(x, y, r, 0, Math.PI * 2);
+    if (this.brushMode === "erase") {
+      wctx.globalCompositeOperation = "destination-out";
+      wctx.fill();
+    } else {
+      wctx.clip();
+      wctx.drawImage(this.base, 0, 0);
+    }
+    wctx.restore();
+    this.render();
+  }
+
+  showHint(text) {
+    if (!this.hint) return;
+    this.hint.textContent = text;
+    this.hint.classList.toggle("hidden", !text);
+  }
+
+  async save() {
+    if (!this.work) return;
+    try {
+      const out = this.buildExport();
+      const blob = await new Promise((resolve) =>
+        out.toBlob(resolve, "image/png"),
+      );
+      if (!blob) throw new Error("no blob");
+      const key = await this.storage.saveOriginal(blob);
+      const list = readLibrary();
+      const entry = {
+        key,
+        w: out.width,
+        h: out.height,
+        title: `Sticker ${list.length + 1}`,
+        ts: Date.now(),
+      };
+      list.unshift(entry);
+      writeLibrary(list);
+      this.onSaved?.(entry);
+      this.close();
+    } catch (error) {
+      this.showHint("No se pudo guardar. Revisa el espacio del navegador.");
+      console.error(error);
+    }
+  }
+
+  // Trimmed export with the outline baked in, so the sticker is reusable.
+  buildExport() {
+    const pad = this.outline ? Math.ceil(this.outlineWidth) + 2 : 0;
+    const full = document.createElement("canvas");
+    full.width = this.work.width + pad * 2;
+    full.height = this.work.height + pad * 2;
+    const ctx = full.getContext("2d");
+    if (this.outline && pad) {
+      const silhouette = document.createElement("canvas");
+      silhouette.width = this.work.width;
+      silhouette.height = this.work.height;
+      const sctx = silhouette.getContext("2d");
+      sctx.drawImage(this.work, 0, 0);
+      sctx.globalCompositeOperation = "source-in";
+      sctx.fillStyle = this.outlineColor;
+      sctx.fillRect(0, 0, silhouette.width, silhouette.height);
+      const r = this.outlineWidth;
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
+        ctx.drawImage(
+          silhouette,
+          pad + Math.cos(a) * r,
+          pad + Math.sin(a) * r,
+        );
+      }
+    }
+    ctx.drawImage(this.work, pad, pad);
+
+    const box = alphaBounds(full);
+    if (!box) return full;
+    const trimmed = document.createElement("canvas");
+    trimmed.width = box.width;
+    trimmed.height = box.height;
+    trimmed
+      .getContext("2d")
+      .drawImage(full, box.x, box.y, box.width, box.height, 0, 0, box.width, box.height);
+    return trimmed;
+  }
+}
+
+function loadStickerImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("No se pudo leer la imagen"));
+    };
+    img.src = url;
+  });
+}
+
+// Average of the pixels hugging the border; the usual backdrop colour.
+function borderColor(px, w, h) {
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let n = 0;
+  const sample = (x, y) => {
+    const p = (y * w + x) * 4;
+    if (px[p + 3] < 8) return;
+    r += px[p];
+    g += px[p + 1];
+    b += px[p + 2];
+    n++;
+  };
+  for (let x = 0; x < w; x += 3) {
+    sample(x, 0);
+    sample(x, h - 1);
+  }
+  for (let y = 0; y < h; y += 3) {
+    sample(0, y);
+    sample(w - 1, y);
+  }
+  return n ? [r / n, g / n, b / n] : [255, 255, 255];
+}
+
+function alphaBounds(canvas) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const data = canvas.getContext("2d").getImageData(0, 0, w, h).data;
+  let minX = w;
+  let minY = h;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] > 8) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return null;
+  return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
+}
+
+function readLibrary() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LIBRARY_KEY) || "[]");
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLibrary(list) {
+  try {
+    localStorage.setItem(LIBRARY_KEY, JSON.stringify(list.slice(0, 40)));
+  } catch {
+    /* quota: the sticker stays in IndexedDB but not in the index */
+  }
+}
+
+
+// ---- END js/sticker-studio.js ----
+
 // ---- BEGIN js/templates.js ----
 /**
  * Curated SCRL-Style Templates
@@ -3749,10 +4858,10 @@ async function applyTemplate(engine, templateName) {
 
 // ---- BEGIN js/studio.js ----
 const TEMPLATE_INFO = [
-  ["panorama", "Horizontes", "Paisajes que siguen contigo", "01"],
-  ["editorial", "Formas de ver", "Tu propia edición de revista", "02"],
-  ["scrapbook", "Pequeños recuerdos", "Un diario de tus días favoritos", "03"],
-  ["filmstrip", "En analógico", "Historias con alma de 35 mm", "04"],
+  ["panorama", "Horizontes", "01"],
+  ["editorial", "Formas de ver", "02"],
+  ["scrapbook", "Pequeños recuerdos", "03"],
+  ["filmstrip", "En analógico", "04"],
 ];
 
 // Preview framing: the slide that holds each template's focal composition.
@@ -3946,7 +5055,7 @@ class Studio {
     document
       .getElementById("empty-canvas-action")
       .addEventListener("click", () => {
-        this.app.openDrawer("photos", "Añadir fotos");
+        this.app.openDrawer("photos", "Fotos");
       });
     const name = document.getElementById("project-name");
     name.value = this.storage.projectName;
@@ -3991,7 +5100,7 @@ class Studio {
         else if (!this.app.cropper.modal.classList.contains("hidden"))
           this.app.cropper.close();
         else if (!this.app.exportModal.classList.contains("hidden"))
-          this.app.exportModal.classList.add("hidden");
+          this.app.closeExportSheet();
         else if (!this.app.preview.modal.classList.contains("hidden"))
           this.app.preview.close();
         else this.app.closeDrawer();
@@ -4054,8 +5163,7 @@ class Studio {
         active: false,
         timer: null,
       };
-      const hold = event.pointerType === "mouse" ? 180 : 320;
-      drag.timer = setTimeout(() => {
+      const activate = () => {
         if (!drag) return;
         drag.active = true;
         strip.classList.add("page-reorder-mode");
@@ -4065,7 +5173,10 @@ class Studio {
         } catch {
           /* Pointer capture is a progressive enhancement. */
         }
-      }, hold);
+      };
+      // Mouse reorders on grab; touch needs a hold so a swipe still scrolls.
+      if (event.pointerType === "mouse") activate();
+      else drag.timer = setTimeout(activate, 320);
     });
     strip.addEventListener("pointermove", (event) => {
       if (!drag || event.pointerId !== drag.pointerId) return;
@@ -4153,47 +5264,29 @@ class Studio {
       saving: "Guardando…",
       saved: "Borrador guardado",
       fallback: "Guardado solo en este proyecto",
-      error: "No se pudo guardar · revisa el espacio",
-    }[state];
-    const status = document.getElementById("drafts-storage-status");
-    status.dataset.state = state;
-    status.textContent = {
-      saving: "Guardando los últimos cambios…",
-      saved: "Tus borradores están guardados en este dispositivo.",
-      fallback:
-        "El proyecto actual está guardado. La lista de borradores no está disponible.",
-      error:
-        "No se pudo guardar. Vuelve al editor y revisa el espacio disponible.",
+      error: "No se pudo guardar. Revisa el espacio.",
     }[state];
   }
 
   async showHome(section = "home") {
     this.view = section;
+    localStorage.setItem("notscrl_view", "home");
     document.getElementById("home-view").dataset.section = section;
     this.engine.enabled = false;
     document.querySelector('meta[name="theme-color"]').content = "#f5f3ee";
     document.getElementById("editor-view").classList.add("hidden");
     document.getElementById("home-view").classList.remove("hidden");
     document
-      .getElementById("home-intro")
+      .getElementById("home-continue")
       .classList.toggle("hidden", section !== "home");
     document
       .getElementById("projects-section")
-      .classList.toggle("hidden", section === "templates");
+      .classList.toggle("hidden", section !== "projects");
     document
       .getElementById("templates-section")
-      .classList.toggle("hidden", section === "projects");
-    document
-      .getElementById("projects-section")
-      .classList.toggle("only-section", section === "projects");
-    document
-      .getElementById("templates-section")
-      .classList.toggle("only-section", section === "templates");
+      .classList.toggle("hidden", section !== "templates");
     document.getElementById("projects-heading").textContent =
       section === "projects" ? "Tus borradores" : "Borradores recientes";
-    document
-      .getElementById("drafts-info")
-      .classList.toggle("hidden", section !== "projects");
     document.getElementById("templates-heading").textContent =
       section === "templates"
         ? "Todas las plantillas"
@@ -4211,6 +5304,7 @@ class Studio {
 
   showEditor() {
     this.view = "editor";
+    localStorage.setItem("notscrl_view", "editor");
     this.engine.enabled = true;
     document.querySelector('meta[name="theme-color"]').content = "#181917";
     document.getElementById("home-view").classList.add("hidden");
@@ -4284,7 +5378,7 @@ class Studio {
     document
       .getElementById("draft-count")
       .classList.toggle("hidden", projects.length === 0);
-    const shown = this.view === "home" ? projects.slice(0, 2) : projects;
+    const shown = projects;
     if (!shown.length) {
       const empty = document.createElement("div");
       empty.className = "empty-drafts";
@@ -4318,7 +5412,7 @@ class Studio {
         "es-CL",
         { day: "numeric", month: "short" },
       );
-      meta.textContent = `${pageCountLabel(project.slideCount)} · ${project.aspectRatioName}`;
+      meta.textContent = `${pageCountLabel(project.slideCount)}, ${project.aspectRatioName}`;
       const saved = document.createElement("small");
       saved.className = "draft-saved-date";
       saved.textContent = `Guardado ${date}`;
@@ -4335,43 +5429,144 @@ class Studio {
       card.append(thumb, info, arrow);
       card.addEventListener("click", async () => {
         if (this.busy) return;
-        this.busy = true;
         card.disabled = true;
         try {
-          const current = await this.storage.flush();
-          if (
-            !current ||
-            (project.id !== this.storage.projectId &&
-              !this.storage.lastSaveInLibrary)
-          ) {
-            this.toast("No se pudo guardar el proyecto actual.");
-            return;
-          }
-          this.app.loadingProject = true;
-          this.storage.projectId = project.id;
-          this.storage.projectName = project.name || "Mi carrusel";
-          await this.engine.restoreProject(
-            project.id === current.id ? current : project,
-          );
-          this.app.loadingProject = false;
-          this.showEditor();
-          await this.storage.flush();
+          await this.openProject(project);
         } finally {
-          this.app.loadingProject = false;
-          this.busy = false;
           card.disabled = false;
         }
       });
       container.appendChild(card);
     }
+    this.renderHomeContinue(projects);
+  }
+
+  async openProject(project) {
+    if (this.busy) return false;
+    this.busy = true;
+    try {
+      const current = await this.storage.flush();
+      if (
+        !current ||
+        (project.id !== this.storage.projectId && !this.storage.lastSaveInLibrary)
+      ) {
+        this.toast("No se pudo guardar el proyecto actual.");
+        return false;
+      }
+      this.app.loadingProject = true;
+      this.storage.projectId = project.id;
+      this.storage.projectName = project.name || "Mi carrusel";
+      await this.engine.restoreProject(
+        project.id === current.id ? current : project,
+      );
+      this.app.loadingProject = false;
+      this.showEditor();
+      await this.storage.flush();
+      return true;
+    } finally {
+      this.app.loadingProject = false;
+      this.busy = false;
+    }
+  }
+
+  // Home "Continuar": portada del último borrador + tiras horizontales.
+  renderHomeContinue(projects) {
+    const hero = document.getElementById("home-hero");
+    if (!hero) return;
+    hero.replaceChildren();
+    const latest = projects[0];
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "hero-card";
+
+    if (latest) {
+      if (latest.thumbnail) {
+        const img = document.createElement("img");
+        img.src = latest.thumbnail;
+        img.alt = "";
+        card.appendChild(img);
+      }
+      const veil = document.createElement("span");
+      veil.className = "hero-veil";
+      const copy = document.createElement("span");
+      copy.className = "hero-copy";
+      const kicker = document.createElement("span");
+      kicker.className = "hero-kicker";
+      kicker.textContent = `Borrador del ${new Date(latest.timestamp || Date.now()).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}`;
+      const title = document.createElement("span");
+      title.className = "hero-title";
+      title.textContent = latest.name || "Mi carrusel";
+      const row = document.createElement("span");
+      row.className = "hero-row";
+      const facts = document.createElement("span");
+      facts.className = "hero-facts";
+      facts.textContent = `${pageCountLabel(latest.slideCount)}, ${latest.aspectRatioName}`;
+      const go = document.createElement("span");
+      go.className = "hero-go";
+      go.textContent = "Seguir editando →";
+      row.append(facts, go);
+      copy.append(kicker, title, row);
+      card.append(veil, copy);
+      card.setAttribute("aria-label", `Continuar ${title.textContent}`);
+      card.addEventListener("click", () => this.openProject(latest));
+    } else {
+      card.classList.add("hero-empty");
+      const empty = document.createElement("span");
+      empty.className = "hero-empty-copy";
+      empty.innerHTML =
+        "<b>¿Qué creamos hoy?</b><span>Toca aquí para empezar tu primer carrusel.</span>";
+      card.appendChild(empty);
+      card.setAttribute("aria-label", "Crear tu primer carrusel");
+      card.addEventListener("click", () =>
+        document.getElementById("new-project-dialog").showModal(),
+      );
+    }
+    hero.appendChild(card);
+
+    const rail = document.getElementById("home-draft-rail");
+    if (!rail) return;
+    const head = document.getElementById("home-drafts-head");
+    if (head) head.classList.toggle("hidden", projects.length === 0);
+    rail.classList.toggle("hidden", projects.length === 0);
+    rail.replaceChildren();
+    for (const project of projects.slice(0, 6)) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "rail-card";
+      const thumb = document.createElement("span");
+      thumb.className = "rail-thumb";
+      if (project.thumbnail) {
+        const img = document.createElement("img");
+        img.src = project.thumbnail;
+        img.alt = "";
+        thumb.appendChild(img);
+      }
+      const name = document.createElement("b");
+      name.textContent = project.name || "Sin título";
+      const meta = document.createElement("small");
+      meta.textContent = pageCountLabel(project.slideCount);
+      btn.append(thumb, name, meta);
+      btn.setAttribute("aria-label", `Abrir borrador ${name.textContent}`);
+      btn.addEventListener("click", () => this.openProject(project));
+      rail.appendChild(btn);
+    }
+    const create = document.createElement("button");
+    create.type = "button";
+    create.className = "rail-card rail-new";
+    create.innerHTML =
+      '<span class="rail-thumb">+</span><b>Nuevo</b><small>Carrusel</small>';
+    create.addEventListener("click", () =>
+      document.getElementById("new-project-dialog").showModal(),
+    );
+    rail.appendChild(create);
   }
 
   async renderTemplates() {
     const container = document.getElementById("home-template-list");
-    for (const [id, name, description, number] of TEMPLATE_INFO) {
+    for (const [id, name, number] of TEMPLATE_INFO) {
       const tile = document.createElement("button");
       tile.className = "template-tile";
-      tile.innerHTML = `<div class="template-cover"><span class="template-number">${number} / COLECCIÓN</span></div><strong>${name}</strong><small>${description}</small>`;
+      tile.innerHTML = `<div class="template-cover"><span class="template-number">${number} / COLECCIÓN</span></div><strong>${name}</strong>`;
       tile.addEventListener("click", () => this.newProject(id));
       container.appendChild(tile);
       // Render the actual template with the existing engine's object models.
@@ -4417,6 +5612,41 @@ class Studio {
         console.warn("No se pudo preparar la plantilla", error);
       }
     }
+    this.renderHomeTemplates();
+  }
+
+  // Tira de plantillas del Inicio: render real, o relleno si aún no hay.
+  renderHomeTemplates() {
+    const rail = document.getElementById("home-template-rail");
+    if (!rail) return;
+    rail.replaceChildren();
+    for (const [id, name, number] of TEMPLATE_INFO) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "rail-card";
+      const thumb = document.createElement("span");
+      thumb.className = "rail-thumb";
+      const preview = this.templatePreviews.get(id);
+      if (preview && preview.width) {
+        const img = document.createElement("img");
+        img.src = preview.toDataURL("image/jpeg", 0.82);
+        img.alt = "";
+        thumb.appendChild(img);
+      } else {
+        const placeholder = document.createElement("span");
+        placeholder.className = "rail-noart";
+        placeholder.textContent = number;
+        thumb.appendChild(placeholder);
+      }
+      const label = document.createElement("b");
+      label.textContent = name;
+      const meta = document.createElement("small");
+      meta.textContent = `Colección ${number}`;
+      btn.append(thumb, label, meta);
+      btn.setAttribute("aria-label", `Usar plantilla ${name}`);
+      btn.addEventListener("click", () => this.newProject(id));
+      rail.appendChild(btn);
+    }
   }
 
   update() {
@@ -4436,7 +5666,7 @@ class Studio {
       btn.className = "page-thumb";
       btn.setAttribute("aria-label", `Ir a página ${i + 1}`);
       btn.setAttribute("aria-keyshortcuts", "Alt+ArrowLeft Alt+ArrowRight");
-      btn.title = "Mantén presionada para mover · Alt + ← / →";
+      btn.title = "Arrastra para mover (Alt + flechas)";
       btn.dataset.page = i;
       btn.appendChild(this.app.exporter.renderThumbnail(i, 64));
       const number = document.createElement("span");
@@ -4466,7 +5696,7 @@ class Studio {
     deletePage.title = `Eliminar página ${index + 1} y sus elementos (se puede deshacer)`;
     document.getElementById("active-page-label").textContent =
       this.engine.viewMode === "panorama"
-        ? `Panorama · ${pageCountLabel(this.engine.slideCount)}`
+        ? `Panorama, ${pageCountLabel(this.engine.slideCount)}`
         : `Página ${String(index + 1).padStart(2, "0")}/${String(this.engine.slideCount).padStart(2, "0")}`;
     document.getElementById("canvas-zoom-label").textContent =
       `${Math.round(this.engine.zoom * 100)}%`;
@@ -4474,7 +5704,7 @@ class Studio {
     if (pageStatus) {
       const current = String(index + 1).padStart(2, "0");
       const total = String(this.engine.slideCount).padStart(2, "0");
-      pageStatus.textContent = `${current}/${total} · ${Math.round(this.engine.zoom * 100)}%`;
+      pageStatus.textContent = `${current}/${total} (${Math.round(this.engine.zoom * 100)}%)`;
     }
     const fitToggle = document.getElementById("btn-zoom-fit");
     const panorama = this.engine.viewMode === "panorama";
@@ -4515,27 +5745,82 @@ class Studio {
     if (!this.engine.items.length) {
       list.innerHTML =
         '<p class="template-desc">Tu lienzo está en blanco. Añade una foto, un texto o un sticker para empezar.</p>';
+      return;
     }
-    [...this.engine.items].reverse().forEach((item, i) => {
-      const btn = document.createElement("button");
-      btn.className = "layer-row";
-      btn.classList.toggle("active", item === this.engine.selectedItem);
-      const label = document.createElement("span");
-      label.textContent =
-        item.text ||
-        item.title ||
-        (item.type === "image" ? "Fotografía" : "Sticker");
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "layers-toolbar";
+    const selected = this.engine.selectedItem;
+    const selectedIndex = selected ? this.engine.items.indexOf(selected) : -1;
+    const move = (label, direction, disabled) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "layer-move";
+      button.textContent = label;
+      button.disabled = disabled;
+      button.addEventListener("click", () => {
+        if (!this.engine.selectedItem) return;
+        if (direction > 0) this.engine.bringForward(this.engine.selectedItem);
+        else this.engine.sendBackward(this.engine.selectedItem);
+        this.renderLayers();
+      });
+      return button;
+    };
+    toolbar.append(
+      move("Subir", 1, !selected || selectedIndex === this.engine.items.length - 1),
+      move("Bajar", -1, !selected || selectedIndex === 0),
+    );
+    list.appendChild(toolbar);
+
+    const order = [...this.engine.items].reverse();
+    let draggedIndex = null;
+    order.forEach((item, index) => {
+      const row = document.createElement("div");
+      row.className = "layer-row";
+      row.classList.toggle("active", item === this.engine.selectedItem);
+      row.classList.toggle("is-hidden", item.visible === false);
+      row.draggable = true;
+
+      const eye = document.createElement("button");
+      eye.type = "button";
+      eye.className = "layer-eye";
+      eye.setAttribute(
+        "aria-label",
+        item.visible === false ? "Mostrar capa" : "Ocultar capa",
+      );
+      eye.setAttribute("aria-pressed", String(item.visible !== false));
+      eye.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+      eye.addEventListener("click", (event) => {
+        event.stopPropagation();
+        item.visible = item.visible === false;
+        if (!item.visible && this.engine.selectedItem === item) {
+          this.engine.selectItem(null);
+        }
+        this.engine.triggerChange();
+        this.engine.saveHistory(item.visible ? "Mostrar capa" : "Ocultar capa");
+        this.renderLayers();
+      });
+
+      const select = document.createElement("button");
+      select.type = "button";
+      select.className = "layer-select";
       if (item.image) {
         const img = document.createElement("img");
         img.src = item.image.src;
         img.alt = "";
         img.className = "layer-preview";
-        btn.appendChild(img);
+        select.appendChild(img);
       }
-      const order = document.createElement("small");
-      order.textContent = `Capa ${this.engine.items.length - i}`;
-      btn.append(label, order);
-      btn.addEventListener("click", () => {
+      const label = document.createElement("span");
+      label.textContent =
+        item.text ||
+        item.title ||
+        (item.type === "image" ? "Fotografía" : "Sticker");
+      const position = document.createElement("small");
+      position.textContent = `Capa ${this.engine.items.length - index}`;
+      select.append(label, position);
+      select.addEventListener("click", () => {
         this.engine.selectItem(item);
         this.engine.focusSlide(this.engine.getItemSlideIndex(item));
         this.app.openDrawer(
@@ -4543,7 +5828,49 @@ class Studio {
           item.type === "text" ? "Editar texto" : "Editar elemento",
         );
       });
-      list.appendChild(btn);
+
+      row.append(eye, select);
+
+      row.addEventListener("dragstart", (event) => {
+        draggedIndex = index;
+        event.dataTransfer?.setData("text/plain", String(index));
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+        row.classList.add("dragging");
+      });
+      row.addEventListener("dragend", () => {
+        row.classList.remove("dragging");
+        list
+          .querySelectorAll(".drop-before, .drop-after")
+          .forEach((el) => el.classList.remove("drop-before", "drop-after"));
+      });
+      row.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        const rect = row.getBoundingClientRect();
+        const after = event.clientY > rect.top + rect.height / 2;
+        row.classList.toggle("drop-before", !after);
+        row.classList.toggle("drop-after", after);
+      });
+      row.addEventListener("dragleave", () => {
+        row.classList.remove("drop-before", "drop-after");
+      });
+      row.addEventListener("drop", (event) => {
+        event.preventDefault();
+        const from = draggedIndex ?? Number(event.dataTransfer?.getData("text/plain"));
+        const rect = row.getBoundingClientRect();
+        let to = index + (event.clientY > rect.top + rect.height / 2 ? 1 : 0);
+        if (from < to) to--;
+        if (!Number.isInteger(from) || from === to) {
+          this.renderLayers();
+          return;
+        }
+        const dragged = [...this.engine.items].reverse();
+        const [moved] = dragged.splice(from, 1);
+        dragged.splice(to, 0, moved);
+        this.engine.setLayerOrder(dragged);
+        this.renderLayers();
+      });
+
+      list.appendChild(row);
     });
   }
 }
@@ -4573,6 +5900,7 @@ class NotScrlMobileApp {
     this.preview = new PreviewSimulator(this.exporter, document.getElementById('preview-modal'));
     this.cropper = new ImageCropper(this.engine);
     this.frameAdjuster = new FrameAdjuster(this.engine);
+    this.stickerStudio = new StickerStudio(this.storage);
 
     this.engine.onDoubleTapItem = (it) => {
       if (it.clipShape && it.clipShape !== 'rect') {
@@ -4595,6 +5923,7 @@ class NotScrlMobileApp {
     this.bindGiphy();
     this.bindStickerSegments();
     this.bindDesktopInspector();
+    this.bindSliderValues();
 
     // Populate drawer content
     this.populateStickers();
@@ -4626,7 +5955,9 @@ class NotScrlMobileApp {
     this.bindTextStyles();
     this.bindDialogAccessibility();
     if (savedProject) await this.storage.flush();
-    this.studio.showHome();
+    // Reopen the project the user left open; the home view stays home.
+    if (savedProject && localStorage.getItem('notscrl_view') === 'editor') this.studio.showEditor();
+    else this.studio.showHome();
     this.updateHeaderUI();
   }
 
@@ -4711,7 +6042,7 @@ class NotScrlMobileApp {
       const atMax = this.engine.slideCount >= 10;
       plus.title = atMax
         ? 'Máximo 10 páginas por carrusel'
-        : 'Añadir página después de la actual · máximo 10';
+        : 'Añadir página después de la actual (máximo 10)';
     }
     document.getElementById('btn-undo').disabled = this.engine.historyIndex <= 0 || this.engine.isRestoringHistory;
     document.getElementById('btn-redo').disabled = this.engine.historyIndex >= this.engine.history.length - 1 || this.engine.isRestoringHistory;
@@ -4892,7 +6223,6 @@ class NotScrlMobileApp {
     this.inspector = document.getElementById('desktop-inspector');
     if (!this.inspector) return;
     this.inspectorBody = this.inspector.querySelector('.inspector-body');
-    this.inspectorSelection = document.getElementById('inspector-selection');
     this.inspectorTransform = document.getElementById('inspector-transform');
     this.inspectorEmpty = document.getElementById('inspector-empty');
     this.inspectorFields = {
@@ -4939,6 +6269,25 @@ class NotScrlMobileApp {
       });
     }
 
+    // Desktop replacement for the old bottom action bar.
+    const withItem = (fn) => () => {
+      if (this.engine.selectedItem) fn(this.engine.selectedItem);
+    };
+    document.getElementById('insp-crop')?.addEventListener('click', withItem((item) => {
+      if (item.type === 'image') this.cropper.open(item);
+    }));
+    document.getElementById('insp-fill')?.addEventListener('click', withItem((item) => {
+      if (item.type !== 'image') return;
+      this.engine.fillImageToSlide(item);
+      this.studio?.toast('Foto a página completa. Puedes deshacer.');
+    }));
+    document.getElementById('insp-duplicate')?.addEventListener('click', withItem((item) => {
+      this.engine.duplicateItem(item);
+    }));
+    document.getElementById('insp-delete')?.addEventListener('click', withItem((item) => {
+      this.engine.removeItem(item);
+    }));
+
     this.inspectorMedia = window.matchMedia('(min-width: 1024px)');
     this.placeInspectorContent();
     const onChange = () => this.placeInspectorContent();
@@ -4967,7 +6316,40 @@ class NotScrlMobileApp {
       drawerTab.insertBefore(adjustments, layers.nextSibling);
       layers.classList.add('hidden');
     }
+    this.bindInspectorSections();
     this.syncInspector(true);
+  }
+
+  // Desktop-only accordion: one category open at a time, all closed by default.
+  bindInspectorSections() {
+    if (!this.usesDesktopInspector()) return;
+    const groups = [...this.inspector.querySelectorAll('#desktop-inspector .adjust-group')];
+    const setCollapsed = (group, collapsed) => {
+      group.classList.toggle('collapsed', collapsed);
+      group
+        .querySelector(':scope > .drawer-section-label')
+        ?.setAttribute('aria-expanded', String(!collapsed));
+    };
+    groups.forEach((group) => {
+      const label = group.querySelector(':scope > .drawer-section-label');
+      if (!label || label.dataset.collapsible) return;
+      label.dataset.collapsible = '1';
+      label.setAttribute('role', 'button');
+      label.setAttribute('tabindex', '0');
+      setCollapsed(group, true);
+      const toggle = () => {
+        const wasCollapsed = group.classList.contains('collapsed');
+        groups.forEach((other) =>
+          setCollapsed(other, other !== group || !wasCollapsed),
+        );
+      };
+      label.addEventListener('click', toggle);
+      label.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        toggle();
+      });
+    });
   }
 
   focusInspector() {
@@ -4981,16 +6363,17 @@ class NotScrlMobileApp {
   syncInspector(full = false) {
     if (!this.inspector || !this.usesDesktopInspector()) return;
     const item = this.engine.selectedItem;
+    this.inspector
+      .querySelectorAll('[data-image-only]')
+      .forEach((button) => button.classList.toggle('hidden', item?.type !== 'image'));
     this.inspectorTransform.classList.toggle('hidden', !item);
     this.inspectorEmpty.classList.toggle('hidden', !!item);
     document.getElementById('object-adjustments')?.classList.toggle('hidden', !item);
     if (!item) {
-      this.inspectorSelection.textContent = 'Sin selección';
       this.syncInspectorFields(true);
       if (full) this.studio?.renderLayers();
       return;
     }
-    this.inspectorSelection.textContent = this.describeItem(item);
     this.syncInspectorFields();
     if (full) {
       this.syncAdjustmentPanel();
@@ -5018,17 +6401,40 @@ class NotScrlMobileApp {
     }
   }
 
-  describeItem(item) {
-    if (item.type === 'text') {
-      const text = (item.text || '').trim().replace(/\s+/g, ' ');
-      return text ? `Texto · ${text.slice(0, 24)}${text.length > 24 ? '…' : ''}` : 'Texto';
+  // Show the live value of every range input so the number is never guessed.
+  bindSliderValues() {
+    this.sliderOutputs = new Map();
+    document.querySelectorAll('input[type="range"]').forEach((input) => {
+      if ('noValue' in input.dataset) return;
+      const output = document.createElement('output');
+      output.className = 'slider-value';
+      if (input.id) output.htmlFor = input.id;
+      input.insertAdjacentElement('afterend', output);
+      this.sliderOutputs.set(input, output);
+      input.addEventListener('input', () => this.updateSliderValue(input));
+      this.updateSliderValue(input);
+    });
+  }
+
+  updateSliderValue(input) {
+    const output = this.sliderOutputs?.get(input);
+    if (!output) return;
+    const value = Number(input.value);
+    let text;
+    if (input.dataset.format === 'percent') {
+      text = `${Math.round(value * 100)}%`;
+    } else if (input.dataset.format === 'zoom') {
+      text = `${value.toFixed(1)}×`;
+    } else {
+      const step = Number(input.step) || 1;
+      text = `${step < 1 ? value.toFixed(1) : Math.round(value)}${input.dataset.suffix || ''}`;
     }
-    if (item.type === 'image') {
-      if (item.mediaType === 'video') return 'Vídeo';
-      if (item.mediaType === 'gif') return 'GIF';
-      return 'Fotografía';
-    }
-    return item.title ? `Sticker · ${item.title}` : 'Sticker';
+    output.textContent = text;
+  }
+
+  refreshSliderValues() {
+    if (!this.sliderOutputs) return;
+    for (const input of this.sliderOutputs.keys()) this.updateSliderValue(input);
   }
 
   bindFineTuningControls() {
@@ -5091,11 +6497,22 @@ class NotScrlMobileApp {
     document.getElementById('btn-align-span-2')?.addEventListener('click', () => {
       if (!this.engine.selectedItem) return;
       const it = this.engine.selectedItem;
-      const targetW = this.engine.slideWidth * 2 - 160;
+      const maxW = this.engine.slideWidth * 2 - 160;
+      const maxH = this.engine.slideHeight - 160;
       const aspect = it.width / it.height;
-      it.width = targetW;
-      it.height = Math.round(targetW / aspect);
-      it.x = this.engine.slideWidth - it.width / 2;
+
+      // Span both pages without spilling past the page height; keep the aspect.
+      let width = maxW;
+      let height = Math.round(width / aspect);
+      if (height > maxH) {
+        height = maxH;
+        width = Math.round(height * aspect);
+      }
+
+      it.width = width;
+      it.height = height;
+      it.x = Math.round(this.engine.slideWidth - width / 2);
+      it.y = Math.round((this.engine.slideHeight - height) / 2);
       this.engine.triggerChange();
       this.engine.saveHistory('Span 2 slides');
     });
@@ -5145,20 +6562,6 @@ class NotScrlMobileApp {
         this.engine.triggerChange();
       }
     });
-
-    // Layer Controls (Step by Step + Send to Front/Back)
-    document.getElementById('btn-mobile-step-up')?.addEventListener('click', () => {
-      if (this.engine.selectedItem) this.engine.bringForward(this.engine.selectedItem);
-    });
-    document.getElementById('btn-mobile-step-down')?.addEventListener('click', () => {
-      if (this.engine.selectedItem) this.engine.sendBackward(this.engine.selectedItem);
-    });
-    document.getElementById('btn-mobile-layer-up')?.addEventListener('click', () => {
-      if (this.engine.selectedItem) this.engine.bringToFront(this.engine.selectedItem);
-    });
-    document.getElementById('btn-mobile-layer-down')?.addEventListener('click', () => {
-      if (this.engine.selectedItem) this.engine.sendToBack(this.engine.selectedItem);
-    });
   }
 
   // 4. BOTTOM NAVIGATION & BOTTOM SHEET DRAWER
@@ -5170,11 +6573,11 @@ class NotScrlMobileApp {
     this.drawerTabs = document.querySelectorAll('.drawer-tab-content');
 
     const tabTitles = {
-      photos: 'Añadir fotos',
-      text: 'Añadir tipografía',
-      stickers: 'Stickers & vintage',
-      templates: 'Plantillas SCRL',
-      background: 'Color de fondo'
+      photos: 'Fotos',
+      text: 'Texto',
+      stickers: 'Stickers',
+      templates: 'Plantillas',
+      background: 'Fondo'
     };
 
     this.navBtns.forEach(btn => {
@@ -5229,7 +6632,6 @@ class NotScrlMobileApp {
         await this.studio.newProject(tName === 'blank' ? null : tName);
       });
     });
-
     // The sheet grows with its content; keep the artwork framed as it does.
     new ResizeObserver(() => {
       if (this.drawer.classList.contains('hidden')) return;
@@ -5261,9 +6663,7 @@ class NotScrlMobileApp {
   }
 
   frameForDrawer() {
-    if (this.drawer.classList.contains('hidden')) return;
-    if (this.studio?.view !== 'editor' || !this.usesBottomSheet()) return;
-    this.engine.frameAboveSheet(this.drawer.getBoundingClientRect().top);
+    // La hoja flota sobre el lienzo: abrirla no debe mover ni reencuadrar la página.
   }
 
   openDrawer(tabName, title) {
@@ -5275,6 +6675,9 @@ class NotScrlMobileApp {
       return;
     }
     this.drawerReturnFocus = this.drawer.classList.contains('hidden') ? document.activeElement : this.drawerReturnFocus;
+    clearTimeout(this.drawer.__closeTimer);
+    this.drawer.classList.remove('is-closing');
+    document.getElementById('drawer-backdrop').classList.remove('is-closing');
     document.getElementById('drawer-backdrop').classList.remove('hidden');
     if (this.usesBottomSheet()) {
       document.getElementById('object-adjustments').classList.remove('hidden');
@@ -5353,18 +6756,53 @@ class NotScrlMobileApp {
 
     document.getElementById('mobile-slider-opacity').value = it.opacity;
     document.getElementById('mobile-toggle-shadow').checked = it.shadow?.enabled || false;
+    this.refreshSliderValues();
   }
 
   closeDrawer() {
     const wasOpen = !this.drawer.classList.contains('hidden');
-    this.drawer.classList.add('hidden');
-    document.getElementById('drawer-backdrop').classList.add('hidden');
-    document.getElementById('editor-view').classList.remove('inspector-open');
-    this.navBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-expanded', 'false'); });
-    if (wasOpen && this.studio?.view === 'editor' && this.usesBottomSheet()) {
-      this.engine.fitForViewport();
+    if (!wasOpen) return;
+    this.animateClose(this.drawer, () => {
+      document.getElementById('drawer-backdrop').classList.add('hidden');
+      document.getElementById('editor-view').classList.remove('inspector-open');
+      this.navBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-expanded', 'false'); });
+      if (this.drawerReturnFocus?.isConnected) this.drawerReturnFocus.focus({ preventScroll: true });
+    });
+    document.getElementById('drawer-backdrop')?.classList.add('is-closing');
+  }
+
+  // Cierra un panel con su animación de salida antes de ocultarlo.
+  animateClose(el, onDone, ms = 240) {
+    if (!el || el.classList.contains('hidden')) {
+      onDone?.();
+      return;
     }
-    if (wasOpen && this.drawerReturnFocus?.isConnected) this.drawerReturnFocus.focus({ preventScroll: true });
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      el.classList.add('hidden');
+      onDone?.();
+      return;
+    }
+    el.classList.add('is-closing');
+    clearTimeout(el.__closeTimer);
+    el.__closeTimer = setTimeout(() => {
+      el.classList.remove('is-closing');
+      el.classList.add('hidden');
+      onDone?.();
+    }, ms);
+  }
+
+  openAnimated(el) {
+    if (!el) return;
+    clearTimeout(el.__closeTimer);
+    el.classList.remove('is-closing');
+    el.classList.add('hidden');
+    // Force a reflow so the entrance animation restarts even if it was open.
+    void el.offsetWidth;
+    el.classList.remove('hidden');
+  }
+
+  closeExportSheet() {
+    this.animateClose(this.exportModal, null, 240);
   }
 
   getSpawnX(itemWidth) {
@@ -5441,7 +6879,7 @@ class NotScrlMobileApp {
           const w = img.naturalWidth * scale;
           const h = img.naturalHeight * scale;
           const item = new ImageItem(img, this.getSpawnX(w) + i * 24, Math.max(0, (this.engine.slideHeight - h) / 2) + i * 24, Math.round(w), Math.round(h));
-          item.borderRadius = 8;
+          item.borderRadius = 0;
           item.originalKey = originalKey;
           this.engine.addItem(item);
           await new Promise(resolve => setTimeout(resolve, 0));
@@ -5496,7 +6934,7 @@ class NotScrlMobileApp {
       h
     );
     item.mediaType = mediaType;
-    item.borderRadius = 8;
+    item.borderRadius = 0;
     Object.assign(item, extra);
     this.engine.addItem(item);
     await new Promise(resolve => setTimeout(resolve, 0));
@@ -5671,7 +7109,7 @@ class NotScrlMobileApp {
       const h = w / ratio;
       const item = new ImageItem(img, this.getSpawnX(w), 280, Math.round(w), Math.round(h));
       item.mediaType = 'gif';
-      item.borderRadius = 8;
+      item.borderRadius = 0;
       this.engine.addItem(item);
       this.closeDrawer();
     };
@@ -5694,7 +7132,8 @@ class NotScrlMobileApp {
     STICKERS.forEach(sticker => {
       const itemEl = document.createElement('button');
       itemEl.className = 'mobile-sticker-card';
-      itemEl.innerHTML = `<img src="${sticker.url}" alt="${sticker.title}"/>`;
+      itemEl.setAttribute('aria-label', `Añadir sticker ${sticker.title}`);
+      itemEl.innerHTML = `<img src="${sticker.url}" alt=""/>`;
       itemEl.addEventListener('click', () => {
         const img = new Image();
         img.onload = () => {
@@ -5706,6 +7145,78 @@ class NotScrlMobileApp {
       });
       grid.appendChild(itemEl);
     });
+
+    document
+      .getElementById('btn-open-sticker-studio')
+      ?.addEventListener('click', () => {
+        this.stickerStudio.open();
+      });
+    this.stickerStudio.onSaved = () => this.renderCustomStickers();
+    this.renderCustomStickers();
+  }
+
+  async renderCustomStickers() {
+    const grid = document.getElementById('custom-stickers-grid');
+    if (!grid) return;
+    const label = document.getElementById('custom-stickers-label');
+    const list = readLibrary();
+    grid.replaceChildren();
+    label?.classList.toggle('hidden', list.length === 0);
+    grid.classList.toggle('hidden', list.length === 0);
+
+    for (const entry of list) {
+      let blob;
+      try {
+        blob = await this.storage.loadOriginal(entry.key);
+      } catch {
+        continue;
+      }
+      if (!blob) continue;
+      const url = URL.createObjectURL(blob);
+      const btn = document.createElement('button');
+      btn.className = 'mobile-sticker-card custom-sticker-card';
+      btn.setAttribute('aria-label', `Añadir sticker ${entry.title || ''}`.trim());
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = entry.title || 'Sticker';
+      img.onload = () => URL.revokeObjectURL(url);
+      btn.appendChild(img);
+      btn.addEventListener('click', () => this.insertCustomSticker(entry));
+      grid.appendChild(btn);
+    }
+  }
+
+  async insertCustomSticker(entry) {
+    const blob = await this.storage.loadOriginal(entry.key);
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    await new Promise((resolve) => {
+      img.onload = resolve;
+      img.onerror = resolve;
+      img.src = url;
+    });
+    // Downscale and keep a data URL: the sticker then survives a project reload.
+    const scale = Math.min(1, 512 / Math.max(img.width, img.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+    const stickerImg = new Image();
+    stickerImg.src = canvas.toDataURL('image/png');
+    await stickerImg.decode().catch(() => {});
+    const width = Math.min(420, canvas.width);
+    const ratio = width / canvas.width;
+    const item = new StickerItem(
+      stickerImg,
+      this.getSpawnX(width),
+      380,
+      width,
+      canvas.height * ratio,
+      entry.title,
+    );
+    this.engine.addItem(item);
+    this.closeDrawer();
   }
 
   populatePalettes() {
@@ -5789,15 +7300,6 @@ class NotScrlMobileApp {
         if (this.engine.selectedItem) this.engine.saveHistory('Editar elemento');
       });
     });
-    document.querySelectorAll('.mobile-template-card').forEach(card => {
-      card.tabIndex = 0;
-      card.setAttribute('role', 'button');
-      card.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault(); card.click();
-        }
-      });
-    });
   }
 
   bindDialogAccessibility() {
@@ -5865,14 +7367,15 @@ class NotScrlMobileApp {
     this.exportModal = document.getElementById('export-modal');
     this.stripContainer = document.getElementById('export-strip-container');
     this.btnZip = document.getElementById('btn-download-zip');
+    this.btnSlides = document.getElementById('btn-download-slides');
     this.btnPanorama = document.getElementById('btn-download-panorama');
 
     document.getElementById('btn-close-export-sheet')?.addEventListener('click', () => {
-      this.exportModal.classList.add('hidden');
+      this.closeExportSheet();
     });
 
     this.exportModal?.addEventListener('click', (e) => {
-      if (e.target === this.exportModal) this.exportModal.classList.add('hidden');
+      if (e.target === this.exportModal) this.closeExportSheet();
     });
 
     if (this.btnZip) {
@@ -5887,7 +7390,28 @@ class NotScrlMobileApp {
           status.textContent = 'No se pudo crear el ZIP. Inténtalo otra vez o descarga cada PNG.';
         } finally {
           this.btnZip.disabled = false;
-          this.btnZip.textContent = `Descargar ${pageCountLabel(this.engine.slideCount)} · ZIP`;
+          this.btnZip.textContent = `Descargar las ${pageCountLabel(this.engine.slideCount)} (ZIP)`;
+        }
+      });
+    }
+
+    if (this.btnSlides) {
+      this.btnSlides.addEventListener('click', async () => {
+        const status = document.getElementById('export-status-label');
+        this.btnSlides.disabled = true;
+        const total = this.engine.slideCount;
+        try {
+          status.textContent = 'Preparando las páginas…';
+          await this.exporter.downloadAllSlides(message => {
+            status.textContent = message;
+          });
+          status.textContent = `${pageCountLabel(total)} descargadas. Si el navegador pidió permiso para varias descargas, acéptalo.`;
+          this.studio?.toast('Páginas descargadas por separado.');
+        } catch (error) {
+          status.textContent = 'No se pudieron descargar las páginas. Prueba con el ZIP.';
+          console.error(error);
+        } finally {
+          this.btnSlides.disabled = false;
         }
       });
     }
@@ -5903,17 +7427,17 @@ class NotScrlMobileApp {
   }
 
   openExportSheet() {
-    this.exportModal.classList.remove('hidden');
     const slides = Array.from({ length: this.engine.slideCount }, (_, i) => ({
       index: i + 1, canvas: this.exporter.renderThumbnail(i, 180)
     }));
-    document.querySelector('.export-subtitle').textContent = `${pageCountLabel(this.engine.slideCount)} · ${this.engine.slideWidth} × ${this.engine.slideHeight} px · PNG`;
-    document.getElementById('export-status-label').textContent = 'Las imágenes se generan en tu dispositivo.';
+    document.querySelector('.export-subtitle').textContent = `${pageCountLabel(this.engine.slideCount)}, ${this.engine.slideWidth} × ${this.engine.slideHeight} px`;
 
     this.stripContainer.innerHTML = '';
     slides.forEach(slide => {
-      const card = document.createElement('div');
+      const card = document.createElement('button');
+      card.type = 'button';
       card.className = 'export-mini-card';
+      card.setAttribute('aria-label', `Descargar página ${slide.index} como PNG`);
 
       const thumb = document.createElement('canvas');
       thumb.width = 180;
@@ -5922,17 +7446,15 @@ class NotScrlMobileApp {
       const ctx = thumb.getContext('2d');
       ctx.drawImage(slide.canvas, 0, 0);
 
-      card.innerHTML = `
-        <div class="export-mini-thumb"></div>
-        <div class="export-mini-info">
-          <span>Página ${slide.index}</span>
-          <button class="btn-mini-dl" data-idx="${slide.index}">PNG</button>
-        </div>
-      `;
+      const thumbWrap = document.createElement('div');
+      thumbWrap.className = 'export-mini-thumb';
+      thumbWrap.appendChild(thumb);
+      const number = document.createElement('span');
+      number.className = 'export-page-number';
+      number.textContent = String(slide.index).padStart(2, '0');
+      card.append(thumbWrap, number);
 
-      card.querySelector('.export-mini-thumb').appendChild(thumb);
-      card.querySelector('.btn-mini-dl').setAttribute('aria-label', `Descargar página ${slide.index} como PNG`);
-      card.querySelector('.btn-mini-dl').addEventListener('click', async () => {
+      card.addEventListener('click', async () => {
         try { await this.exporter.downloadSlide(slide.index); }
         catch { document.getElementById('export-status-label').textContent = 'No se pudo descargar la página. Inténtalo otra vez.'; }
       });
@@ -5940,8 +7462,10 @@ class NotScrlMobileApp {
     });
 
     if (this.btnZip) {
-      this.btnZip.textContent = `Descargar ${pageCountLabel(this.engine.slideCount)} · ZIP`;
+      this.btnZip.textContent = `Descargar las ${pageCountLabel(this.engine.slideCount)} (ZIP)`;
     }
+    // Contenido listo antes de mostrarlo: evita el salto de tamaño al abrir.
+    this.openAnimated(this.exportModal);
   }
 }
 

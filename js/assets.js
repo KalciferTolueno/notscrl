@@ -21,8 +21,8 @@ export const PALETTES = [
 ];
 
 export const FONTS = [
-  { name: 'Editorial · Georgia', family: "'Playfair Display', Georgia, serif" },
-  { name: 'Moderna · Sistema', family: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" },
+  { name: 'Editorial · Georgia', family: 'Georgia, "Times New Roman", serif' },
+  { name: 'Moderna · Sistema', family: 'system-ui, -apple-system, "Segoe UI", sans-serif' },
   { name: 'Clásica · Times', family: "'Cinzel', 'Times New Roman', serif" },
   { name: 'Manuscrita', family: "'Caveat', 'Segoe Print', 'Brush Script MT', cursive" },
   { name: 'Máquina de escribir', family: "'Courier Prime', 'Courier New', monospace" },

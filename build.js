@@ -16,6 +16,8 @@ const files = [
   'js/preview.js',
   'js/cropper.js',
   'js/frame-adjuster.js',
+  'js/segmenter.js',
+  'js/sticker-studio.js',
   'js/templates.js',
   'js/studio.js',
   'js/app.js'

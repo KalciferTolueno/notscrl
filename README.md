@@ -7,6 +7,9 @@ Editor de carruseles panorámicos para móvil y escritorio. Crea una historia co
 - **Inicio de app y sección Borradores:** proyectos independientes con nombre, miniatura, fecha de guardado y acceso desde la navegación inferior. Compatible con el proyecto guardado por la versión anterior.
 - **Cuatro plantillas con vistas previas reales:** panorama, editorial, scrapbook y película de 35 mm. Elegir una plantilla crea un proyecto nuevo y conserva el anterior.
 - **Editor para teléfono:** controles del lienzo plegados bajo «Lienzo», herramientas que aparecen al seleccionar, miniaturas compactas para navegar entre páginas, vista de página o panorama y panel de capas. Botón dedicado para Guardar borrador y volver a Borradores.
+- **Editor de escritorio:** inspector de propiedades fijo a la derecha con categorías plegables (posición, forma, alineación y ajustes visuales), panel de capas siempre visible y barra de acciones contextual dentro del propio inspector.
+- **Capas estilo Photoshop:** miniatura, nombre y número por capa; ojo para ocultar y mostrar; reordenación arrastrando la fila o con Subir/Bajar. Las capas ocultas no se exportan.
+- **Stickers con recorte por IA:** separa el sujeto de una foto en el navegador (ISNet o silueta con onnxruntime-web), corrige la máscara con pincel, añade contorno y guarda el sticker en la biblioteca. Todo ocurre en el dispositivo; si el modelo no está disponible, usa el recorte por bordes.
 - **Fotos y composición:** recorte, ocho formas y marcos, encuadre con zoom, alineación, orden de capas, duplicación e historial. «Página completa» coloca una foto en los límites exactos de la página activa y restablece recorte, encuadre, giro y marcos; con igual proporción muestra la foto entera, con otra proporción aplica un recorte centrado. Se puede deshacer.
 - **Recorte sin desplazamientos:** oculta los píxeles descartados conservando la posición, el tamaño y el encuadre de la foto. El recorte se conserva al guardar y exportar.
 - **Eliminar páginas:** selecciona una miniatura y pulsa la papelera. Elimina los elementos cuyo centro pertenece a esa página y desplaza los de las páginas posteriores; se puede deshacer. Siempre queda al menos una página.
@@ -36,13 +39,13 @@ node --test tests/studio.test.cjs
 node --check js/notscrl.bundle.js
 ```
 
-Las 19 pruebas cubren eliminación de páginas y recuperación, recortes sin cambios de posición o escala, ajuste móvil, fotos a página completa sin recorte cuando coincide la proporción, aislamiento de snapshots, importación secuencial, conservación y exportación de originales, recuperación de lienzos vacíos e imágenes, confirmación de transacciones, respaldo síncrono al salir, guardado con cuota local agotada, estados de cambios pendientes y coordenadas/dimensiones de exportación.
+Las 20 pruebas cubren eliminación de páginas y recuperación, recortes sin cambios de posición o escala, ajuste móvil, fotos a página completa sin recorte cuando coincide la proporción, aislamiento de snapshots, importación secuencial, conservación y exportación de originales, recuperación de lienzos vacíos e imágenes, confirmación de transacciones, respaldo síncrono al salir, guardado con cuota local agotada, estados de cambios pendientes y coordenadas/dimensiones de exportación.
 
 ## Guardado y privacidad
 
 Las fotos y los proyectos se procesan en el navegador. IndexedDB guarda el proyecto activo y la biblioteca; localStorage conserva un respaldo del proyecto activo cuando hay espacio. Los campos y las acciones de edición se guardan de inmediato; durante los arrastres se agrupan los cambios para mantener el lienzo fluido y se guarda al terminar. Al ocultar o abandonar la página se intenta guardar otra vez. El respaldo local se escribe antes de esperar la base de datos. El estado **Borrador guardado** aparece después de confirmar la transacción. Si solo funciona el respaldo, la app lo indica e impide crear otro proyecto para proteger el actual.
 
-Los proyectos no se sincronizan entre dispositivos. Borrar los datos del navegador los elimina. La descarga ZIP conserva las imágenes finales; no es un respaldo editable. La app no descarga fuentes ni recursos externos y utiliza fuentes del sistema y muestras vectoriales locales.
+Los proyectos no se sincronizan entre dispositivos. Borrar los datos del navegador los elimina. La descarga ZIP conserva las imágenes finales; no es un respaldo editable. La app no descarga fuentes ni recursos externos y utiliza fuentes del sistema y muestras vectoriales locales. El modelo de recorte de stickers se sirve desde `js/vendor/` en el mismo origen; la inferencia nunca sale del dispositivo.
 
 Las fotos nuevas conservan su archivo original sin recomprimir en un almacén separado de IndexedDB. El editor y sus miniaturas usan vistas previas de hasta 1280 px; las descargas PNG, ZIP y panorama cargan los originales de uno en uno para reducir la memoria simultánea. Si no se puede guardar o recuperar un original, la app informa del fallo. Las fotos importadas antes de este cambio conservan la fuente que ya tenían guardada; hay que volver a añadirlas para recuperar un original que se hubiera reducido.
 
@@ -56,6 +59,8 @@ Las fotos nuevas conservan su archivo original sin recomprimir en un almacén se
 - `js/storage.js`: persistencia, recuperación y estados de guardado.
 - `js/exporter.js`, `js/zip.js`: renderizado y descarga.
 - `js/cropper.js`, `js/frame-adjuster.js`, `js/preview.js`: recorte, encuadre y simulador.
+- `js/sticker-studio.js`, `js/segmenter.js`: recorte de stickers con IA y biblioteca de stickers.
+- `js/vendor/`: modelos ONNX y runtime de onnxruntime-web usados en local.
 - `DOCUMENTACION.md`: historial técnico y detalle de esta revisión.
 
 Las pruebas visuales se realizaron en navegador a 320 × 568, 390 × 844 y en escritorio. Se comprobó también la recuperación de nombre, texto, foto, formato y páginas después de recargar inmediatamente y de cerrar y reabrir una pestaña, en una sesión de prueba separada de los borradores del usuario. Falta comprobar los gestos en un teléfono físico y Safari iOS.

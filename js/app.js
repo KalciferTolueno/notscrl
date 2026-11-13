@@ -5,11 +5,11 @@
  */
 
 import { CanvasEngine } from './canvas.js';
-import { ImageItem, TextItem, StickerItem } from './objects.js';
-import { CanvasExporter, pageCountLabel } from './exporter.js';
+import { ImageItem, TextItem, StickerItem } from './objects.js';import { CanvasExporter, pageCountLabel } from './exporter.js';
 import { PreviewSimulator } from './preview.js';
 import { ImageCropper } from './cropper.js';
 import { FrameAdjuster } from './frame-adjuster.js';
+import { StickerStudio, readLibrary } from './sticker-studio.js';
 import { StorageManager } from './storage.js';
 import { Studio } from './studio.js';
 import { applyTemplate } from './templates.js';
@@ -31,6 +31,7 @@ class NotScrlMobileApp {
     this.preview = new PreviewSimulator(this.exporter, document.getElementById('preview-modal'));
     this.cropper = new ImageCropper(this.engine);
     this.frameAdjuster = new FrameAdjuster(this.engine);
+    this.stickerStudio = new StickerStudio(this.storage);
 
     this.engine.onDoubleTapItem = (it) => {
       if (it.clipShape && it.clipShape !== 'rect') {
@@ -53,6 +54,7 @@ class NotScrlMobileApp {
     this.bindGiphy();
     this.bindStickerSegments();
     this.bindDesktopInspector();
+    this.bindSliderValues();
 
     // Populate drawer content
     this.populateStickers();
@@ -84,7 +86,9 @@ class NotScrlMobileApp {
     this.bindTextStyles();
     this.bindDialogAccessibility();
     if (savedProject) await this.storage.flush();
-    this.studio.showHome();
+    // Reopen the project the user left open; the home view stays home.
+    if (savedProject && localStorage.getItem('notscrl_view') === 'editor') this.studio.showEditor();
+    else this.studio.showHome();
     this.updateHeaderUI();
   }
 
@@ -169,7 +173,7 @@ class NotScrlMobileApp {
       const atMax = this.engine.slideCount >= 10;
       plus.title = atMax
         ? 'Máximo 10 páginas por carrusel'
-        : 'Añadir página después de la actual · máximo 10';
+        : 'Añadir página después de la actual (máximo 10)';
     }
     document.getElementById('btn-undo').disabled = this.engine.historyIndex <= 0 || this.engine.isRestoringHistory;
     document.getElementById('btn-redo').disabled = this.engine.historyIndex >= this.engine.history.length - 1 || this.engine.isRestoringHistory;
@@ -350,7 +354,6 @@ class NotScrlMobileApp {
     this.inspector = document.getElementById('desktop-inspector');
     if (!this.inspector) return;
     this.inspectorBody = this.inspector.querySelector('.inspector-body');
-    this.inspectorSelection = document.getElementById('inspector-selection');
     this.inspectorTransform = document.getElementById('inspector-transform');
     this.inspectorEmpty = document.getElementById('inspector-empty');
     this.inspectorFields = {
@@ -397,6 +400,25 @@ class NotScrlMobileApp {
       });
     }
 
+    // Desktop replacement for the old bottom action bar.
+    const withItem = (fn) => () => {
+      if (this.engine.selectedItem) fn(this.engine.selectedItem);
+    };
+    document.getElementById('insp-crop')?.addEventListener('click', withItem((item) => {
+      if (item.type === 'image') this.cropper.open(item);
+    }));
+    document.getElementById('insp-fill')?.addEventListener('click', withItem((item) => {
+      if (item.type !== 'image') return;
+      this.engine.fillImageToSlide(item);
+      this.studio?.toast('Foto a página completa. Puedes deshacer.');
+    }));
+    document.getElementById('insp-duplicate')?.addEventListener('click', withItem((item) => {
+      this.engine.duplicateItem(item);
+    }));
+    document.getElementById('insp-delete')?.addEventListener('click', withItem((item) => {
+      this.engine.removeItem(item);
+    }));
+
     this.inspectorMedia = window.matchMedia('(min-width: 1024px)');
     this.placeInspectorContent();
     const onChange = () => this.placeInspectorContent();
@@ -425,7 +447,40 @@ class NotScrlMobileApp {
       drawerTab.insertBefore(adjustments, layers.nextSibling);
       layers.classList.add('hidden');
     }
+    this.bindInspectorSections();
     this.syncInspector(true);
+  }
+
+  // Desktop-only accordion: one category open at a time, all closed by default.
+  bindInspectorSections() {
+    if (!this.usesDesktopInspector()) return;
+    const groups = [...this.inspector.querySelectorAll('#desktop-inspector .adjust-group')];
+    const setCollapsed = (group, collapsed) => {
+      group.classList.toggle('collapsed', collapsed);
+      group
+        .querySelector(':scope > .drawer-section-label')
+        ?.setAttribute('aria-expanded', String(!collapsed));
+    };
+    groups.forEach((group) => {
+      const label = group.querySelector(':scope > .drawer-section-label');
+      if (!label || label.dataset.collapsible) return;
+      label.dataset.collapsible = '1';
+      label.setAttribute('role', 'button');
+      label.setAttribute('tabindex', '0');
+      setCollapsed(group, true);
+      const toggle = () => {
+        const wasCollapsed = group.classList.contains('collapsed');
+        groups.forEach((other) =>
+          setCollapsed(other, other !== group || !wasCollapsed),
+        );
+      };
+      label.addEventListener('click', toggle);
+      label.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        toggle();
+      });
+    });
   }
 
   focusInspector() {
@@ -439,16 +494,17 @@ class NotScrlMobileApp {
   syncInspector(full = false) {
     if (!this.inspector || !this.usesDesktopInspector()) return;
     const item = this.engine.selectedItem;
+    this.inspector
+      .querySelectorAll('[data-image-only]')
+      .forEach((button) => button.classList.toggle('hidden', item?.type !== 'image'));
     this.inspectorTransform.classList.toggle('hidden', !item);
     this.inspectorEmpty.classList.toggle('hidden', !!item);
     document.getElementById('object-adjustments')?.classList.toggle('hidden', !item);
     if (!item) {
-      this.inspectorSelection.textContent = 'Sin selección';
       this.syncInspectorFields(true);
       if (full) this.studio?.renderLayers();
       return;
     }
-    this.inspectorSelection.textContent = this.describeItem(item);
     this.syncInspectorFields();
     if (full) {
       this.syncAdjustmentPanel();
@@ -476,17 +532,40 @@ class NotScrlMobileApp {
     }
   }
 
-  describeItem(item) {
-    if (item.type === 'text') {
-      const text = (item.text || '').trim().replace(/\s+/g, ' ');
-      return text ? `Texto · ${text.slice(0, 24)}${text.length > 24 ? '…' : ''}` : 'Texto';
+  // Show the live value of every range input so the number is never guessed.
+  bindSliderValues() {
+    this.sliderOutputs = new Map();
+    document.querySelectorAll('input[type="range"]').forEach((input) => {
+      if ('noValue' in input.dataset) return;
+      const output = document.createElement('output');
+      output.className = 'slider-value';
+      if (input.id) output.htmlFor = input.id;
+      input.insertAdjacentElement('afterend', output);
+      this.sliderOutputs.set(input, output);
+      input.addEventListener('input', () => this.updateSliderValue(input));
+      this.updateSliderValue(input);
+    });
+  }
+
+  updateSliderValue(input) {
+    const output = this.sliderOutputs?.get(input);
+    if (!output) return;
+    const value = Number(input.value);
+    let text;
+    if (input.dataset.format === 'percent') {
+      text = `${Math.round(value * 100)}%`;
+    } else if (input.dataset.format === 'zoom') {
+      text = `${value.toFixed(1)}×`;
+    } else {
+      const step = Number(input.step) || 1;
+      text = `${step < 1 ? value.toFixed(1) : Math.round(value)}${input.dataset.suffix || ''}`;
     }
-    if (item.type === 'image') {
-      if (item.mediaType === 'video') return 'Vídeo';
-      if (item.mediaType === 'gif') return 'GIF';
-      return 'Fotografía';
-    }
-    return item.title ? `Sticker · ${item.title}` : 'Sticker';
+    output.textContent = text;
+  }
+
+  refreshSliderValues() {
+    if (!this.sliderOutputs) return;
+    for (const input of this.sliderOutputs.keys()) this.updateSliderValue(input);
   }
 
   bindFineTuningControls() {
@@ -549,11 +628,22 @@ class NotScrlMobileApp {
     document.getElementById('btn-align-span-2')?.addEventListener('click', () => {
       if (!this.engine.selectedItem) return;
       const it = this.engine.selectedItem;
-      const targetW = this.engine.slideWidth * 2 - 160;
+      const maxW = this.engine.slideWidth * 2 - 160;
+      const maxH = this.engine.slideHeight - 160;
       const aspect = it.width / it.height;
-      it.width = targetW;
-      it.height = Math.round(targetW / aspect);
-      it.x = this.engine.slideWidth - it.width / 2;
+
+      // Span both pages without spilling past the page height; keep the aspect.
+      let width = maxW;
+      let height = Math.round(width / aspect);
+      if (height > maxH) {
+        height = maxH;
+        width = Math.round(height * aspect);
+      }
+
+      it.width = width;
+      it.height = height;
+      it.x = Math.round(this.engine.slideWidth - width / 2);
+      it.y = Math.round((this.engine.slideHeight - height) / 2);
       this.engine.triggerChange();
       this.engine.saveHistory('Span 2 slides');
     });
@@ -603,20 +693,6 @@ class NotScrlMobileApp {
         this.engine.triggerChange();
       }
     });
-
-    // Layer Controls (Step by Step + Send to Front/Back)
-    document.getElementById('btn-mobile-step-up')?.addEventListener('click', () => {
-      if (this.engine.selectedItem) this.engine.bringForward(this.engine.selectedItem);
-    });
-    document.getElementById('btn-mobile-step-down')?.addEventListener('click', () => {
-      if (this.engine.selectedItem) this.engine.sendBackward(this.engine.selectedItem);
-    });
-    document.getElementById('btn-mobile-layer-up')?.addEventListener('click', () => {
-      if (this.engine.selectedItem) this.engine.bringToFront(this.engine.selectedItem);
-    });
-    document.getElementById('btn-mobile-layer-down')?.addEventListener('click', () => {
-      if (this.engine.selectedItem) this.engine.sendToBack(this.engine.selectedItem);
-    });
   }
 
   // 4. BOTTOM NAVIGATION & BOTTOM SHEET DRAWER
@@ -628,11 +704,11 @@ class NotScrlMobileApp {
     this.drawerTabs = document.querySelectorAll('.drawer-tab-content');
 
     const tabTitles = {
-      photos: 'Añadir fotos',
-      text: 'Añadir tipografía',
-      stickers: 'Stickers & vintage',
-      templates: 'Plantillas SCRL',
-      background: 'Color de fondo'
+      photos: 'Fotos',
+      text: 'Texto',
+      stickers: 'Stickers',
+      templates: 'Plantillas',
+      background: 'Fondo'
     };
 
     this.navBtns.forEach(btn => {
@@ -687,7 +763,6 @@ class NotScrlMobileApp {
         await this.studio.newProject(tName === 'blank' ? null : tName);
       });
     });
-
     // The sheet grows with its content; keep the artwork framed as it does.
     new ResizeObserver(() => {
       if (this.drawer.classList.contains('hidden')) return;
@@ -719,9 +794,7 @@ class NotScrlMobileApp {
   }
 
   frameForDrawer() {
-    if (this.drawer.classList.contains('hidden')) return;
-    if (this.studio?.view !== 'editor' || !this.usesBottomSheet()) return;
-    this.engine.frameAboveSheet(this.drawer.getBoundingClientRect().top);
+    // La hoja flota sobre el lienzo: abrirla no debe mover ni reencuadrar la página.
   }
 
   openDrawer(tabName, title) {
@@ -733,6 +806,9 @@ class NotScrlMobileApp {
       return;
     }
     this.drawerReturnFocus = this.drawer.classList.contains('hidden') ? document.activeElement : this.drawerReturnFocus;
+    clearTimeout(this.drawer.__closeTimer);
+    this.drawer.classList.remove('is-closing');
+    document.getElementById('drawer-backdrop').classList.remove('is-closing');
     document.getElementById('drawer-backdrop').classList.remove('hidden');
     if (this.usesBottomSheet()) {
       document.getElementById('object-adjustments').classList.remove('hidden');
@@ -811,18 +887,53 @@ class NotScrlMobileApp {
 
     document.getElementById('mobile-slider-opacity').value = it.opacity;
     document.getElementById('mobile-toggle-shadow').checked = it.shadow?.enabled || false;
+    this.refreshSliderValues();
   }
 
   closeDrawer() {
     const wasOpen = !this.drawer.classList.contains('hidden');
-    this.drawer.classList.add('hidden');
-    document.getElementById('drawer-backdrop').classList.add('hidden');
-    document.getElementById('editor-view').classList.remove('inspector-open');
-    this.navBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-expanded', 'false'); });
-    if (wasOpen && this.studio?.view === 'editor' && this.usesBottomSheet()) {
-      this.engine.fitForViewport();
+    if (!wasOpen) return;
+    this.animateClose(this.drawer, () => {
+      document.getElementById('drawer-backdrop').classList.add('hidden');
+      document.getElementById('editor-view').classList.remove('inspector-open');
+      this.navBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-expanded', 'false'); });
+      if (this.drawerReturnFocus?.isConnected) this.drawerReturnFocus.focus({ preventScroll: true });
+    });
+    document.getElementById('drawer-backdrop')?.classList.add('is-closing');
+  }
+
+  // Cierra un panel con su animación de salida antes de ocultarlo.
+  animateClose(el, onDone, ms = 240) {
+    if (!el || el.classList.contains('hidden')) {
+      onDone?.();
+      return;
     }
-    if (wasOpen && this.drawerReturnFocus?.isConnected) this.drawerReturnFocus.focus({ preventScroll: true });
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      el.classList.add('hidden');
+      onDone?.();
+      return;
+    }
+    el.classList.add('is-closing');
+    clearTimeout(el.__closeTimer);
+    el.__closeTimer = setTimeout(() => {
+      el.classList.remove('is-closing');
+      el.classList.add('hidden');
+      onDone?.();
+    }, ms);
+  }
+
+  openAnimated(el) {
+    if (!el) return;
+    clearTimeout(el.__closeTimer);
+    el.classList.remove('is-closing');
+    el.classList.add('hidden');
+    // Force a reflow so the entrance animation restarts even if it was open.
+    void el.offsetWidth;
+    el.classList.remove('hidden');
+  }
+
+  closeExportSheet() {
+    this.animateClose(this.exportModal, null, 240);
   }
 
   getSpawnX(itemWidth) {
@@ -899,7 +1010,7 @@ class NotScrlMobileApp {
           const w = img.naturalWidth * scale;
           const h = img.naturalHeight * scale;
           const item = new ImageItem(img, this.getSpawnX(w) + i * 24, Math.max(0, (this.engine.slideHeight - h) / 2) + i * 24, Math.round(w), Math.round(h));
-          item.borderRadius = 8;
+          item.borderRadius = 0;
           item.originalKey = originalKey;
           this.engine.addItem(item);
           await new Promise(resolve => setTimeout(resolve, 0));
@@ -954,7 +1065,7 @@ class NotScrlMobileApp {
       h
     );
     item.mediaType = mediaType;
-    item.borderRadius = 8;
+    item.borderRadius = 0;
     Object.assign(item, extra);
     this.engine.addItem(item);
     await new Promise(resolve => setTimeout(resolve, 0));
@@ -1129,7 +1240,7 @@ class NotScrlMobileApp {
       const h = w / ratio;
       const item = new ImageItem(img, this.getSpawnX(w), 280, Math.round(w), Math.round(h));
       item.mediaType = 'gif';
-      item.borderRadius = 8;
+      item.borderRadius = 0;
       this.engine.addItem(item);
       this.closeDrawer();
     };
@@ -1152,7 +1263,8 @@ class NotScrlMobileApp {
     STICKERS.forEach(sticker => {
       const itemEl = document.createElement('button');
       itemEl.className = 'mobile-sticker-card';
-      itemEl.innerHTML = `<img src="${sticker.url}" alt="${sticker.title}"/>`;
+      itemEl.setAttribute('aria-label', `Añadir sticker ${sticker.title}`);
+      itemEl.innerHTML = `<img src="${sticker.url}" alt=""/>`;
       itemEl.addEventListener('click', () => {
         const img = new Image();
         img.onload = () => {
@@ -1164,6 +1276,78 @@ class NotScrlMobileApp {
       });
       grid.appendChild(itemEl);
     });
+
+    document
+      .getElementById('btn-open-sticker-studio')
+      ?.addEventListener('click', () => {
+        this.stickerStudio.open();
+      });
+    this.stickerStudio.onSaved = () => this.renderCustomStickers();
+    this.renderCustomStickers();
+  }
+
+  async renderCustomStickers() {
+    const grid = document.getElementById('custom-stickers-grid');
+    if (!grid) return;
+    const label = document.getElementById('custom-stickers-label');
+    const list = readLibrary();
+    grid.replaceChildren();
+    label?.classList.toggle('hidden', list.length === 0);
+    grid.classList.toggle('hidden', list.length === 0);
+
+    for (const entry of list) {
+      let blob;
+      try {
+        blob = await this.storage.loadOriginal(entry.key);
+      } catch {
+        continue;
+      }
+      if (!blob) continue;
+      const url = URL.createObjectURL(blob);
+      const btn = document.createElement('button');
+      btn.className = 'mobile-sticker-card custom-sticker-card';
+      btn.setAttribute('aria-label', `Añadir sticker ${entry.title || ''}`.trim());
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = entry.title || 'Sticker';
+      img.onload = () => URL.revokeObjectURL(url);
+      btn.appendChild(img);
+      btn.addEventListener('click', () => this.insertCustomSticker(entry));
+      grid.appendChild(btn);
+    }
+  }
+
+  async insertCustomSticker(entry) {
+    const blob = await this.storage.loadOriginal(entry.key);
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    await new Promise((resolve) => {
+      img.onload = resolve;
+      img.onerror = resolve;
+      img.src = url;
+    });
+    // Downscale and keep a data URL: the sticker then survives a project reload.
+    const scale = Math.min(1, 512 / Math.max(img.width, img.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+    const stickerImg = new Image();
+    stickerImg.src = canvas.toDataURL('image/png');
+    await stickerImg.decode().catch(() => {});
+    const width = Math.min(420, canvas.width);
+    const ratio = width / canvas.width;
+    const item = new StickerItem(
+      stickerImg,
+      this.getSpawnX(width),
+      380,
+      width,
+      canvas.height * ratio,
+      entry.title,
+    );
+    this.engine.addItem(item);
+    this.closeDrawer();
   }
 
   populatePalettes() {
@@ -1247,15 +1431,6 @@ class NotScrlMobileApp {
         if (this.engine.selectedItem) this.engine.saveHistory('Editar elemento');
       });
     });
-    document.querySelectorAll('.mobile-template-card').forEach(card => {
-      card.tabIndex = 0;
-      card.setAttribute('role', 'button');
-      card.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault(); card.click();
-        }
-      });
-    });
   }
 
   bindDialogAccessibility() {
@@ -1323,14 +1498,15 @@ class NotScrlMobileApp {
     this.exportModal = document.getElementById('export-modal');
     this.stripContainer = document.getElementById('export-strip-container');
     this.btnZip = document.getElementById('btn-download-zip');
+    this.btnSlides = document.getElementById('btn-download-slides');
     this.btnPanorama = document.getElementById('btn-download-panorama');
 
     document.getElementById('btn-close-export-sheet')?.addEventListener('click', () => {
-      this.exportModal.classList.add('hidden');
+      this.closeExportSheet();
     });
 
     this.exportModal?.addEventListener('click', (e) => {
-      if (e.target === this.exportModal) this.exportModal.classList.add('hidden');
+      if (e.target === this.exportModal) this.closeExportSheet();
     });
 
     if (this.btnZip) {
@@ -1345,7 +1521,28 @@ class NotScrlMobileApp {
           status.textContent = 'No se pudo crear el ZIP. Inténtalo otra vez o descarga cada PNG.';
         } finally {
           this.btnZip.disabled = false;
-          this.btnZip.textContent = `Descargar ${pageCountLabel(this.engine.slideCount)} · ZIP`;
+          this.btnZip.textContent = `Descargar las ${pageCountLabel(this.engine.slideCount)} (ZIP)`;
+        }
+      });
+    }
+
+    if (this.btnSlides) {
+      this.btnSlides.addEventListener('click', async () => {
+        const status = document.getElementById('export-status-label');
+        this.btnSlides.disabled = true;
+        const total = this.engine.slideCount;
+        try {
+          status.textContent = 'Preparando las páginas…';
+          await this.exporter.downloadAllSlides(message => {
+            status.textContent = message;
+          });
+          status.textContent = `${pageCountLabel(total)} descargadas. Si el navegador pidió permiso para varias descargas, acéptalo.`;
+          this.studio?.toast('Páginas descargadas por separado.');
+        } catch (error) {
+          status.textContent = 'No se pudieron descargar las páginas. Prueba con el ZIP.';
+          console.error(error);
+        } finally {
+          this.btnSlides.disabled = false;
         }
       });
     }
@@ -1361,17 +1558,17 @@ class NotScrlMobileApp {
   }
 
   openExportSheet() {
-    this.exportModal.classList.remove('hidden');
     const slides = Array.from({ length: this.engine.slideCount }, (_, i) => ({
       index: i + 1, canvas: this.exporter.renderThumbnail(i, 180)
     }));
-    document.querySelector('.export-subtitle').textContent = `${pageCountLabel(this.engine.slideCount)} · ${this.engine.slideWidth} × ${this.engine.slideHeight} px · PNG`;
-    document.getElementById('export-status-label').textContent = 'Las imágenes se generan en tu dispositivo.';
+    document.querySelector('.export-subtitle').textContent = `${pageCountLabel(this.engine.slideCount)}, ${this.engine.slideWidth} × ${this.engine.slideHeight} px`;
 
     this.stripContainer.innerHTML = '';
     slides.forEach(slide => {
-      const card = document.createElement('div');
+      const card = document.createElement('button');
+      card.type = 'button';
       card.className = 'export-mini-card';
+      card.setAttribute('aria-label', `Descargar página ${slide.index} como PNG`);
 
       const thumb = document.createElement('canvas');
       thumb.width = 180;
@@ -1380,17 +1577,15 @@ class NotScrlMobileApp {
       const ctx = thumb.getContext('2d');
       ctx.drawImage(slide.canvas, 0, 0);
 
-      card.innerHTML = `
-        <div class="export-mini-thumb"></div>
-        <div class="export-mini-info">
-          <span>Página ${slide.index}</span>
-          <button class="btn-mini-dl" data-idx="${slide.index}">PNG</button>
-        </div>
-      `;
+      const thumbWrap = document.createElement('div');
+      thumbWrap.className = 'export-mini-thumb';
+      thumbWrap.appendChild(thumb);
+      const number = document.createElement('span');
+      number.className = 'export-page-number';
+      number.textContent = String(slide.index).padStart(2, '0');
+      card.append(thumbWrap, number);
 
-      card.querySelector('.export-mini-thumb').appendChild(thumb);
-      card.querySelector('.btn-mini-dl').setAttribute('aria-label', `Descargar página ${slide.index} como PNG`);
-      card.querySelector('.btn-mini-dl').addEventListener('click', async () => {
+      card.addEventListener('click', async () => {
         try { await this.exporter.downloadSlide(slide.index); }
         catch { document.getElementById('export-status-label').textContent = 'No se pudo descargar la página. Inténtalo otra vez.'; }
       });
@@ -1398,8 +1593,10 @@ class NotScrlMobileApp {
     });
 
     if (this.btnZip) {
-      this.btnZip.textContent = `Descargar ${pageCountLabel(this.engine.slideCount)} · ZIP`;
+      this.btnZip.textContent = `Descargar las ${pageCountLabel(this.engine.slideCount)} (ZIP)`;
     }
+    // Contenido listo antes de mostrarlo: evita el salto de tamaño al abrir.
+    this.openAnimated(this.exportModal);
   }
 }
 

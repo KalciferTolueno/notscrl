@@ -1,7 +1,7 @@
 @echo off
-title NotSCRL Studio Web
+title BRB Studio Web
 echo ======================================================
-echo    NotSCRL - Panoramic Instagram Carousel Studio
+echo    BRB - Be Right Back. Carousel studio
 echo ======================================================
 echo.
 echo Iniciando servidor local en http://localhost:3000 ...

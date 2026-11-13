@@ -202,6 +202,24 @@ node build.js
 ```
 Esto genera automáticamente `js/notscrl.bundle.js` listo para producción y compatible tanto con protocolo HTTP como con apertura directa local `file:///`.
 
+### Recorte de stickers con IA
+El editor de stickers recorta el sujeto con **ISNet general-use** a 1024 px, ejecutado en el navegador con `onnxruntime-web` y el backend **WebGPU** (≈2,5 s por imagen una vez caliente). Si el navegador no expone WebGPU, cae a **silueta** (U²-Net podado, 320 px) sobre wasm (≈9 s). Nada sale del dispositivo: modelos y runtimes viven en `js/vendor/` (~250 MB en total).
+
+Sobre la máscara del modelo se aplica una limpieza en `js/segmenter.js` para que un sticker sea un solo sujeto:
+
+1. Se conserva solo el **componente conectado más grande** y se rellenan sus huecos.
+2. Una **apertura morfológica** elimina ramas, tallos y cables finos pegados al sujeto.
+3. Se descarta el fondo que sigue pegado: relleno desde el borde comparando cada píxel con el anterior y con una paleta de colores del borde, protegiendo el núcleo de la silueta.
+4. Los restos que tocan el contorno se pelan por color y el polvo casi transparente se anula.
+
+Las decisiones de limpieza se toman sobre una rejilla de 512 px y se aplican a la máscara completa de 1024, para conservar el detalle del pelo sin pagar el coste a resolución completa.
+
+- Servido por `node server.js` (o cualquier HTTP): funciona el recorte automático.
+- Abierto directamente como `file:///`: el navegador bloquea la lectura del modelo y el editor cae al recorte por bordes de siempre, con un aviso en pantalla.
+- Descartados tras medir: u2net (168 MB, 2–3× más lento sin mejora), BiRefNet_lite (224 MB; WebGPU rechaza sus shaders por límite de buffers) y RMBG-1.4 (176 MB, licencia no comercial).
+
+
+
 
 ## 6. Revisión del estudio — 9 de noviembre de 2026
 
@@ -256,3 +274,35 @@ El almacenamiento tiene la cuota que permite cada navegador; IndexedDB no es ili
 Validación: 12 pruebas automáticas. En navegador se probó escribir texto y recargar inmediatamente sin guardar manualmente; después se añadió una foto, se cambió el nombre y se cerró y reabrió la pestaña. Se recuperaron nombre, texto, foto, formato 9:16 y cuatro páginas. Las pruebas de edición usan otro puerto/origen para mantener intactos los borradores del usuario.
 
 El guardado sigue siendo local: un borrado de datos del navegador, almacenamiento privado o una terminación forzada del sistema no equivalen a un cierre normal. La app muestra un error si no puede conservar un borrador. Sigue pendiente validar en un teléfono físico y Safari iOS.
+
+## 8. Escritorio, capas y ajustes - 12 de noviembre de 2026
+
+### Inspector de propiedades
+
+En pantallas de 1024 px o más, las propiedades del elemento viven en una barra fija a la derecha. El panel se organiza en categorías plegables: **Posición y tamaño**, **Forma de recorte y marco**, **Alineación y ajuste de medidas** y **Ajustes visuales**. Todas empiezan minimizadas y abrir una cierra la anterior, de modo que el panel muestra solo el grupo que se está usando. El encabezado quedó reducido a la etiqueta PROPIEDADES; el tipo de elemento ya no se repite.
+
+Las acciones que antes ocupaban la barra inferior del lienzo se trasladaron al inspector en una cuadrícula de cuatro botones: Recortar, Página completa, Duplicar y Eliminar. La barra inferior deja de mostrarse en escritorio y el lienzo gana esa altura. Recortar sigue disponible con doble clic y Eliminar con Supr o Backspace.
+
+Los sliders muestran siempre su valor: borde redondeado en píxeles, opacidad en porcentaje, pincel y contorno de stickers en píxeles. El valor se actualiza al arrastrar y cuando el panel sincroniza una selección. El zoom de encuadre conserva su etiqueta propia.
+
+### Capas
+
+La categoría duplicada **Capas de profundidad** se eliminó. El panel **Capas** incorpora ahora una interfaz tipo Photoshop: miniatura, nombre, número de capa y un ojo para ocultar o mostrar. El orden se cambia arrastrando la fila con un indicador de inserción, o con los botones Subir/Bajar para el elemento seleccionado. La visibilidad se respeta en el lienzo y en la exportación PNG, ZIP y panorama. Las capas ocultas se atenúan en la lista y siguen siendo seleccionables.
+
+En escritorio el panel queda fijado al pie del inspector, siempre visible, con scroll propio y un máximo de 40 % de la altura.
+
+### Persistencia y otras correcciones
+
+- Recargar la página mantiene abierto el proyecto activo. Se guarda en localStorage si el usuario estaba en el editor o en inicio; al arrancar se restaura esa vista. Entrar al editor y recargar reabre el mismo proyecto; volver a inicio y recargar mantiene inicio.
+- El corazón de las máscaras se redibujó con dos lóbulos y muesca central, y usa el lado corto del marco para no deformarse en fotos anchas.
+- «Ocupar 2 páginas» limita el alto a la página menos márgenes, recalcula el ancho según la proporción y centra el elemento en la costura y en la vertical, sin salirse por abajo.
+- Las imágenes nuevas se crean con borde redondeado 0. Las plantillas conservan sus radios de diseño.
+- El acordeón y el inspector son accesibles con teclado: las categorías responden a Enter y Espacio y exponen aria-expanded.
+
+### Validación
+
+`node build.js`, `node --check` y las 20 pruebas de `tests/studio.test.cjs` pasan. En navegador headless se comprobó: recarga en editor y en inicio, estado inicial del acordeón (cuatro categorías cerradas), exclusividad al abrir, ocultar capas, reordenación por arrastre y por Subir/Bajar, corazón en marcos cuadrados y anchos, y «Ocupar 2 páginas» con una foto vertical en 793 × 1190 dentro de una página de 1080 × 1350.
+
+### Límites actuales
+
+El modelo grande `isnet.onnx` (170 MB) y el runtime WebGPU se mantienen fuera de Git por tamaño; el repositorio incluye `silueta.onnx` y el runtime wasm, suficiente para el recorte en cualquier navegador. El arrastre de capas es HTML5 y está pensado para ratón; en táctil se usan Subir/Bajar. El estado plegado del inspector no se guarda entre recargas y la selección vuelve vacía al recargar.

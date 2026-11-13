@@ -10,7 +10,13 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
-  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) {
+  const url = new URL(request.url);
+  if (request.method !== 'GET' || url.origin !== self.location.origin) {
+    return;
+  }
+  // The ONNX runtime and models are large and already local; keeping them out
+  // of the shell cache avoids blowing the storage quota.
+  if (url.pathname.startsWith('/js/vendor/')) {
     return;
   }
 

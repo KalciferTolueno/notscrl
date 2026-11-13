@@ -472,6 +472,15 @@ export class CanvasEngine {
     this.saveHistory('Reorder layers');
   }
 
+  // Front-to-back list (same order the layers panel shows).
+  setLayerOrder(frontToBack) {
+    if (!Array.isArray(frontToBack) || frontToBack.length !== this.items.length) return;
+    this.items = [...frontToBack].reverse();
+    this.items.forEach((item, i) => { item.zIndex = i; });
+    this.saveHistory('Reordenar capas');
+    this.triggerChange();
+  }
+
   duplicateItem(item) {
     if (!item) return;
     const offset = 40;
@@ -1177,8 +1186,9 @@ export class CanvasEngine {
     const ctx = this.ctx;
     ctx.save();
 
-    ctx.fillStyle = '#111310';
-    ctx.fillRect(0, 0, this.viewportWidth, this.viewportHeight);
+    // Transparent viewport: the editor's own background shows through, so the
+    // canvas and the chrome never meet in a visible seam.
+    ctx.clearRect(0, 0, this.viewportWidth, this.viewportHeight);
 
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.zoom, this.zoom);
@@ -1189,7 +1199,10 @@ export class CanvasEngine {
     ctx.beginPath();
     ctx.rect(0, 0, this.totalWidth, this.totalHeight);
     ctx.clip();
-    for (const item of this.items) item.render(ctx);
+    for (const item of this.items) {
+      if (item.visible === false) continue;
+      item.render(ctx);
+    }
     ctx.restore();
 
     if (this.showGuides) {
@@ -1198,7 +1211,7 @@ export class CanvasEngine {
 
     this.renderSnapLines(ctx);
 
-    if (this.selectedItem) {
+    if (this.selectedItem && this.selectedItem.visible !== false) {
       this.renderSelectionHandles(ctx, this.selectedItem);
     }
 
@@ -1212,9 +1225,8 @@ export class CanvasEngine {
     const h = this.totalHeight;
 
     ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-    ctx.shadowBlur = 36 / this.zoom;
-    ctx.shadowOffsetY = 16 / this.zoom;
+    // No drop shadow: on a transparent viewport it would be cut off at the
+    // canvas edge and read as a seam above the page strip.
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, h);
     ctx.restore();

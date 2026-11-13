@@ -2,10 +2,10 @@ import { applyTemplate } from "./templates.js";
 import { CanvasExporter, pageCountLabel } from "./exporter.js";
 
 const TEMPLATE_INFO = [
-  ["panorama", "Horizontes", "Paisajes que siguen contigo", "01"],
-  ["editorial", "Formas de ver", "Tu propia edición de revista", "02"],
-  ["scrapbook", "Pequeños recuerdos", "Un diario de tus días favoritos", "03"],
-  ["filmstrip", "En analógico", "Historias con alma de 35 mm", "04"],
+  ["panorama", "Horizontes", "01"],
+  ["editorial", "Formas de ver", "02"],
+  ["scrapbook", "Pequeños recuerdos", "03"],
+  ["filmstrip", "En analógico", "04"],
 ];
 
 // Preview framing: the slide that holds each template's focal composition.
@@ -199,7 +199,7 @@ export class Studio {
     document
       .getElementById("empty-canvas-action")
       .addEventListener("click", () => {
-        this.app.openDrawer("photos", "Añadir fotos");
+        this.app.openDrawer("photos", "Fotos");
       });
     const name = document.getElementById("project-name");
     name.value = this.storage.projectName;
@@ -244,7 +244,7 @@ export class Studio {
         else if (!this.app.cropper.modal.classList.contains("hidden"))
           this.app.cropper.close();
         else if (!this.app.exportModal.classList.contains("hidden"))
-          this.app.exportModal.classList.add("hidden");
+          this.app.closeExportSheet();
         else if (!this.app.preview.modal.classList.contains("hidden"))
           this.app.preview.close();
         else this.app.closeDrawer();
@@ -307,8 +307,7 @@ export class Studio {
         active: false,
         timer: null,
       };
-      const hold = event.pointerType === "mouse" ? 180 : 320;
-      drag.timer = setTimeout(() => {
+      const activate = () => {
         if (!drag) return;
         drag.active = true;
         strip.classList.add("page-reorder-mode");
@@ -318,7 +317,10 @@ export class Studio {
         } catch {
           /* Pointer capture is a progressive enhancement. */
         }
-      }, hold);
+      };
+      // Mouse reorders on grab; touch needs a hold so a swipe still scrolls.
+      if (event.pointerType === "mouse") activate();
+      else drag.timer = setTimeout(activate, 320);
     });
     strip.addEventListener("pointermove", (event) => {
       if (!drag || event.pointerId !== drag.pointerId) return;
@@ -406,47 +408,29 @@ export class Studio {
       saving: "Guardando…",
       saved: "Borrador guardado",
       fallback: "Guardado solo en este proyecto",
-      error: "No se pudo guardar · revisa el espacio",
-    }[state];
-    const status = document.getElementById("drafts-storage-status");
-    status.dataset.state = state;
-    status.textContent = {
-      saving: "Guardando los últimos cambios…",
-      saved: "Tus borradores están guardados en este dispositivo.",
-      fallback:
-        "El proyecto actual está guardado. La lista de borradores no está disponible.",
-      error:
-        "No se pudo guardar. Vuelve al editor y revisa el espacio disponible.",
+      error: "No se pudo guardar. Revisa el espacio.",
     }[state];
   }
 
   async showHome(section = "home") {
     this.view = section;
+    localStorage.setItem("notscrl_view", "home");
     document.getElementById("home-view").dataset.section = section;
     this.engine.enabled = false;
     document.querySelector('meta[name="theme-color"]').content = "#f5f3ee";
     document.getElementById("editor-view").classList.add("hidden");
     document.getElementById("home-view").classList.remove("hidden");
     document
-      .getElementById("home-intro")
+      .getElementById("home-continue")
       .classList.toggle("hidden", section !== "home");
     document
       .getElementById("projects-section")
-      .classList.toggle("hidden", section === "templates");
+      .classList.toggle("hidden", section !== "projects");
     document
       .getElementById("templates-section")
-      .classList.toggle("hidden", section === "projects");
-    document
-      .getElementById("projects-section")
-      .classList.toggle("only-section", section === "projects");
-    document
-      .getElementById("templates-section")
-      .classList.toggle("only-section", section === "templates");
+      .classList.toggle("hidden", section !== "templates");
     document.getElementById("projects-heading").textContent =
       section === "projects" ? "Tus borradores" : "Borradores recientes";
-    document
-      .getElementById("drafts-info")
-      .classList.toggle("hidden", section !== "projects");
     document.getElementById("templates-heading").textContent =
       section === "templates"
         ? "Todas las plantillas"
@@ -464,6 +448,7 @@ export class Studio {
 
   showEditor() {
     this.view = "editor";
+    localStorage.setItem("notscrl_view", "editor");
     this.engine.enabled = true;
     document.querySelector('meta[name="theme-color"]').content = "#181917";
     document.getElementById("home-view").classList.add("hidden");
@@ -537,7 +522,7 @@ export class Studio {
     document
       .getElementById("draft-count")
       .classList.toggle("hidden", projects.length === 0);
-    const shown = this.view === "home" ? projects.slice(0, 2) : projects;
+    const shown = projects;
     if (!shown.length) {
       const empty = document.createElement("div");
       empty.className = "empty-drafts";
@@ -571,7 +556,7 @@ export class Studio {
         "es-CL",
         { day: "numeric", month: "short" },
       );
-      meta.textContent = `${pageCountLabel(project.slideCount)} · ${project.aspectRatioName}`;
+      meta.textContent = `${pageCountLabel(project.slideCount)}, ${project.aspectRatioName}`;
       const saved = document.createElement("small");
       saved.className = "draft-saved-date";
       saved.textContent = `Guardado ${date}`;
@@ -588,43 +573,144 @@ export class Studio {
       card.append(thumb, info, arrow);
       card.addEventListener("click", async () => {
         if (this.busy) return;
-        this.busy = true;
         card.disabled = true;
         try {
-          const current = await this.storage.flush();
-          if (
-            !current ||
-            (project.id !== this.storage.projectId &&
-              !this.storage.lastSaveInLibrary)
-          ) {
-            this.toast("No se pudo guardar el proyecto actual.");
-            return;
-          }
-          this.app.loadingProject = true;
-          this.storage.projectId = project.id;
-          this.storage.projectName = project.name || "Mi carrusel";
-          await this.engine.restoreProject(
-            project.id === current.id ? current : project,
-          );
-          this.app.loadingProject = false;
-          this.showEditor();
-          await this.storage.flush();
+          await this.openProject(project);
         } finally {
-          this.app.loadingProject = false;
-          this.busy = false;
           card.disabled = false;
         }
       });
       container.appendChild(card);
     }
+    this.renderHomeContinue(projects);
+  }
+
+  async openProject(project) {
+    if (this.busy) return false;
+    this.busy = true;
+    try {
+      const current = await this.storage.flush();
+      if (
+        !current ||
+        (project.id !== this.storage.projectId && !this.storage.lastSaveInLibrary)
+      ) {
+        this.toast("No se pudo guardar el proyecto actual.");
+        return false;
+      }
+      this.app.loadingProject = true;
+      this.storage.projectId = project.id;
+      this.storage.projectName = project.name || "Mi carrusel";
+      await this.engine.restoreProject(
+        project.id === current.id ? current : project,
+      );
+      this.app.loadingProject = false;
+      this.showEditor();
+      await this.storage.flush();
+      return true;
+    } finally {
+      this.app.loadingProject = false;
+      this.busy = false;
+    }
+  }
+
+  // Home "Continuar": portada del último borrador + tiras horizontales.
+  renderHomeContinue(projects) {
+    const hero = document.getElementById("home-hero");
+    if (!hero) return;
+    hero.replaceChildren();
+    const latest = projects[0];
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "hero-card";
+
+    if (latest) {
+      if (latest.thumbnail) {
+        const img = document.createElement("img");
+        img.src = latest.thumbnail;
+        img.alt = "";
+        card.appendChild(img);
+      }
+      const veil = document.createElement("span");
+      veil.className = "hero-veil";
+      const copy = document.createElement("span");
+      copy.className = "hero-copy";
+      const kicker = document.createElement("span");
+      kicker.className = "hero-kicker";
+      kicker.textContent = `Borrador del ${new Date(latest.timestamp || Date.now()).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}`;
+      const title = document.createElement("span");
+      title.className = "hero-title";
+      title.textContent = latest.name || "Mi carrusel";
+      const row = document.createElement("span");
+      row.className = "hero-row";
+      const facts = document.createElement("span");
+      facts.className = "hero-facts";
+      facts.textContent = `${pageCountLabel(latest.slideCount)}, ${latest.aspectRatioName}`;
+      const go = document.createElement("span");
+      go.className = "hero-go";
+      go.textContent = "Seguir editando →";
+      row.append(facts, go);
+      copy.append(kicker, title, row);
+      card.append(veil, copy);
+      card.setAttribute("aria-label", `Continuar ${title.textContent}`);
+      card.addEventListener("click", () => this.openProject(latest));
+    } else {
+      card.classList.add("hero-empty");
+      const empty = document.createElement("span");
+      empty.className = "hero-empty-copy";
+      empty.innerHTML =
+        "<b>¿Qué creamos hoy?</b><span>Toca aquí para empezar tu primer carrusel.</span>";
+      card.appendChild(empty);
+      card.setAttribute("aria-label", "Crear tu primer carrusel");
+      card.addEventListener("click", () =>
+        document.getElementById("new-project-dialog").showModal(),
+      );
+    }
+    hero.appendChild(card);
+
+    const rail = document.getElementById("home-draft-rail");
+    if (!rail) return;
+    const head = document.getElementById("home-drafts-head");
+    if (head) head.classList.toggle("hidden", projects.length === 0);
+    rail.classList.toggle("hidden", projects.length === 0);
+    rail.replaceChildren();
+    for (const project of projects.slice(0, 6)) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "rail-card";
+      const thumb = document.createElement("span");
+      thumb.className = "rail-thumb";
+      if (project.thumbnail) {
+        const img = document.createElement("img");
+        img.src = project.thumbnail;
+        img.alt = "";
+        thumb.appendChild(img);
+      }
+      const name = document.createElement("b");
+      name.textContent = project.name || "Sin título";
+      const meta = document.createElement("small");
+      meta.textContent = pageCountLabel(project.slideCount);
+      btn.append(thumb, name, meta);
+      btn.setAttribute("aria-label", `Abrir borrador ${name.textContent}`);
+      btn.addEventListener("click", () => this.openProject(project));
+      rail.appendChild(btn);
+    }
+    const create = document.createElement("button");
+    create.type = "button";
+    create.className = "rail-card rail-new";
+    create.innerHTML =
+      '<span class="rail-thumb">+</span><b>Nuevo</b><small>Carrusel</small>';
+    create.addEventListener("click", () =>
+      document.getElementById("new-project-dialog").showModal(),
+    );
+    rail.appendChild(create);
   }
 
   async renderTemplates() {
     const container = document.getElementById("home-template-list");
-    for (const [id, name, description, number] of TEMPLATE_INFO) {
+    for (const [id, name, number] of TEMPLATE_INFO) {
       const tile = document.createElement("button");
       tile.className = "template-tile";
-      tile.innerHTML = `<div class="template-cover"><span class="template-number">${number} / COLECCIÓN</span></div><strong>${name}</strong><small>${description}</small>`;
+      tile.innerHTML = `<div class="template-cover"><span class="template-number">${number} / COLECCIÓN</span></div><strong>${name}</strong>`;
       tile.addEventListener("click", () => this.newProject(id));
       container.appendChild(tile);
       // Render the actual template with the existing engine's object models.
@@ -670,6 +756,41 @@ export class Studio {
         console.warn("No se pudo preparar la plantilla", error);
       }
     }
+    this.renderHomeTemplates();
+  }
+
+  // Tira de plantillas del Inicio: render real, o relleno si aún no hay.
+  renderHomeTemplates() {
+    const rail = document.getElementById("home-template-rail");
+    if (!rail) return;
+    rail.replaceChildren();
+    for (const [id, name, number] of TEMPLATE_INFO) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "rail-card";
+      const thumb = document.createElement("span");
+      thumb.className = "rail-thumb";
+      const preview = this.templatePreviews.get(id);
+      if (preview && preview.width) {
+        const img = document.createElement("img");
+        img.src = preview.toDataURL("image/jpeg", 0.82);
+        img.alt = "";
+        thumb.appendChild(img);
+      } else {
+        const placeholder = document.createElement("span");
+        placeholder.className = "rail-noart";
+        placeholder.textContent = number;
+        thumb.appendChild(placeholder);
+      }
+      const label = document.createElement("b");
+      label.textContent = name;
+      const meta = document.createElement("small");
+      meta.textContent = `Colección ${number}`;
+      btn.append(thumb, label, meta);
+      btn.setAttribute("aria-label", `Usar plantilla ${name}`);
+      btn.addEventListener("click", () => this.newProject(id));
+      rail.appendChild(btn);
+    }
   }
 
   update() {
@@ -689,7 +810,7 @@ export class Studio {
       btn.className = "page-thumb";
       btn.setAttribute("aria-label", `Ir a página ${i + 1}`);
       btn.setAttribute("aria-keyshortcuts", "Alt+ArrowLeft Alt+ArrowRight");
-      btn.title = "Mantén presionada para mover · Alt + ← / →";
+      btn.title = "Arrastra para mover (Alt + flechas)";
       btn.dataset.page = i;
       btn.appendChild(this.app.exporter.renderThumbnail(i, 64));
       const number = document.createElement("span");
@@ -719,7 +840,7 @@ export class Studio {
     deletePage.title = `Eliminar página ${index + 1} y sus elementos (se puede deshacer)`;
     document.getElementById("active-page-label").textContent =
       this.engine.viewMode === "panorama"
-        ? `Panorama · ${pageCountLabel(this.engine.slideCount)}`
+        ? `Panorama, ${pageCountLabel(this.engine.slideCount)}`
         : `Página ${String(index + 1).padStart(2, "0")}/${String(this.engine.slideCount).padStart(2, "0")}`;
     document.getElementById("canvas-zoom-label").textContent =
       `${Math.round(this.engine.zoom * 100)}%`;
@@ -727,7 +848,7 @@ export class Studio {
     if (pageStatus) {
       const current = String(index + 1).padStart(2, "0");
       const total = String(this.engine.slideCount).padStart(2, "0");
-      pageStatus.textContent = `${current}/${total} · ${Math.round(this.engine.zoom * 100)}%`;
+      pageStatus.textContent = `${current}/${total} (${Math.round(this.engine.zoom * 100)}%)`;
     }
     const fitToggle = document.getElementById("btn-zoom-fit");
     const panorama = this.engine.viewMode === "panorama";
@@ -768,27 +889,82 @@ export class Studio {
     if (!this.engine.items.length) {
       list.innerHTML =
         '<p class="template-desc">Tu lienzo está en blanco. Añade una foto, un texto o un sticker para empezar.</p>';
+      return;
     }
-    [...this.engine.items].reverse().forEach((item, i) => {
-      const btn = document.createElement("button");
-      btn.className = "layer-row";
-      btn.classList.toggle("active", item === this.engine.selectedItem);
-      const label = document.createElement("span");
-      label.textContent =
-        item.text ||
-        item.title ||
-        (item.type === "image" ? "Fotografía" : "Sticker");
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "layers-toolbar";
+    const selected = this.engine.selectedItem;
+    const selectedIndex = selected ? this.engine.items.indexOf(selected) : -1;
+    const move = (label, direction, disabled) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "layer-move";
+      button.textContent = label;
+      button.disabled = disabled;
+      button.addEventListener("click", () => {
+        if (!this.engine.selectedItem) return;
+        if (direction > 0) this.engine.bringForward(this.engine.selectedItem);
+        else this.engine.sendBackward(this.engine.selectedItem);
+        this.renderLayers();
+      });
+      return button;
+    };
+    toolbar.append(
+      move("Subir", 1, !selected || selectedIndex === this.engine.items.length - 1),
+      move("Bajar", -1, !selected || selectedIndex === 0),
+    );
+    list.appendChild(toolbar);
+
+    const order = [...this.engine.items].reverse();
+    let draggedIndex = null;
+    order.forEach((item, index) => {
+      const row = document.createElement("div");
+      row.className = "layer-row";
+      row.classList.toggle("active", item === this.engine.selectedItem);
+      row.classList.toggle("is-hidden", item.visible === false);
+      row.draggable = true;
+
+      const eye = document.createElement("button");
+      eye.type = "button";
+      eye.className = "layer-eye";
+      eye.setAttribute(
+        "aria-label",
+        item.visible === false ? "Mostrar capa" : "Ocultar capa",
+      );
+      eye.setAttribute("aria-pressed", String(item.visible !== false));
+      eye.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+      eye.addEventListener("click", (event) => {
+        event.stopPropagation();
+        item.visible = item.visible === false;
+        if (!item.visible && this.engine.selectedItem === item) {
+          this.engine.selectItem(null);
+        }
+        this.engine.triggerChange();
+        this.engine.saveHistory(item.visible ? "Mostrar capa" : "Ocultar capa");
+        this.renderLayers();
+      });
+
+      const select = document.createElement("button");
+      select.type = "button";
+      select.className = "layer-select";
       if (item.image) {
         const img = document.createElement("img");
         img.src = item.image.src;
         img.alt = "";
         img.className = "layer-preview";
-        btn.appendChild(img);
+        select.appendChild(img);
       }
-      const order = document.createElement("small");
-      order.textContent = `Capa ${this.engine.items.length - i}`;
-      btn.append(label, order);
-      btn.addEventListener("click", () => {
+      const label = document.createElement("span");
+      label.textContent =
+        item.text ||
+        item.title ||
+        (item.type === "image" ? "Fotografía" : "Sticker");
+      const position = document.createElement("small");
+      position.textContent = `Capa ${this.engine.items.length - index}`;
+      select.append(label, position);
+      select.addEventListener("click", () => {
         this.engine.selectItem(item);
         this.engine.focusSlide(this.engine.getItemSlideIndex(item));
         this.app.openDrawer(
@@ -796,7 +972,49 @@ export class Studio {
           item.type === "text" ? "Editar texto" : "Editar elemento",
         );
       });
-      list.appendChild(btn);
+
+      row.append(eye, select);
+
+      row.addEventListener("dragstart", (event) => {
+        draggedIndex = index;
+        event.dataTransfer?.setData("text/plain", String(index));
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+        row.classList.add("dragging");
+      });
+      row.addEventListener("dragend", () => {
+        row.classList.remove("dragging");
+        list
+          .querySelectorAll(".drop-before, .drop-after")
+          .forEach((el) => el.classList.remove("drop-before", "drop-after"));
+      });
+      row.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        const rect = row.getBoundingClientRect();
+        const after = event.clientY > rect.top + rect.height / 2;
+        row.classList.toggle("drop-before", !after);
+        row.classList.toggle("drop-after", after);
+      });
+      row.addEventListener("dragleave", () => {
+        row.classList.remove("drop-before", "drop-after");
+      });
+      row.addEventListener("drop", (event) => {
+        event.preventDefault();
+        const from = draggedIndex ?? Number(event.dataTransfer?.getData("text/plain"));
+        const rect = row.getBoundingClientRect();
+        let to = index + (event.clientY > rect.top + rect.height / 2 ? 1 : 0);
+        if (from < to) to--;
+        if (!Number.isInteger(from) || from === to) {
+          this.renderLayers();
+          return;
+        }
+        const dragged = [...this.engine.items].reverse();
+        const [moved] = dragged.splice(from, 1);
+        dragged.splice(to, 0, moved);
+        this.engine.setLayerOrder(dragged);
+        this.renderLayers();
+      });
+
+      list.appendChild(row);
     });
   }
 }
