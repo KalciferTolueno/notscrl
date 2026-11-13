@@ -7400,3 +7400,12 @@ p,
     color: var(--text-tertiary);
   }
 }
+
+/* Give the page strip room for the 60px thumbs on desktop. */
+@media (min-width: 1024px) {
+  #page-strip {
+    max-height: 72px;
+    padding: 6px 4px;
+    align-items: center;
+  }
+}

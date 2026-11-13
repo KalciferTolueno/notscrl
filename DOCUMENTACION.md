@@ -299,6 +299,7 @@ En escritorio el panel queda fijado al pie del inspector, siempre visible, con s
 - Las imágenes nuevas se crean con borde redondeado 0. Las plantillas conservan sus radios de diseño.
 - El editor ocupa el ancho completo de la ventana. Se eliminó el límite de 1600 px que dejaba franjas laterales en monitores anchos.
 - La barra superior no tiene contenedor visual: el botón de volver, el nombre y las acciones flotan directamente sobre el fondo. En escritorio ocupa las tres columnas, de modo que el botón de volver queda en el borde izquierdo y no después del riel.
+- La tira de páginas reserva altura para las miniaturas de 60 px; antes el `max-height` recortaba su borde inferior y los botones parecían cortados.
 - El acordeón y el inspector son accesibles con teclado: las categorías responden a Enter y Espacio y exponen aria-expanded.
 
 ### Validación
