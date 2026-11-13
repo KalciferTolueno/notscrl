@@ -741,32 +741,6 @@ class NotScrlMobileApp {
       this.closeDrawer();
     });
 
-    // Add Text Presets
-    document.getElementById('btn-add-mobile-heading')?.addEventListener('click', () => {
-      const t = new TextItem('TÍTULO EDITORIAL', this.getSpawnX(640), 220, 640, 90);
-      t.fontSize = 52;
-      t.fontWeight = '700';
-      this.engine.addItem(t);
-      this.closeDrawer();
-    });
-
-    document.getElementById('btn-add-mobile-subheading')?.addEventListener('click', () => {
-      const t = new TextItem('SUBTÍTULO MODERNO', this.getSpawnX(560), 320, 560, 50);
-      t.fontSize = 24;
-      t.fontWeight = '600';
-      t.letterSpacing = 2;
-      this.engine.addItem(t);
-      this.closeDrawer();
-    });
-
-    document.getElementById('btn-add-mobile-body')?.addEventListener('click', () => {
-      const t = new TextItem('Leyenda continua sobre las diapositivas.', this.getSpawnX(480), 400, 480, 70);
-      t.fontSize = 20;
-      t.fontFamily = "'Inter', sans-serif";
-      this.engine.addItem(t);
-      this.closeDrawer();
-    });
-
     // Template Pickers
     document.querySelectorAll('.mobile-template-card').forEach(card => {
       card.addEventListener('click', async () => {
@@ -829,6 +803,8 @@ class NotScrlMobileApp {
     this.drawerTabs.forEach(t => t.classList.remove('active'));
     const targetTab = document.getElementById(`drawer-tab-${tabName}`);
     if (targetTab) targetTab.classList.add('active');
+
+    if (tabName === 'text') this.syncTextDrawer?.(this.engine.selectedItem);
 
     if (tabName === 'stickers' && this.giphyLoaded === false) {
       if (this.getGiphyKey()) {
@@ -1402,6 +1378,7 @@ class NotScrlMobileApp {
         this.closeDrawer();
       }
     }
+    this.syncTextDrawer?.(item);
     this.syncInspector(true);
   }
 
@@ -1417,11 +1394,14 @@ class NotScrlMobileApp {
 
   bindTextStyles() {
     const font = document.getElementById('text-font');
+    const drawerFont = document.getElementById('drawer-text-font');
     FONTS.forEach(entry => {
-      const option = document.createElement('option');
-      option.value = entry.family;
-      option.textContent = entry.name;
-      font.appendChild(option);
+      for (const select of [font, drawerFont]) {
+        const option = document.createElement('option');
+        option.value = entry.family;
+        option.textContent = entry.name;
+        select?.appendChild(option);
+      }
     });
     const controls = {
       'text-font': ['fontFamily', value => value],
@@ -1443,6 +1423,118 @@ class NotScrlMobileApp {
         if (this.engine.selectedItem) this.engine.saveHistory('Editar elemento');
       });
     });
+    this.bindTextDrawer();
+  }
+
+  // Text tool panel: content, font, size, colour, alignment, bold/italic and emojis.
+  bindTextDrawer() {
+    const input = document.getElementById('drawer-text-input');
+    const font = document.getElementById('drawer-text-font');
+    const size = document.getElementById('drawer-text-size');
+    const color = document.getElementById('drawer-text-color');
+    const align = document.getElementById('drawer-text-align');
+    const bold = document.getElementById('drawer-text-bold');
+    const italic = document.getElementById('drawer-text-italic');
+    const grid = document.getElementById('drawer-emoji-grid');
+    const add = document.getElementById('btn-add-text');
+    if (!input || !font || !size || !color || !align || !bold || !italic || !grid || !add) return;
+
+    const selectedText = () => {
+      const item = this.engine.selectedItem;
+      return item && item.type === 'text' ? item : null;
+    };
+    const apply = fn => {
+      const item = selectedText();
+      if (!item) return;
+      fn(item);
+      this.engine.triggerChange();
+    };
+    const commit = () => {
+      if (selectedText()) this.engine.saveHistory('Editar texto');
+    };
+    const clampSize = () => Math.max(10, Math.min(240, Number(size.value) || 48));
+
+    input.addEventListener('input', () => apply(item => { item.text = input.value; }));
+    input.addEventListener('change', commit);
+    font.addEventListener('change', () => {
+      apply(item => { item.fontFamily = font.value; });
+      commit();
+    });
+    size.addEventListener('input', () => apply(item => { item.fontSize = clampSize(); }));
+    size.addEventListener('change', commit);
+    color.addEventListener('input', () => apply(item => { item.color = color.value; }));
+    color.addEventListener('change', commit);
+    align.addEventListener('change', () => {
+      apply(item => { item.textAlign = align.value; });
+      commit();
+    });
+
+    const toggle = (button, onValue, offValue, property) => {
+      const on = button.getAttribute('aria-pressed') !== 'true';
+      button.setAttribute('aria-pressed', String(on));
+      apply(item => { item[property] = on ? onValue : offValue; });
+      commit();
+    };
+    bold.addEventListener('click', () => toggle(bold, '700', '400', 'fontWeight'));
+    italic.addEventListener('click', () => toggle(italic, 'italic', 'normal', 'fontStyle'));
+
+    const EMOJIS = ['😀', '😍', '🥰', '😎', '🤩', '😂', '🥳', '😭', '😅', '🙃', '😴', '🤔', '👀', '👍', '👏', '🙌', '🤝', '💪', '✨', '🔥', '💛', '🧡', '❤️', '💚', '💙', '💜', '🌈', '⭐', '🌞', '🌊', '🌸', '🍀', '🎉', '🎈', '📸', '🎧', '☕', '🍕', '✈️', '🏔️'];
+    EMOJIS.forEach(emoji => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'emoji-btn';
+      button.textContent = emoji;
+      button.setAttribute('aria-label', `Insertar ${emoji}`);
+      button.addEventListener('click', () => {
+        const start = input.selectionStart ?? input.value.length;
+        const end = input.selectionEnd ?? start;
+        input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
+        input.focus();
+        input.selectionStart = input.selectionEnd = start + emoji.length;
+        apply(item => { item.text = input.value; });
+        commit();
+      });
+      grid.appendChild(button);
+    });
+
+    add.addEventListener('click', () => {
+      const fontSize = clampSize();
+      const width = 560;
+      const item = new TextItem(
+        input.value.trim() || 'Tu texto',
+        this.getSpawnX(width),
+        240,
+        width,
+        Math.max(80, Math.round(fontSize * 1.5))
+      );
+      item.fontFamily = font.value || item.fontFamily;
+      item.fontSize = fontSize;
+      item.color = color.value;
+      item.textAlign = align.value;
+      item.fontWeight = bold.getAttribute('aria-pressed') === 'true' ? '700' : '400';
+      item.fontStyle = italic.getAttribute('aria-pressed') === 'true' ? 'italic' : 'normal';
+      this.engine.addItem(item);
+      this.studio?.toast?.('Texto añadido.');
+    });
+  }
+
+  syncTextDrawer(item) {
+    const input = document.getElementById('drawer-text-input');
+    if (!input || !item || item.type !== 'text') return;
+    input.value = item.text || '';
+    const font = document.getElementById('drawer-text-font');
+    const size = document.getElementById('drawer-text-size');
+    const color = document.getElementById('drawer-text-color');
+    const align = document.getElementById('drawer-text-align');
+    const bold = document.getElementById('drawer-text-bold');
+    const italic = document.getElementById('drawer-text-italic');
+    if (font) font.value = item.fontFamily || font.value;
+    if (size) size.value = item.fontSize || size.value;
+    if (color) color.value = item.color || color.value;
+    if (align) align.value = item.textAlign || 'center';
+    const weight = Number(item.fontWeight);
+    bold?.setAttribute('aria-pressed', String(item.fontWeight === 'bold' || weight >= 600));
+    italic?.setAttribute('aria-pressed', String(item.fontStyle === 'italic'));
   }
 
   bindDialogAccessibility() {

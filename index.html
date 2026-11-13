@@ -779,67 +779,40 @@
 
             <!-- 2. Text Tab -->
             <div id="drawer-tab-text" class="drawer-tab-content">
-              <button
-                id="btn-add-mobile-heading"
-                class="mobile-text-preset-btn"
-              >
-                <div
-                  style="
-                    font-family: Georgia, serif;
-                    font-size: 18px;
-                    font-weight: 700;
-                  "
-                >
-                  Título editorial
+              <div class="text-editor">
+                <div class="drawer-section-label">Contenido</div>
+                <textarea
+                  id="drawer-text-input"
+                  class="mobile-text-preset-btn"
+                  rows="3"
+                  placeholder="Escribe tu texto…"
+                ></textarea>
+
+                <div class="drawer-section-label">Estilo</div>
+                <div class="text-style-row">
+                  <label>Fuente<select id="drawer-text-font" class="mobile-text-preset-btn"></select></label>
+                  <label>Tamaño<input id="drawer-text-size" type="number" min="10" max="240" step="1" value="48" /></label>
                 </div>
-                <div
-                  style="
-                    font-size: 12px;
-                    color: var(--text-tertiary);
-                    margin-top: 2px;
-                  "
-                >
-                  Serif editorial, 52 px
+                <div class="text-style-row">
+                  <label>Color<input id="drawer-text-color" type="color" value="#111827" /></label>
+                  <label>Alineación<select id="drawer-text-align">
+                    <option value="left">Izquierda</option>
+                    <option value="center" selected>Centro</option>
+                    <option value="right">Derecha</option>
+                  </select></label>
                 </div>
-              </button>
-              <button
-                id="btn-add-mobile-subheading"
-                class="mobile-text-preset-btn"
-              >
-                <div
-                  style="
-                    font-family: system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif;
-                    font-size: 14px;
-                    font-weight: 700;
-                    letter-spacing: 1px;
-                  "
-                >
-                  SUBTÍTULO MODERNO
+                <div class="text-format-row" role="group" aria-label="Formato del texto">
+                  <button id="drawer-text-bold" class="text-format-btn" type="button" aria-pressed="false" title="Negrita"><strong>B</strong></button>
+                  <button id="drawer-text-italic" class="text-format-btn" type="button" aria-pressed="false" title="Cursiva"><em>I</em></button>
                 </div>
-                <div
-                  style="
-                    font-size: 12px;
-                    color: var(--text-tertiary);
-                    margin-top: 2px;
-                  "
-                >
-                  Sans moderna, 24 px
-                </div>
-              </button>
-              <button id="btn-add-mobile-body" class="mobile-text-preset-btn">
-                <div style="font-size: 13px; font-weight: 500">
-                  Párrafo continuo
-                </div>
-                <div
-                  style="
-                    font-size: 12px;
-                    color: var(--text-tertiary);
-                    margin-top: 2px;
-                  "
-                >
-                  Texto descriptivo continuo
-                </div>
-              </button>
+
+                <div class="drawer-section-label">Emojis</div>
+                <div class="emoji-grid" id="drawer-emoji-grid"></div>
+
+                <button id="btn-add-text" class="btn-primary-mobile" type="button">
+                  Añadir texto
+                </button>
+              </div>
             </div>
 
             <!-- 3. Stickers Tab -->

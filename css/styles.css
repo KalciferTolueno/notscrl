@@ -7509,3 +7509,61 @@ p,
     transform: translateY(-50%);
   }
 }
+
+/* Text tool panel */
+.text-editor {
+  display: flex;
+  flex-direction: column;
+}
+.text-editor .drawer-section-label {
+  margin-top: 8px;
+}
+.text-editor textarea {
+  min-height: 90px;
+  resize: vertical;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.text-format-row {
+  display: flex;
+  gap: 8px;
+  margin: 2px 0 10px;
+}
+.text-format-btn {
+  width: 46px;
+  height: 40px;
+  border: 1px solid var(--glass-dark-border);
+  border-radius: 12px;
+  background: #ffffff0f;
+  color: var(--text-primary);
+  font-size: 16px;
+  cursor: pointer;
+}
+.text-format-btn[aria-pressed="true"] {
+  background: #ed79522b;
+  border-color: #ed795266;
+  color: #ffd9c7;
+}
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.emoji-btn {
+  min-height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.emoji-btn:hover {
+  background: #ffffff14;
+}
+
+.text-format-btn em {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 17px;
+}
