@@ -63,6 +63,7 @@ class NotScrlMobileApp {
     // Engine change callbacks
     this.engine.onSelectionChange = (item) => this.onSelectionChanged(item);
     this.engine.onCanvasChange = () => this.onCanvasChanged();
+    this.engine.onViewChange = () => this.scheduleEditorViewSave();
     this.engine.onHistoryChange = () => {
       this.updateHeaderUI();
       if (!this.loadingProject && this.storage.saveTimeout) this.storage.flush();
@@ -90,6 +91,39 @@ class NotScrlMobileApp {
     if (savedProject && localStorage.getItem('notscrl_view') === 'editor') this.studio.showEditor();
     else this.studio.showHome();
     this.updateHeaderUI();
+  }
+
+  // Editor zoom, pan and page/panorama view survive reloads.
+  scheduleEditorViewSave() {
+    if (this.loadingProject || !this.engine.enabled) return;
+    clearTimeout(this.viewSaveTimer);
+    this.viewSaveTimer = setTimeout(() => this.saveEditorView(), 400);
+  }
+
+  saveEditorView() {
+    if (this.loadingProject || !this.storage.projectId) return;
+    const view = {
+      id: this.storage.projectId,
+      width: window.innerWidth,
+      zoom: this.engine.zoom,
+      panX: this.engine.panX,
+      panY: this.engine.panY,
+      mode: this.engine.viewMode
+    };
+    try {
+      localStorage.setItem('notscrl_editor_view', JSON.stringify(view));
+    } catch {}
+  }
+
+  readEditorView() {
+    try {
+      const view = JSON.parse(localStorage.getItem('notscrl_editor_view') || 'null');
+      if (!view || view.id !== this.storage.projectId) return null;
+      if (Math.abs((view.width || window.innerWidth) - window.innerWidth) > 240) return null;
+      return view;
+    } catch {
+      return null;
+    }
   }
 
   // 1. MOBILE TOP HEADER
@@ -864,7 +898,7 @@ class NotScrlMobileApp {
 
     if (isTxt) {
       document.getElementById('mobile-input-text').value = it.text || '';
-      document.getElementById('text-font').value = it.fontFamily;
+      this.setFontSelect(document.getElementById('text-font'), it.fontFamily);
       document.getElementById('text-size').value = it.fontSize;
       document.getElementById('text-color').value = it.color;
       document.getElementById('text-align').value = it.textAlign;
@@ -1478,9 +1512,11 @@ class NotScrlMobileApp {
     const align = document.getElementById('drawer-text-align');
     const bold = document.getElementById('drawer-text-bold');
     const italic = document.getElementById('drawer-text-italic');
+    const lineHeight = document.getElementById('drawer-text-line-height');
+    const letterSpacing = document.getElementById('drawer-text-letter-spacing');
     const grid = document.getElementById('drawer-emoji-grid');
     const add = document.getElementById('btn-add-text');
-    if (!input || !font || !size || !color || !align || !bold || !italic || !grid || !add) return;
+    if (!input || !font || !size || !color || !align || !bold || !italic || !lineHeight || !letterSpacing || !grid || !add) return;
 
     const selectedText = () => {
       const item = this.engine.selectedItem;
@@ -1511,6 +1547,14 @@ class NotScrlMobileApp {
       apply(item => { item.textAlign = align.value; });
       commit();
     });
+    lineHeight.addEventListener('input', () => {
+      apply(item => { item.lineHeight = Math.max(0.8, Math.min(2, Number(lineHeight.value) || 1.25)); });
+    });
+    lineHeight.addEventListener('change', commit);
+    letterSpacing.addEventListener('input', () => {
+      apply(item => { item.letterSpacing = Math.max(-2, Math.min(20, Number(letterSpacing.value) || 0)); });
+    });
+    letterSpacing.addEventListener('change', commit);
 
     const toggle = (button, onValue, offValue, property) => {
       const on = button.getAttribute('aria-pressed') !== 'true';
@@ -1554,6 +1598,8 @@ class NotScrlMobileApp {
       item.fontSize = fontSize;
       item.color = color.value;
       item.textAlign = align.value;
+      item.lineHeight = Math.max(0.8, Math.min(2, Number(lineHeight.value) || 1.25));
+      item.letterSpacing = Math.max(-2, Math.min(20, Number(letterSpacing.value) || 0));
       item.fontWeight = bold.getAttribute('aria-pressed') === 'true' ? '700' : '400';
       item.fontStyle = italic.getAttribute('aria-pressed') === 'true' ? 'italic' : 'normal';
       this.fitTextItem(item);
@@ -1576,20 +1622,34 @@ class NotScrlMobileApp {
     if (needed > item.height) item.height = needed;
   }
 
+  setFontSelect(select, family) {
+    if (!select || !family) return;
+    if (![...select.options].some((option) => option.value === family)) {
+      const option = document.createElement('option');
+      option.value = family;
+      option.textContent = 'Personalizada';
+      select.appendChild(option);
+    }
+    select.value = family;
+  }
+
   syncTextDrawer(item) {
     const input = document.getElementById('drawer-text-input');
     if (!input || !item || item.type !== 'text') return;
-    input.value = item.text || '';
-    const font = document.getElementById('drawer-text-font');
+    input.value = item.text || '';    const font = document.getElementById('drawer-text-font');
     const size = document.getElementById('drawer-text-size');
     const color = document.getElementById('drawer-text-color');
     const align = document.getElementById('drawer-text-align');
     const bold = document.getElementById('drawer-text-bold');
     const italic = document.getElementById('drawer-text-italic');
-    if (font) font.value = item.fontFamily || font.value;
+    const lineHeight = document.getElementById('drawer-text-line-height');
+    const letterSpacing = document.getElementById('drawer-text-letter-spacing');
+    if (font) this.setFontSelect(font, item.fontFamily);
     if (size) size.value = item.fontSize || size.value;
     if (color) color.value = item.color || color.value;
     if (align) align.value = item.textAlign || 'center';
+    if (lineHeight) lineHeight.value = item.lineHeight || 1.25;
+    if (letterSpacing) letterSpacing.value = item.letterSpacing ?? 2;
     const weight = Number(item.fontWeight);
     bold?.setAttribute('aria-pressed', String(item.fontWeight === 'bold' || weight >= 600));
     italic?.setAttribute('aria-pressed', String(item.fontStyle === 'italic'));

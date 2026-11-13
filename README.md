@@ -4,7 +4,7 @@ Editor de carruseles panorámicos para móvil y escritorio. Crea una historia co
 
 ## Qué incluye
 
-- **Inicio de app y sección Borradores:** proyectos independientes con nombre, miniatura, fecha de guardado y acceso desde la navegación inferior. Compatible con el proyecto guardado por la versión anterior.
+- **Inicio de app y sección Borradores:** proyectos independientes con nombre, miniatura, fecha de guardado y acceso desde la navegación inferior. Cada tarjeta permite renombrar, duplicar o eliminar el borrador; al eliminar se limpian los originales que ya no usa ningún proyecto. Compatible con el proyecto guardado por la versión anterior.
 - **Cuatro plantillas con vistas previas reales:** panorama, editorial, scrapbook y película de 35 mm. Elegir una plantilla crea un proyecto nuevo y conserva el anterior.
 - **Editor para teléfono:** controles del lienzo plegados bajo «Lienzo», herramientas que aparecen al seleccionar, miniaturas compactas para navegar entre páginas, vista de página o panorama y panel de capas. Botón dedicado para Guardar borrador y volver a Borradores.
 - **Editor de escritorio:** inspector de propiedades fijo a la derecha con categorías plegables (posición, forma, alineación y ajustes visuales), panel de capas siempre visible y barra de acciones contextual dentro del propio inspector.

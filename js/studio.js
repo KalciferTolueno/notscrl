@@ -456,7 +456,14 @@ export class Studio {
     document.getElementById("project-name").value = this.storage.projectName;
     this.engine.selectItem(null);
     this.engine.userViewMode = null;
-    if (this.app.workspaceEl.getBoundingClientRect().width <= 900)
+    const savedView = this.app.readEditorView?.();
+    if (savedView && Number.isFinite(savedView.zoom)) {
+      this.engine.zoom = savedView.zoom;
+      this.engine.panX = savedView.panX;
+      this.engine.panY = savedView.panY;
+      this.engine.viewMode = savedView.mode || this.engine.viewMode;
+      this.engine.render();
+    } else if (this.app.workspaceEl.getBoundingClientRect().width <= 900)
       this.engine.focusSlide(0);
     else this.engine.fitToScreen(false);
     this.renderPages();
@@ -537,8 +544,13 @@ export class Studio {
       container.appendChild(empty);
     }
     for (const project of shown) {
-      const card = document.createElement("button");
+      const card = document.createElement("div");
       card.className = "project-card";
+
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "project-open";
+
       const thumb = document.createElement("div");
       thumb.className = "project-thumb";
       if (project.thumbnail) {
@@ -566,28 +578,98 @@ export class Studio {
       badge.textContent = "Borrador";
       thumb.appendChild(badge);
       info.append(title, meta, saved);
-      card.setAttribute("aria-label", `Editar borrador: ${title.textContent}`);
-      const arrow = document.createElement("span");
-      arrow.className = "project-arrow";
-      arrow.innerHTML =
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M5 19l4-1L20 7l-4-4L5 14z"/></svg>';
-      card.append(thumb, info, arrow);
-      card.addEventListener("click", async () => {
+      open.setAttribute("aria-label", `Editar borrador: ${title.textContent}`);
+      open.append(thumb, info);
+      open.addEventListener("click", async () => {
         if (this.busy) return;
-        card.disabled = true;
+        open.disabled = true;
         try {
           await this.openProject(project);
         } finally {
-          card.disabled = false;
+          open.disabled = false;
         }
       });
+
+      const actions = document.createElement("div");
+      actions.className = "project-actions";
+      const action = (label, icon, handler, danger = false) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `project-action${danger ? " danger" : ""}`;
+        button.setAttribute("aria-label", label);
+        button.title = label;
+        button.innerHTML = icon;
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          handler();
+        });
+        return button;
+      };
+      actions.append(
+        action(
+          "Renombrar proyecto",
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M5 19l4-1L20 7l-4-4L5 14z"/></svg>',
+          () => this.renameProject(project),
+        ),
+        action(
+          "Duplicar proyecto",
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+          () => this.duplicateProject(project),
+        ),
+        action(
+          "Eliminar proyecto",
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg>',
+          () => this.deleteProject(project),
+          true,
+        ),
+      );
+
+      card.append(open, actions);
       container.appendChild(card);
     }
     this.renderHomeContinue(projects);
   }
 
-  async openProject(project) {
-    if (this.busy) return false;
+  async renameProject(project) {
+    const current = project.name || "Mi carrusel";
+    const name = window.prompt("Nombre del proyecto", current);
+    if (!name || !name.trim() || name.trim() === current) return;
+    const renamed = await this.storage.renameProject(project.id, name.trim().slice(0, 60));
+    if (!renamed) {
+      this.toast("No se pudo renombrar el proyecto.");
+      return;
+    }
+    if (this.storage.projectId === project.id) {
+      const input = document.getElementById("project-name");
+      if (input) input.value = this.storage.projectName;
+    }
+    await this.renderProjects();
+    this.toast("Proyecto renombrado.");
+  }
+
+  async duplicateProject(project) {
+    const copy = await this.storage.duplicateProject(project);
+    if (!copy) {
+      this.toast("No se pudo duplicar el proyecto.");
+      return;
+    }
+    await this.renderProjects();
+    this.toast("Copia creada en Borradores.");
+  }
+
+  async deleteProject(project) {
+    const name = project.name || "este proyecto";
+    if (!window.confirm(`¿Eliminar "${name}"? Esta acción no se puede deshacer.`)) return;
+    const deleted = await this.storage.deleteProject(project.id);
+    if (!deleted) {
+      this.toast("No se pudo eliminar el proyecto.");
+      return;
+    }
+    await this.renderProjects();
+    this.toast("Proyecto eliminado.");
+  }
+
+  async openProject(project) {    if (this.busy) return false;
     this.busy = true;
     try {
       const current = await this.storage.flush();

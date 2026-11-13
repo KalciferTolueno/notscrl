@@ -305,7 +305,7 @@ En escritorio el panel queda fijado al pie del inspector, siempre visible, con s
 - El visor deja 10 px a cada lado en móvil y 12 px en escritorio para no chocar con el riel ni con las tarjetas laterales.
 - La toolbar incluye una herramienta de mano (botón o tecla H) que alterna entre mover el lienzo y editar. Con la mano activa, arrastrar desplaza la vista sin seleccionar ni mover objetos, y el doble toque no cambia de vista.
 - En escritorio, los paneles de Fotos, Texto, Stickers, Plantillas y Fondo abren como tarjeta flotante junto al riel izquierdo, centrada verticalmente y sin oscurecer el editor.
-- El panel Texto permite escribir el contenido, elegir fuente, tamaño, color y alineación, activar negrita o cursiva e insertar emojis. Edita en vivo el texto seleccionado o crea uno nuevo con ese estilo.
+- El panel Texto permite escribir el contenido, elegir fuente, tamaño, color y alineación, activar negrita o cursiva e insertar emojis. Edita en vivo el texto seleccionado o crea uno nuevo con ese estilo. Incluye interlineado y espaciado entre letras; el selector marca «Personalizada» si un proyecto antiguo usa una fuente fuera de la lista.
 - GIPHY queda configurado con la clave del proyecto en `GIPHY_API_KEY` (start.bat local y entorno de Easypanel); el cliente ya no exige pegar una clave. El nuevo segmento **Usados** lista, sin duplicados, los GIFs presentes en el proyecto y permite reinsertarlos; cada GIF guarda id, título y dimensiones para reconstruir la lista.
 - Los GIFs se reproducen en el lienzo: al insertarlos o restaurarlos se decodifican sus fotogramas con `ImageDecoder` y el motor dibuja el frame correspondiente en cada render. Si el navegador no soporta `ImageDecoder`, el GIF queda en un contenedor oculto del DOM y se dibuja su frame animado.
 - Se añadieron tipografías divertidas locales: Pixel (Press Start 2P), Bungee, Espacial (Russo One), Cómic y Manuscrita divertida. Los desplegables nativos usan esquema oscuro para que las opciones no aparezcan en blanco.
@@ -316,6 +316,9 @@ En escritorio el panel queda fijado al pie del inspector, siempre visible, con s
 - El texto hace salto de línea por palabras según el ancho del cuadro (y parte palabras más largas que el ancho). Al escribir o cambiar tipografía/tamaño, el alto del cuadro crece para que las líneas quepan.
 - Exportar incluye **Copia de seguridad (.json)** y **Restaurar copia**. El archivo lleva el proyecto serializado y los originales en base64; al restaurar se guardan los originales con claves nuevas, se remapean los `originalKey` y se abre como un proyecto nuevo, sin tocar el actual.
 - Rendimiento: el bucle de animación se detiene si la pestaña está oculta o el editor desactivado, dibuja como máximo a 30 fps y limita los frames de GIF a 480 px de lado. Al volver a la pestaña se reanuda.
+- Cada tarjeta de Borradores tiene acciones de renombrar, duplicar y eliminar. Al borrar, se eliminan de IndexedDB solo los originales que ningún proyecto restante referencia; duplicar comparte los originales.
+- El editor recuerda por proyecto el zoom, el desplazamiento y la vista página/panorama; se restauran al abrir si el ancho de ventana no cambió más de 240 px.
+- El panel Texto añade interlineado y espaciado entre letras; el alto del cuadro se recalcula al cambiarlos. Las fuentes ajenas a la lista aparecen como «Personalizada» en el selector.
 
 ### Validación
 

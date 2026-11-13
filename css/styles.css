@@ -455,16 +455,6 @@ h1 {
   color: #707468;
   margin-top: 4px;
 }
-.project-card .project-arrow {
-  position: absolute;
-  bottom: 62px;
-  right: 12px;
-  color: #626957;
-}
-.project-arrow svg {
-  width: 16px;
-  height: 16px;
-}
 .home-section.only-section h2 {
   font-size: 28px;
   letter-spacing: -0.8px;
@@ -7687,4 +7677,54 @@ select option {
 .export-backup .export-action {
   justify-content: center;
   text-align: center;
+}
+
+/* Project card actions */
+.project-open {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.project-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 0 12px 12px;
+}
+.project-action {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-medium);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #626957;
+  cursor: pointer;
+}
+.project-action svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.project-action.danger {
+  color: #c0492f;
+}
+@media (hover: hover) and (pointer: fine) {
+  .project-action:hover {
+    background: #f1efe7;
+    border-color: #cfcabb;
+  }
 }

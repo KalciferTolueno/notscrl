@@ -228,8 +228,92 @@ export class StorageManager {
     return databaseProject;
   }
 
-  async clearCache() {
-    try {
+  async renameProject(id, name) {
+    const db = await this.dbPromise;
+    if (!db || !id || !name) return false;
+    const project = await new Promise((resolve) => {
+      const req = db.transaction(this.storeName).objectStore(this.storeName).get(`project_${id}`);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+    if (!project) return false;
+    project.name = name;
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(this.storeName, "readwrite");
+      const store = tx.objectStore(this.storeName);
+      store.put(project, `project_${id}`);
+      if (this.projectId === id) store.put(project, this.projectKey);
+      tx.oncomplete = resolve;
+      tx.onerror = tx.onabort = () => reject(new Error("No se pudo renombrar el proyecto."));
+    });
+    if (this.projectId === id) {
+      this.projectName = name;
+      try {
+        const raw = localStorage.getItem(this.localKey);
+        if (raw) {
+          const backup = JSON.parse(raw);
+          backup.name = name;
+          localStorage.setItem(this.localKey, JSON.stringify(backup));
+        }
+      } catch {}
+    }
+    return true;
+  }
+
+  async duplicateProject(project) {
+    const db = await this.dbPromise;
+    if (!db || !project?.id) return null;
+    const copy = structuredClone(project);
+    copy.id = crypto.randomUUID?.() || String(Date.now());
+    copy.name = `${project.name || "Proyecto"} (copia)`;
+    copy.timestamp = Math.max(Date.now(), (this.lastTimestamp || 0) + 1);
+    this.lastTimestamp = copy.timestamp;
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(this.storeName, "readwrite");
+      tx.objectStore(this.storeName).put(copy, `project_${copy.id}`);
+      tx.oncomplete = resolve;
+      tx.onerror = tx.onabort = () => reject(new Error("No se pudo duplicar el proyecto."));
+    });
+    return copy;
+  }
+
+  async deleteProject(id) {
+    const db = await this.dbPromise;
+    if (!db || !id) return false;
+    const projects = await this.listProjects();
+    const target = projects.find((project) => project.id === id);
+    if (!target) return false;
+    const remaining = projects.filter((project) => project.id !== id);
+    const used = new Set();
+    for (const project of remaining) {
+      for (const item of project.items || []) {
+        if (item.originalKey) used.add(item.originalKey);
+      }
+    }
+    const keys = new Set(
+      (target.items || []).map((item) => item.originalKey).filter(Boolean),
+    );
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction([this.storeName, "originals"], "readwrite");
+      const store = tx.objectStore(this.storeName);
+      store.delete(`project_${id}`);
+      if (this.projectId === id) {
+        store.delete(this.projectKey);
+        this.projectId = null;
+        this.projectName = "Mi carrusel";
+        localStorage.removeItem(this.localKey);
+      }
+      const originals = tx.objectStore("originals");
+      for (const key of keys) {
+        if (!used.has(key)) originals.delete(key);
+      }
+      tx.oncomplete = resolve;
+      tx.onerror = tx.onabort = () => reject(new Error("No se pudo eliminar el proyecto."));
+    });
+    return true;
+  }
+
+  async clearCache() {    try {
       const db = await this.dbPromise;
       if (db) {
         const tx = db.transaction(this.storeName, "readwrite");

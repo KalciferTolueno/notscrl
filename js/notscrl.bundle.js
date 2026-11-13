@@ -955,7 +955,7 @@ class TextItem extends CanvasItem {
   constructor(text, x, y, width = 360, height = 120) {
     super('text', x, y, width, height);
     this.text = text || 'EDITORIAL TITLE';
-    this.fontFamily = "'Playfair Display', Georgia, serif";
+    this.fontFamily = 'Georgia, "Times New Roman", serif';
     this.fontSize = 48;
     this.fontWeight = '700';
     this.fontStyle = 'normal';
@@ -2703,8 +2703,92 @@ class StorageManager {
     return databaseProject;
   }
 
-  async clearCache() {
-    try {
+  async renameProject(id, name) {
+    const db = await this.dbPromise;
+    if (!db || !id || !name) return false;
+    const project = await new Promise((resolve) => {
+      const req = db.transaction(this.storeName).objectStore(this.storeName).get(`project_${id}`);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+    if (!project) return false;
+    project.name = name;
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(this.storeName, "readwrite");
+      const store = tx.objectStore(this.storeName);
+      store.put(project, `project_${id}`);
+      if (this.projectId === id) store.put(project, this.projectKey);
+      tx.oncomplete = resolve;
+      tx.onerror = tx.onabort = () => reject(new Error("No se pudo renombrar el proyecto."));
+    });
+    if (this.projectId === id) {
+      this.projectName = name;
+      try {
+        const raw = localStorage.getItem(this.localKey);
+        if (raw) {
+          const backup = JSON.parse(raw);
+          backup.name = name;
+          localStorage.setItem(this.localKey, JSON.stringify(backup));
+        }
+      } catch {}
+    }
+    return true;
+  }
+
+  async duplicateProject(project) {
+    const db = await this.dbPromise;
+    if (!db || !project?.id) return null;
+    const copy = structuredClone(project);
+    copy.id = crypto.randomUUID?.() || String(Date.now());
+    copy.name = `${project.name || "Proyecto"} (copia)`;
+    copy.timestamp = Math.max(Date.now(), (this.lastTimestamp || 0) + 1);
+    this.lastTimestamp = copy.timestamp;
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(this.storeName, "readwrite");
+      tx.objectStore(this.storeName).put(copy, `project_${copy.id}`);
+      tx.oncomplete = resolve;
+      tx.onerror = tx.onabort = () => reject(new Error("No se pudo duplicar el proyecto."));
+    });
+    return copy;
+  }
+
+  async deleteProject(id) {
+    const db = await this.dbPromise;
+    if (!db || !id) return false;
+    const projects = await this.listProjects();
+    const target = projects.find((project) => project.id === id);
+    if (!target) return false;
+    const remaining = projects.filter((project) => project.id !== id);
+    const used = new Set();
+    for (const project of remaining) {
+      for (const item of project.items || []) {
+        if (item.originalKey) used.add(item.originalKey);
+      }
+    }
+    const keys = new Set(
+      (target.items || []).map((item) => item.originalKey).filter(Boolean),
+    );
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction([this.storeName, "originals"], "readwrite");
+      const store = tx.objectStore(this.storeName);
+      store.delete(`project_${id}`);
+      if (this.projectId === id) {
+        store.delete(this.projectKey);
+        this.projectId = null;
+        this.projectName = "Mi carrusel";
+        localStorage.removeItem(this.localKey);
+      }
+      const originals = tx.objectStore("originals");
+      for (const key of keys) {
+        if (!used.has(key)) originals.delete(key);
+      }
+      tx.oncomplete = resolve;
+      tx.onerror = tx.onabort = () => reject(new Error("No se pudo eliminar el proyecto."));
+    });
+    return true;
+  }
+
+  async clearCache() {    try {
       const db = await this.dbPromise;
       if (db) {
         const tx = db.transaction(this.storeName, "readwrite");
@@ -5505,7 +5589,14 @@ class Studio {
     document.getElementById("project-name").value = this.storage.projectName;
     this.engine.selectItem(null);
     this.engine.userViewMode = null;
-    if (this.app.workspaceEl.getBoundingClientRect().width <= 900)
+    const savedView = this.app.readEditorView?.();
+    if (savedView && Number.isFinite(savedView.zoom)) {
+      this.engine.zoom = savedView.zoom;
+      this.engine.panX = savedView.panX;
+      this.engine.panY = savedView.panY;
+      this.engine.viewMode = savedView.mode || this.engine.viewMode;
+      this.engine.render();
+    } else if (this.app.workspaceEl.getBoundingClientRect().width <= 900)
       this.engine.focusSlide(0);
     else this.engine.fitToScreen(false);
     this.renderPages();
@@ -5586,8 +5677,13 @@ class Studio {
       container.appendChild(empty);
     }
     for (const project of shown) {
-      const card = document.createElement("button");
+      const card = document.createElement("div");
       card.className = "project-card";
+
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "project-open";
+
       const thumb = document.createElement("div");
       thumb.className = "project-thumb";
       if (project.thumbnail) {
@@ -5615,28 +5711,98 @@ class Studio {
       badge.textContent = "Borrador";
       thumb.appendChild(badge);
       info.append(title, meta, saved);
-      card.setAttribute("aria-label", `Editar borrador: ${title.textContent}`);
-      const arrow = document.createElement("span");
-      arrow.className = "project-arrow";
-      arrow.innerHTML =
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M5 19l4-1L20 7l-4-4L5 14z"/></svg>';
-      card.append(thumb, info, arrow);
-      card.addEventListener("click", async () => {
+      open.setAttribute("aria-label", `Editar borrador: ${title.textContent}`);
+      open.append(thumb, info);
+      open.addEventListener("click", async () => {
         if (this.busy) return;
-        card.disabled = true;
+        open.disabled = true;
         try {
           await this.openProject(project);
         } finally {
-          card.disabled = false;
+          open.disabled = false;
         }
       });
+
+      const actions = document.createElement("div");
+      actions.className = "project-actions";
+      const action = (label, icon, handler, danger = false) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `project-action${danger ? " danger" : ""}`;
+        button.setAttribute("aria-label", label);
+        button.title = label;
+        button.innerHTML = icon;
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          handler();
+        });
+        return button;
+      };
+      actions.append(
+        action(
+          "Renombrar proyecto",
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M5 19l4-1L20 7l-4-4L5 14z"/></svg>',
+          () => this.renameProject(project),
+        ),
+        action(
+          "Duplicar proyecto",
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+          () => this.duplicateProject(project),
+        ),
+        action(
+          "Eliminar proyecto",
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg>',
+          () => this.deleteProject(project),
+          true,
+        ),
+      );
+
+      card.append(open, actions);
       container.appendChild(card);
     }
     this.renderHomeContinue(projects);
   }
 
-  async openProject(project) {
-    if (this.busy) return false;
+  async renameProject(project) {
+    const current = project.name || "Mi carrusel";
+    const name = window.prompt("Nombre del proyecto", current);
+    if (!name || !name.trim() || name.trim() === current) return;
+    const renamed = await this.storage.renameProject(project.id, name.trim().slice(0, 60));
+    if (!renamed) {
+      this.toast("No se pudo renombrar el proyecto.");
+      return;
+    }
+    if (this.storage.projectId === project.id) {
+      const input = document.getElementById("project-name");
+      if (input) input.value = this.storage.projectName;
+    }
+    await this.renderProjects();
+    this.toast("Proyecto renombrado.");
+  }
+
+  async duplicateProject(project) {
+    const copy = await this.storage.duplicateProject(project);
+    if (!copy) {
+      this.toast("No se pudo duplicar el proyecto.");
+      return;
+    }
+    await this.renderProjects();
+    this.toast("Copia creada en Borradores.");
+  }
+
+  async deleteProject(project) {
+    const name = project.name || "este proyecto";
+    if (!window.confirm(`¿Eliminar "${name}"? Esta acción no se puede deshacer.`)) return;
+    const deleted = await this.storage.deleteProject(project.id);
+    if (!deleted) {
+      this.toast("No se pudo eliminar el proyecto.");
+      return;
+    }
+    await this.renderProjects();
+    this.toast("Proyecto eliminado.");
+  }
+
+  async openProject(project) {    if (this.busy) return false;
     this.busy = true;
     try {
       const current = await this.storage.flush();
@@ -6126,6 +6292,7 @@ class NotScrlMobileApp {
     // Engine change callbacks
     this.engine.onSelectionChange = (item) => this.onSelectionChanged(item);
     this.engine.onCanvasChange = () => this.onCanvasChanged();
+    this.engine.onViewChange = () => this.scheduleEditorViewSave();
     this.engine.onHistoryChange = () => {
       this.updateHeaderUI();
       if (!this.loadingProject && this.storage.saveTimeout) this.storage.flush();
@@ -6153,6 +6320,39 @@ class NotScrlMobileApp {
     if (savedProject && localStorage.getItem('notscrl_view') === 'editor') this.studio.showEditor();
     else this.studio.showHome();
     this.updateHeaderUI();
+  }
+
+  // Editor zoom, pan and page/panorama view survive reloads.
+  scheduleEditorViewSave() {
+    if (this.loadingProject || !this.engine.enabled) return;
+    clearTimeout(this.viewSaveTimer);
+    this.viewSaveTimer = setTimeout(() => this.saveEditorView(), 400);
+  }
+
+  saveEditorView() {
+    if (this.loadingProject || !this.storage.projectId) return;
+    const view = {
+      id: this.storage.projectId,
+      width: window.innerWidth,
+      zoom: this.engine.zoom,
+      panX: this.engine.panX,
+      panY: this.engine.panY,
+      mode: this.engine.viewMode
+    };
+    try {
+      localStorage.setItem('notscrl_editor_view', JSON.stringify(view));
+    } catch {}
+  }
+
+  readEditorView() {
+    try {
+      const view = JSON.parse(localStorage.getItem('notscrl_editor_view') || 'null');
+      if (!view || view.id !== this.storage.projectId) return null;
+      if (Math.abs((view.width || window.innerWidth) - window.innerWidth) > 240) return null;
+      return view;
+    } catch {
+      return null;
+    }
   }
 
   // 1. MOBILE TOP HEADER
@@ -6927,7 +7127,7 @@ class NotScrlMobileApp {
 
     if (isTxt) {
       document.getElementById('mobile-input-text').value = it.text || '';
-      document.getElementById('text-font').value = it.fontFamily;
+      this.setFontSelect(document.getElementById('text-font'), it.fontFamily);
       document.getElementById('text-size').value = it.fontSize;
       document.getElementById('text-color').value = it.color;
       document.getElementById('text-align').value = it.textAlign;
@@ -7541,9 +7741,11 @@ class NotScrlMobileApp {
     const align = document.getElementById('drawer-text-align');
     const bold = document.getElementById('drawer-text-bold');
     const italic = document.getElementById('drawer-text-italic');
+    const lineHeight = document.getElementById('drawer-text-line-height');
+    const letterSpacing = document.getElementById('drawer-text-letter-spacing');
     const grid = document.getElementById('drawer-emoji-grid');
     const add = document.getElementById('btn-add-text');
-    if (!input || !font || !size || !color || !align || !bold || !italic || !grid || !add) return;
+    if (!input || !font || !size || !color || !align || !bold || !italic || !lineHeight || !letterSpacing || !grid || !add) return;
 
     const selectedText = () => {
       const item = this.engine.selectedItem;
@@ -7574,6 +7776,14 @@ class NotScrlMobileApp {
       apply(item => { item.textAlign = align.value; });
       commit();
     });
+    lineHeight.addEventListener('input', () => {
+      apply(item => { item.lineHeight = Math.max(0.8, Math.min(2, Number(lineHeight.value) || 1.25)); });
+    });
+    lineHeight.addEventListener('change', commit);
+    letterSpacing.addEventListener('input', () => {
+      apply(item => { item.letterSpacing = Math.max(-2, Math.min(20, Number(letterSpacing.value) || 0)); });
+    });
+    letterSpacing.addEventListener('change', commit);
 
     const toggle = (button, onValue, offValue, property) => {
       const on = button.getAttribute('aria-pressed') !== 'true';
@@ -7617,6 +7827,8 @@ class NotScrlMobileApp {
       item.fontSize = fontSize;
       item.color = color.value;
       item.textAlign = align.value;
+      item.lineHeight = Math.max(0.8, Math.min(2, Number(lineHeight.value) || 1.25));
+      item.letterSpacing = Math.max(-2, Math.min(20, Number(letterSpacing.value) || 0));
       item.fontWeight = bold.getAttribute('aria-pressed') === 'true' ? '700' : '400';
       item.fontStyle = italic.getAttribute('aria-pressed') === 'true' ? 'italic' : 'normal';
       this.fitTextItem(item);
@@ -7639,20 +7851,34 @@ class NotScrlMobileApp {
     if (needed > item.height) item.height = needed;
   }
 
+  setFontSelect(select, family) {
+    if (!select || !family) return;
+    if (![...select.options].some((option) => option.value === family)) {
+      const option = document.createElement('option');
+      option.value = family;
+      option.textContent = 'Personalizada';
+      select.appendChild(option);
+    }
+    select.value = family;
+  }
+
   syncTextDrawer(item) {
     const input = document.getElementById('drawer-text-input');
     if (!input || !item || item.type !== 'text') return;
-    input.value = item.text || '';
-    const font = document.getElementById('drawer-text-font');
+    input.value = item.text || '';    const font = document.getElementById('drawer-text-font');
     const size = document.getElementById('drawer-text-size');
     const color = document.getElementById('drawer-text-color');
     const align = document.getElementById('drawer-text-align');
     const bold = document.getElementById('drawer-text-bold');
     const italic = document.getElementById('drawer-text-italic');
-    if (font) font.value = item.fontFamily || font.value;
+    const lineHeight = document.getElementById('drawer-text-line-height');
+    const letterSpacing = document.getElementById('drawer-text-letter-spacing');
+    if (font) this.setFontSelect(font, item.fontFamily);
     if (size) size.value = item.fontSize || size.value;
     if (color) color.value = item.color || color.value;
     if (align) align.value = item.textAlign || 'center';
+    if (lineHeight) lineHeight.value = item.lineHeight || 1.25;
+    if (letterSpacing) letterSpacing.value = item.letterSpacing ?? 2;
     const weight = Number(item.fontWeight);
     bold?.setAttribute('aria-pressed', String(item.fontWeight === 'bold' || weight >= 600));
     italic?.setAttribute('aria-pressed', String(item.fontStyle === 'italic'));

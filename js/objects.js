@@ -448,7 +448,7 @@ export class TextItem extends CanvasItem {
   constructor(text, x, y, width = 360, height = 120) {
     super('text', x, y, width, height);
     this.text = text || 'EDITORIAL TITLE';
-    this.fontFamily = "'Playfair Display', Georgia, serif";
+    this.fontFamily = 'Georgia, "Times New Roman", serif';
     this.fontSize = 48;
     this.fontWeight = '700';
     this.fontStyle = 'normal';
