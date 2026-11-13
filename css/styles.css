@@ -7598,3 +7598,18 @@ select option {
 #context-action-bar {
   justify-content: safe center;
 }
+
+/* Let the action bar's rounded top corners show the canvas, not a parent veil. */
+#selection-toolbar {
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 0;
+}
+
+/* Outline the rounded top so the curve reads on the dark editor. */
+#context-action-bar {
+  border: 1px solid var(--glass-dark-border);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
+}
