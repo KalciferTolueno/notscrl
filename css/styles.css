@@ -8230,16 +8230,6 @@ body {
 #home-view .home-header > * {
   pointer-events: auto;
 }
-/* El contenido pasa por debajo; este velo corto mantiene legible la marca
-   sobre las miniaturas claras sin volver a tapar la barra. */
-#home-view .home-header::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 -20px;
-  z-index: -1;
-  background: linear-gradient(180deg, #181917d9 0%, #18191766 55%, #18191700 100%);
-  pointer-events: none;
-}
 #home-view .home-scroll {
   padding-top: calc(68px + env(safe-area-inset-top, 0px));
 }
