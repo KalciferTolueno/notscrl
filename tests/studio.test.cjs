@@ -14,6 +14,51 @@ function load(file, names, globals = {}) {
 
 const { CanvasEngine } = load('js/canvas.js', ['CanvasEngine']);
 
+test('Compact home keeps resume and creation working, with safe project names', () => {
+  const element = () => ({
+    children: [], attributes: {}, events: {}, classes: new Set(),
+    classList: { toggle(name, value) { this.owner.classes[value ? 'add' : 'delete'](name); } },
+    append(...nodes) { this.children.push(...nodes); },
+    appendChild(node) { this.append(node); },
+    replaceChildren(...nodes) { this.children = nodes; },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(name, listener) { this.events[name] = listener; }
+  });
+  const nodes = Object.fromEntries(['home-hero', 'home-draft-rail', 'home-drafts-head', 'new-project-dialog']
+    .map(id => { const el = element(); el.classList.owner = el; return [id, el]; }));
+  let dialogOpened = false;
+  nodes['new-project-dialog'].showModal = () => { dialogOpened = true; };
+  const { Studio } = load('js/studio.js', ['Studio'], {
+    document: { getElementById: id => nodes[id], createElement: element },
+    pageCountLabel: count => `${count} páginas`
+  });
+  let opened;
+  const studio = Object.assign(Object.create(Studio.prototype), {
+    openProject(project) { opened = project; }
+  });
+  const project = { name: '<img src=x onerror=alert(1)>', slideCount: 3, aspectRatioName: '4:5' };
+  studio.renderHomeContinue([project]);
+  const card = nodes['home-hero'].children[0];
+  assert.equal(card.className, 'continue-card');
+  assert.equal(card.children[1].children[0].textContent, project.name);
+  assert.equal(card.attributes['aria-label'], `Continuar ${project.name}`);
+  assert.match(card.children[0].innerHTML, /<svg/);
+  card.events.click();
+  assert.equal(opened, project);
+  assert.equal(nodes['home-draft-rail'].children.length, 1);
+  const withThumbnail = { ...project, thumbnail: 'data:image/png;base64,test' };
+  studio.renderHomeContinue(Array(8).fill(withThumbnail));
+  const image = nodes['home-hero'].children[0].children[0].children[0];
+  assert.equal(image.src, withThumbnail.thumbnail);
+  assert.equal(image.alt, '');
+  assert.equal(nodes['home-draft-rail'].children.length, 6);
+  studio.renderHomeContinue([]);
+  nodes['home-hero'].children[0].events.click();
+  assert.equal(dialogOpened, true);
+  assert.equal(nodes['home-draft-rail'].classes.has('hidden'), true);
+  assert.equal(nodes['home-drafts-head'].classes.has('hidden'), true);
+});
+
 test('Deleting the first, middle or last page shifts later content and can be undone', async () => {
   class Text { constructor() { this.type = 'text'; } }
   const { CanvasEngine: Engine } = load('js/canvas.js', ['CanvasEngine'], {

@@ -5906,7 +5906,7 @@ class Studio {
     }
   }
 
-  // Home "Continuar": portada del último borrador + tiras horizontales.
+  // A compact shortcut to the latest draft, followed by the library.
   renderHomeContinue(projects) {
     const hero = document.getElementById("home-hero");
     if (!hero) return;
@@ -5914,50 +5914,42 @@ class Studio {
     const latest = projects[0];
     const card = document.createElement("button");
     card.type = "button";
-    card.className = "hero-card";
+    card.className = "continue-card";
+    const thumb = document.createElement("span");
+    thumb.className = "continue-thumb";
+    thumb.setAttribute("aria-hidden", "true");
+    thumb.innerHTML = '<svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>';
+    const copy = document.createElement("span");
+    copy.className = "continue-copy";
+    const title = document.createElement("strong");
+    const facts = document.createElement("small");
 
     if (latest) {
       if (latest.thumbnail) {
         const img = document.createElement("img");
         img.src = latest.thumbnail;
         img.alt = "";
-        card.appendChild(img);
+        thumb.replaceChildren(img);
       }
-      const veil = document.createElement("span");
-      veil.className = "hero-veil";
-      const copy = document.createElement("span");
-      copy.className = "hero-copy";
-      const kicker = document.createElement("span");
-      kicker.className = "hero-kicker";
-      kicker.textContent = `Borrador del ${new Date(latest.timestamp || Date.now()).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}`;
-      const title = document.createElement("span");
-      title.className = "hero-title";
       title.textContent = latest.name || "Mi carrusel";
-      const row = document.createElement("span");
-      row.className = "hero-row";
-      const facts = document.createElement("span");
-      facts.className = "hero-facts";
       facts.textContent = `${pageCountLabel(latest.slideCount)}, ${latest.aspectRatioName}`;
-      const go = document.createElement("span");
-      go.className = "hero-go";
-      go.textContent = "Seguir editando →";
-      row.append(facts, go);
-      copy.append(kicker, title, row);
-      card.append(veil, copy);
       card.setAttribute("aria-label", `Continuar ${title.textContent}`);
       card.addEventListener("click", () => this.openProject(latest));
     } else {
-      card.classList.add("hero-empty");
-      const empty = document.createElement("span");
-      empty.className = "hero-empty-copy";
-      empty.innerHTML =
-        "<b>¿Qué creamos hoy?</b><span>Toca aquí para empezar tu primer carrusel.</span>";
-      card.appendChild(empty);
+      title.textContent = "Nuevo carrusel";
+      facts.textContent = "Empieza con fotos o una plantilla.";
+      thumb.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
       card.setAttribute("aria-label", "Crear tu primer carrusel");
       card.addEventListener("click", () =>
         document.getElementById("new-project-dialog").showModal(),
       );
     }
+    copy.append(title, facts);
+    const go = document.createElement("span");
+    go.className = "continue-go";
+    go.setAttribute("aria-hidden", "true");
+    go.innerHTML = `<span>${latest ? "Continuar" : "Crear"}</span><svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>`;
+    card.append(thumb, copy, go);
     hero.appendChild(card);
 
     const rail = document.getElementById("home-draft-rail");
@@ -5987,15 +5979,6 @@ class Studio {
       btn.addEventListener("click", () => this.openProject(project));
       rail.appendChild(btn);
     }
-    const create = document.createElement("button");
-    create.type = "button";
-    create.className = "rail-card rail-new";
-    create.innerHTML =
-      '<span class="rail-thumb">+</span><b>Nuevo</b><small>Carrusel</small>';
-    create.addEventListener("click", () =>
-      document.getElementById("new-project-dialog").showModal(),
-    );
-    rail.appendChild(create);
   }
 
   async renderTemplates() {

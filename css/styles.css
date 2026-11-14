@@ -8466,3 +8466,420 @@ body {
     background: #ffffff2e;
   }
 }
+
+/* ================================================================
+   Cabecera del editor: una fila de 48 px que flota sobre el lienzo.
+   Cabecera y chips comparten el mismo vidrio flotante. Solo Exportar lleva color.
+   #btn-back-home conserva su color de estado; aquí no se toca.
+   ================================================================ */
+#mobile-header {
+  min-height: 48px;
+  margin: 4px 10px 0;
+  padding: 4px 10px;
+  padding-top: max(4px, env(safe-area-inset-top));
+  gap: 8px;
+  align-items: center;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (min-width: 1024px) {
+  #mobile-header {
+    margin: 4px 16px 0;
+    padding: 4px 16px;
+  }
+}
+#mobile-header .icon-btn-circle {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+}
+#mobile-header #btn-back-home,
+#mobile-header #btn-save-draft,
+#mobile-header .project-heading {
+  position: relative;
+  border: 0;
+  background: var(--glass-float-fill);
+  box-shadow: var(--glass-float-shadow);
+  -webkit-backdrop-filter: var(--glass-float-blur);
+  backdrop-filter: var(--glass-float-blur);
+}
+#mobile-header #btn-back-home {
+  transition:
+    transform 140ms var(--ui-ease),
+    color var(--ui-speed) var(--ui-ease),
+    background-color var(--ui-speed) var(--ui-ease);
+}
+#mobile-header #btn-save-draft:hover {
+  background: #ffffff1f;
+}
+#mobile-header .project-heading {
+  flex: 1 1 auto;
+  max-width: 420px;
+  min-height: 40px;
+  margin: 0 auto;
+  padding: 0 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 999px;
+}
+#mobile-header .project-heading input {
+  margin: -10px 0;
+  padding: 10px 0;
+  font-size: 16px;
+  line-height: 20px;
+  text-align: center;
+}
+#mobile-header .project-heading span {
+  font-size: 12px;
+  line-height: 14px;
+  text-align: center;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  pointer-events: none;
+}
+#mobile-header .btn-header-cta {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 14px;
+  gap: 0;
+  border-radius: 999px;
+  font-size: 15px;
+  color: #fff;
+  background: linear-gradient(150deg, #f2906b, #e2603a);
+  border: 1px solid #ffb79e80;
+  box-shadow: 0 8px 18px -8px #e2603a99, inset 0 1px 0 #ffd9c780;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+#mobile-header .btn-header-cta svg {
+  display: none;
+}
+#mobile-header .btn-header-cta:hover {
+  background: linear-gradient(150deg, #f59a76, #e76b44);
+}
+
+:root {
+  --glass-float-fill: #ffffff14;
+  --glass-float-rim: linear-gradient(180deg, #ffffff73, #ffffff14 55%, #ffffff29);
+  --glass-float-blur: blur(18px) saturate(150%);
+  --glass-float-shadow: inset 0 1px 0 #ffffff2b, 0 8px 18px -10px #000000b3;
+}
+#mobile-header .icon-btn-circle,
+#mobile-header .btn-header-cta,
+#canvas-workspace .canvas-float-top .icon-btn-circle,
+#canvas-workspace .canvas-float-top .glass-chip-btn {
+  position: relative;
+}
+#canvas-workspace .canvas-float-top .glass-chip-btn {
+  border-color: transparent;
+}
+#mobile-header .icon-btn-circle::before,
+#mobile-header .btn-header-cta::before,
+#mobile-header .project-heading::before,
+#canvas-workspace .canvas-float-top .icon-btn-circle::before,
+#canvas-workspace .canvas-float-top .glass-chip-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--glass-float-rim);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+#mobile-header .icon-btn-circle::after,
+#canvas-workspace .canvas-float-top .icon-btn-circle::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+}
+#mobile-header .btn-header-cta::after,
+#canvas-workspace .canvas-float-top .glass-chip-btn::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+}
+#mobile-header .icon-btn-circle:active,
+#mobile-header .btn-header-cta:active,
+#canvas-workspace .canvas-float-top .icon-btn-circle:active,
+#canvas-workspace .canvas-float-top .glass-chip-btn:active {
+  transform: scale(0.96);
+}
+
+/* Tablet and desktop keep the phone's materials, not its narrow layout. */
+@media (min-width: 641px) {
+  #home-view .home-header,
+  #home-view .home-content,
+  #home-view[data-section="home"] .home-content {
+    width: 100%;
+    max-width: 1120px;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  #home-view .home-content,
+  #home-view[data-section="home"] .home-content {
+    padding-top: 16px;
+    padding-bottom: 120px;
+  }
+  #home-view .home-scroll {
+    scrollbar-gutter: stable;
+  }
+  #home-view .home-header {
+    right: 10px;
+    width: calc(100% - 10px);
+  }
+  #home-view .wordmark-label,
+  #home-view .hero-kicker,
+  #home-view .hero-facts,
+  #home-view .rail-card small {
+    font-size: 12px;
+  }
+  #home-view .rail-card b {
+    font-size: 14px;
+  }
+  #home-view .home-rail {
+    gap: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: #ffffff2e transparent;
+  }
+  #home-view .home-rail::-webkit-scrollbar {
+    display: block;
+    height: 6px;
+  }
+  #home-view .home-rail::-webkit-scrollbar-thumb {
+    background: #ffffff2e;
+    border-radius: 999px;
+  }
+  #home-view .home-band {
+    margin: 28px 0 0;
+    padding: 24px;
+  }
+  #home-view .home-band .rail-card {
+    flex-basis: calc((100% - 48px) / 4);
+    min-width: 132px;
+  }
+  #home-view .home-band .rail-thumb {
+    height: 180px;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1023px) {
+  .canvas-float-top {
+    left: 50%;
+    right: auto;
+    width: max-content;
+    max-width: calc(100% - 24px);
+    padding: 6px 12px;
+    transform: translateX(-50%);
+  }
+  .pages-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 24px;
+  }
+  .pages-bar .pages-label {
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 0;
+    margin: 0;
+  }
+  .pages-bar .page-navigation {
+    flex: 1;
+    min-width: 0;
+  }
+  #mobile-bottom-bar {
+    margin-top: 8px;
+  }
+}
+
+@media (min-width: 1024px) {
+  #editor-view {
+    --editor-rail-width: 84px;
+    --editor-inspector-width: clamp(288px, 24vw, 340px);
+    grid-template-columns: var(--editor-rail-width) minmax(0, 1fr) var(--editor-inspector-width);
+  }
+  #mobile-header {
+    display: grid;
+    grid-template-columns: var(--editor-rail-width) minmax(0, 1fr) 44px calc(var(--editor-inspector-width) - 44px);
+    margin: 4px 0 0;
+    padding: 4px 0;
+    gap: 0;
+  }
+  #mobile-header #btn-back-home {
+    justify-self: center;
+  }
+  #mobile-header .project-heading {
+    justify-self: center;
+    width: calc(100% - 24px);
+    margin: 0;
+  }
+  #mobile-header #btn-open-export {
+    justify-self: end;
+    margin-right: 14px;
+  }
+  #mobile-bottom-bar .nav-tab-btn {
+    min-height: 56px;
+  }
+  #bottom-sheet-drawer {
+    left: 96px;
+    width: min(360px, calc(100vw - 420px));
+  }
+  #desktop-inspector .inspector-head,
+  #desktop-inspector .inspector-body,
+  #desktop-inspector #inspector-layers {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  #desktop-inspector .inspector-eyebrow,
+  #desktop-inspector #inspector-layers > .inspector-label {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+}
+
+/* Home is a working library, not a full-size project cover. */
+#home-continue .home-title {
+  margin: 0 0 16px;
+  font: 600 24px/1.2 var(--font-ui);
+  letter-spacing: -0.5px;
+}
+#home-view .continue-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 88px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  background: #ffffff08;
+  text-align: left;
+  color: var(--text-primary);
+  transition: background-color 160ms ease;
+}
+#home-view .continue-card:hover {
+  background: #ffffff10;
+}
+#home-view .continue-card:active {
+  background: #ffffff18;
+}
+.continue-thumb {
+  display: grid;
+  place-items: center;
+  flex: 0 0 52px;
+  height: 62px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #ffffff0a;
+  color: var(--accent);
+}
+.continue-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.continue-thumb svg {
+  width: 24px;
+  height: 24px;
+}
+.continue-copy {
+  flex: 1;
+  min-width: 0;
+}
+.continue-copy strong,
+.continue-copy small {
+  display: block;
+}
+.continue-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 600;
+}
+.continue-copy small {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.continue-go {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: var(--accent);
+}
+.continue-go svg {
+  width: 18px;
+  height: 18px;
+}
+#home-view #home-continue .home-band {
+  margin: 20px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+#home-view #home-continue .home-rail-head {
+  margin: 20px 0 8px;
+}
+#home-view #home-continue .home-rail-head h2 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--text-primary);
+}
+#home-view #home-continue .home-rail {
+  gap: 12px;
+  padding: 2px 0 6px;
+}
+#home-view #home-continue .rail-card {
+  flex: 0 0 120px;
+  min-width: 0;
+}
+#home-view #home-continue .rail-thumb {
+  height: 150px;
+  border-radius: 12px;
+}
+#home-view #home-continue .rail-card b {
+  font-size: 13px;
+}
+#home-view #home-continue .rail-card small {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+@media (max-width: 640px) {
+  .continue-go span {
+    display: none;
+  }
+}
+@media (min-width: 641px) {
+  #home-view .home-header,
+  #home-view .home-content,
+  #home-view[data-section="home"] .home-content {
+    max-width: 960px;
+  }
+  #home-view #home-continue .rail-card {
+    flex-basis: 144px;
+  }
+  #home-view #home-continue .rail-thumb {
+    height: 180px;
+  }
+}
